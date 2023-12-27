@@ -1,24 +1,11 @@
-const {BlobUploader, EncodeBlobs, DecodeBlobs, BLOB_FILE_SIZE} = require("./index");
+const {BlobUploader, EncodeBlobs, BLOB_FILE_SIZE, DownloadFile} = require("./index");
 const {ethers, Contract} = require("ethers");
 const fs = require('fs');
 const os = require('os');
 
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
 
-async function readFile(contract, name) {
-    const result = await contract.read(name);
-    return result[0];
-}
-
-const saveFile = (data) => {
-    console.log(data);
-    const exp = new Date();
-    const path = `${os.tmpdir()}/${exp.getTime()}`;
-    fs.writeFileSync(path, data);
-    return path;
-}
-
-const filePath = '/Users/lmp/Downloads/WechatIMG4.jpeg';
+const filePath = '/Users/lmp/Downloads/2022.jpeg';
 const name = filePath.substring(filePath.lastIndexOf("/") + 1);
 const hexName = stringToHex(name);
 
@@ -56,7 +43,7 @@ async function uploadFile() {
         } else {
             blobArr = [blobs[i]];
             indexArr = [i];
-            lenArr = [BLOB_FILE_SIZE];
+            lenArr = [content.length];
         }
 
         const cost = await contract.upfrontPayment();
@@ -70,17 +57,18 @@ async function uploadFile() {
     }
 }
 
-async function read() {
-    console.log(hexName);
-    const providerRead = new ethers.JsonRpcProvider('http://65.109.63.154:9545');
-    const contractRead = new Contract(contractAddress, contractABI, providerRead);
-    const blobs = await readFile(contractRead, hexName);
-    console.log(blobs.length);
+const saveFile = (data) => {
+    const exp = new Date();
+    const path = `${os.tmpdir()}/${exp.getTime()}`;
+    fs.writeFileSync(path, data);
+    return path;
+}
 
-    const data = DecodeBlobs(blobs);
+async function read() {
+    const data = await DownloadFile('http://88.99.30.186:9545', contractAddress, "2022.jpeg");
     const path = saveFile(data);
     console.log(path);
 }
 
-uploadFile();
-// read();
+// uploadFile();
+read();

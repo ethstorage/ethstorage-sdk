@@ -6,6 +6,7 @@ const {
   BLOB_SIZE,
   BLOB_FILE_SIZE
 } = require('./src/blobs');
+const { DownloadFile } = require('./src/download');
 
 module.exports = {
   BlobUploader,
@@ -13,5 +14,6 @@ module.exports = {
   DecodeBlobs,
   DecodeBlob,
   BLOB_SIZE,
-  BLOB_FILE_SIZE
+  BLOB_FILE_SIZE,
+  DownloadFile
 }
