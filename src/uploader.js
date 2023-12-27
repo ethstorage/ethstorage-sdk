@@ -1,0 +1,268 @@
+const {resolve} = require("path");
+const {ethers} = require("ethers");
+const {BlobEIP4844Transaction} = require("@ethereumjs/tx");
+const {Common} = require("@ethereumjs/common");
+const {
+    loadTrustedSetup,
+    blobToKzgCommitment,
+    computeBlobKzgProof,
+} = require("c-kzg");
+
+const defaultAxios = require("axios");
+const axios = defaultAxios.create({
+    timeout: 50000,
+});
+
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
+function parseBigintValue(value) {
+    if (value) {
+        if(typeof value == 'bigint') {
+            return '0x' + value.toString(16);
+        }
+        if (typeof value == 'object') {
+            const {_hex} = value;
+            const c = BigInt(_hex);
+            return '0x' + c.toString(16);
+        }
+    }
+    return value;
+}
+
+function padHex(hex) {
+    if (typeof (hex) === "string" && !hex.startsWith("0x")) {
+        return "0x" + hex;
+    }
+    return hex;
+}
+
+function computeVersionedHash(commitment, blobCommitmentVersion) {
+    const computedVersionedHash = new Uint8Array(32);
+    computedVersionedHash.set([blobCommitmentVersion], 0);
+    const hash = ethers.getBytes(ethers.sha256(commitment));
+    computedVersionedHash.set(hash.subarray(1), 1);
+    return computedVersionedHash;
+}
+
+function commitmentsToVersionedHashes(commitment) {
+    return computeVersionedHash(commitment, 0x01);
+}
+
+// TODO get blob gas price
+// const block = await this.#provider.getBlock("latest");
+// console.log(block);
+// function getBlobGasPrice(): bigint {
+//     if (this.excessBlobGas === undefined) {
+//         throw new Error('header must have excessBlobGas field populated')
+//     }
+//     return fakeExponential(
+//         this.common.param('gasPrices', 'minBlobGasPrice'),
+//         this.excessBlobGas,
+//         this.common.param('gasConfig', 'blobGasPriceUpdateFraction')
+//     )
+// }
+// const fakeExponential = (factor: bigint, numerator: bigint, denominator: bigint) => {
+//     let i = BigInt(1)
+//     let output = BigInt(0)
+//     let numerator_accum = factor * denominator
+//     while (numerator_accum > BigInt(0)) {
+//         output += numerator_accum
+//         numerator_accum = (numerator_accum * numerator) / (denominator * i)
+//         i++
+//     }
+//     return output / denominator
+// }
+
+class BlobUploader {
+    #jsonRpc;
+    #privateKey;
+    #provider;
+    #wallet;
+    #chainId;
+
+    constructor(rpc, pk) {
+        this.#jsonRpc = rpc;
+        this.#privateKey = padHex(pk);
+        this.#provider = new ethers.JsonRpcProvider(rpc);
+        this.#wallet = new ethers.Wallet(this.#privateKey, this.#provider);
+
+        const SETUP_FILE_PATH = resolve(__dirname, "lib", "trusted_setup.txt");
+        console.log(SETUP_FILE_PATH);
+        loadTrustedSetup(SETUP_FILE_PATH);
+    }
+
+    async sendRpcCall(method, parameters) {
+        try {
+            let response = await axios({
+                method: "POST",
+                url: this.#jsonRpc,
+                data: {
+                    jsonrpc: "2.0",
+                    method: method,
+                    params: parameters,
+                    id: 67
+                },
+            });
+            console.log('send response', response.data);
+            let returnedValue = response.data.result;
+            if (returnedValue === "0x") {
+                return null;
+            }
+            return returnedValue;
+        } catch (error) {
+            console.log('send error', error);
+            return null;
+        }
+    }
+
+    async sendRawTransaction(param) {
+        return await this.sendRpcCall("eth_sendRawTransaction", [param]);
+    }
+
+    async getChainId() {
+        if (this.#chainId == null) {
+            this.#chainId = await this.sendRpcCall("eth_chainId", []);
+        }
+        return this.#chainId;
+    }
+
+    async getNonce() {
+        return await this.#wallet.getNonce();
+    }
+
+    async getFee() {
+        return await this.#provider.getFeeData();
+    }
+
+    async estimateGas(params) {
+        const limit = await this.sendRpcCall("eth_estimateGas", [params]);
+        if (limit) {
+            return BigInt(limit);
+        }
+        return null;
+    }
+
+    async sendTx(tx, blobs) {
+        const chain = await this.getChainId();
+
+        let {chainId, nonce, to, value, data, maxPriorityFeePerGas, maxFeePerGas, gasLimit, maxFeePerBlobGas} = tx;
+        if (chainId == null) {
+            chainId = chain;
+        } else {
+            chainId = BigInt(chainId);
+            if (chainId !== BigInt(chain)) {
+                throw Error('invalid network id')
+            }
+        }
+
+        if (nonce == null) {
+            nonce = await this.getNonce();
+        }
+
+        value = value == null ? '0x0' : BigInt(value);
+
+        if (gasLimit == null) {
+            const hexValue = parseBigintValue(value);
+            const params = { from: this.#wallet.address, to, data, value: hexValue };
+            gasLimit = await this.estimateGas(params);
+            if (gasLimit == null) {
+                throw Error('estimateGas: execution reverted')
+            }
+        } else {
+            gasLimit = BigInt(gasLimit);
+        }
+
+        if (maxFeePerGas == null) {
+            const fee = await this.getFee();
+            maxPriorityFeePerGas = fee.maxPriorityFeePerGas;
+            maxFeePerGas = fee.maxFeePerGas;
+        } else {
+            maxFeePerGas = BigInt(maxFeePerGas);
+            maxPriorityFeePerGas = BigInt(maxPriorityFeePerGas);
+        }
+
+        // TODO
+        maxFeePerBlobGas = maxFeePerBlobGas == null ? 100000000n : BigInt(maxFeePerBlobGas);
+
+        // blobs
+        const commitments = [];
+        const proofs = [];
+        const versionedHashes = [];
+        for (let i = 0; i < blobs.length; i++) {
+            commitments.push(blobToKzgCommitment(blobs[i]));
+            proofs.push(computeBlobKzgProof(blobs[i], commitments[i]));
+            versionedHashes.push(commitmentsToVersionedHashes(commitments[i]));
+        }
+
+        // send
+        const common = Common.custom(
+            {
+                name: 'custom-chain',
+                networkId: chainId,
+                chainId: chainId,
+            },
+            {
+                baseChain: 1,
+                eips: [1559, 3860, 4844]
+            }
+        );
+        const unsignedTx = new BlobEIP4844Transaction(
+            {
+                chainId,
+                nonce,
+                to,
+                value,
+                data,
+                maxPriorityFeePerGas,
+                maxFeePerGas,
+                gasLimit,
+                maxFeePerBlobGas,
+                blobVersionedHashes: versionedHashes,
+                blobs,
+                kzgCommitments: commitments,
+                kzgProofs: proofs,
+            },
+            {common}
+        );
+
+        const pk = ethers.getBytes(this.#privateKey);
+        const signedTx = unsignedTx.sign(pk);
+        const rawData = signedTx.serializeNetworkWrapper();
+
+        const hex = Buffer.from(rawData).toString('hex');
+        return await this.sendRawTransaction('0x' + hex);
+    }
+
+    async isTransactionMined(transactionHash) {
+        const txReceipt = await this.#provider.getTransactionReceipt(transactionHash);
+        if (txReceipt && txReceipt.blockNumber) {
+            return txReceipt;
+        }
+    }
+
+    async getTxReceipt(transactionHash) {
+        let txReceipt;
+        while (!txReceipt) {
+            txReceipt = await this.isTransactionMined(transactionHash);
+            if (txReceipt) break;
+            await sleep(5000);
+        }
+        return txReceipt;
+    }
+
+    getBlobHash(blob) {
+        const commit = blobToKzgCommitment(blob);
+        const localHash = commitmentsToVersionedHashes(commit);
+        const hash = new Uint8Array(32);
+        hash.set(localHash.subarray(0, 32 - 8));
+        return ethers.hexlify(hash);
+    }
+}
+
+module.exports = {
+    BlobUploader
+}
