@@ -107,7 +107,6 @@ class BlobUploader {
                     id: 67
                 },
             });
-            console.log('send response', response.data);
             let returnedValue = response.data.result;
             if (returnedValue === "0x") {
                 return null;
