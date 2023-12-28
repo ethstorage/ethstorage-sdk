@@ -53,6 +53,21 @@ const data = await DownloadFile("rpc", "contractAddress", "file name");
 
 
 
+### ethstorage.js
+Use this tool to create an ETHStorage storage contract and upload files to the contract.
+```js
+const ethStorage = new EthStorage("rpc", "private key");
+// deploy
+await ethStorage.deployDirectory();
+
+...
+
+const ethStorage = new EthStorage("rpc", "private key", "contract address");
+
+// upload
+await ethStorage.upload(filePath);
+```
+
 ### Example
 Upload files to the ETH network, See [here](https://github.com/ethstorage/ethstorage-sdk/blob/main/test.js) for details.
 ```js

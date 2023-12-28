@@ -1,4 +1,4 @@
-const {BlobUploader, EncodeBlobs, BLOB_FILE_SIZE, DownloadFile} = require("./index");
+const {BlobUploader, EncodeBlobs, BLOB_FILE_SIZE, DownloadFile, EthStorage} = require("./index");
 const {ethers, Contract} = require("ethers");
 const fs = require('fs');
 const os = require('os');
@@ -71,4 +71,11 @@ async function read() {
 }
 
 // uploadFile();
-read();
+// read();
+
+async function ethStorageTest() {
+    const ethStorage = new EthStorage('http://65.109.115.36:8545/', 'private key');
+    await ethStorage.deployDirectory();
+    await ethStorage.upload(filePath);
+}
+ethStorageTest();
