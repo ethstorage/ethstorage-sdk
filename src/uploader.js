@@ -145,9 +145,27 @@ class BlobUploader {
         return null;
     }
 
-    async sendTx(tx, blobs) {
-        const chain = await this.getChainId();
+    async sendNormalTx(tx) {
+        let {chainId, nonce, to, value, data, maxPriorityFeePerGas, maxFeePerGas, gasLimit} = tx;
+        const txResponse = await this.#wallet.sendTransaction({
+            chainId,
+            nonce,
+            to,
+            value,
+            data,
+            maxPriorityFeePerGas,
+            maxFeePerGas,
+            gasLimit,
+        });
+        return txResponse.hash;
+    }
 
+    async sendTx(tx, blobs) {
+        if (!blobs) {
+            return this.sendNormalTx(tx);
+        }
+
+        const chain = await this.getChainId();
         let {chainId, nonce, to, value, data, maxPriorityFeePerGas, maxFeePerGas, gasLimit, maxFeePerBlobGas} = tx;
         if (chainId == null) {
             chainId = chain;
