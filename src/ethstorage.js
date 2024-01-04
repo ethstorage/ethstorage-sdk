@@ -81,6 +81,7 @@ class EthStorage {
         const hexName = stringToHex(fileName);
 
         let successIndex = 0;
+        let uploadCount = 0;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
             const blobArr = [];
             const indexArr = [];
@@ -123,6 +124,7 @@ class EthStorage {
                 console.log(`Transaction Id: ${hash}`);
                 const txReceipt = await this.#blobUploader.getTxReceipt(hash);
                 if (txReceipt && txReceipt.status) {
+                    uploadCount++;
                     success = true;
                     successIndex += indexArr.length;
                     console.log(`File ${fileName} chunkId: ${indexArr} uploaded!`);
@@ -137,6 +139,7 @@ class EthStorage {
         return {
             totalBlobCount: blobLength,
             successBlobIndex: successIndex,
+            uploadCount
         }
     }
 }

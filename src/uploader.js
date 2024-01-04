@@ -107,9 +107,12 @@ class BlobUploader {
                     id: 67
                 },
             });
+            if(response.data.error) {
+                console.log("Response Error:", response.data.error);
+                return null;
+            }
             let returnedValue = response.data.result;
             if (returnedValue === "0x") {
-                console.log("Response:", response.data);
                 return null;
             }
             return returnedValue;
@@ -204,7 +207,7 @@ class BlobUploader {
         }
 
         // TODO
-        maxFeePerBlobGas = maxFeePerBlobGas == null ? 1000000000n : BigInt(maxFeePerBlobGas);
+        maxFeePerBlobGas = maxFeePerBlobGas == null ? ethers.parseUnits("20", "gwei") : BigInt(maxFeePerBlobGas);
 
         // blobs
         const commitments = [];
