@@ -9,10 +9,10 @@ const filePath = '/Users/lmp/Downloads/2022.jpeg';
 const name = filePath.substring(filePath.lastIndexOf("/") + 1);
 const hexName = stringToHex(name);
 
-const contractAddress = '0x551908F183ADdC623d39e73B48AeDa4E34c3DcA2'
+const contractAddress = '0xd45D0B713138b24291b675aeE0e2F6776fCb173b'
 const contractABI = [
     'function read(bytes memory name) public view returns (bytes memory, bool)',
-    'function writeChunk(bytes memory name, uint256[] memory chunkIds, uint256[] memory sizes) public payable',
+    'function writeChunks(bytes memory name, uint256[] memory chunkIds, uint256[] memory sizes) public payable',
     'function getChunkHash(bytes memory name, uint256 chunkId) public view returns (bytes32)',
     'function upfrontPayment() external view returns (uint256)',
 ]
@@ -47,7 +47,7 @@ async function uploadFile() {
         }
 
         const cost = await contract.upfrontPayment();
-        const tx = await contract.writeChunk.populateTransaction(hexName, indexArr, lenArr, {
+        const tx = await contract.writeChunks.populateTransaction(hexName, indexArr, lenArr, {
             value: cost * BigInt(indexArr.length)
         });
         const hash = await blobUploader.sendTx(tx, blobArr);

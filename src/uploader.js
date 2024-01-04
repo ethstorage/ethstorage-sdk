@@ -109,6 +109,7 @@ class BlobUploader {
             });
             let returnedValue = response.data.result;
             if (returnedValue === "0x") {
+                console.log("Response:", response.data);
                 return null;
             }
             return returnedValue;
@@ -195,15 +196,15 @@ class BlobUploader {
 
         if (maxFeePerGas == null) {
             const fee = await this.getFee();
-            maxPriorityFeePerGas = fee.maxPriorityFeePerGas;
-            maxFeePerGas = fee.maxFeePerGas;
+            maxPriorityFeePerGas = fee.maxPriorityFeePerGas * 6n / 5n;
+            maxFeePerGas = fee.maxFeePerGas * 6n / 5n;
         } else {
             maxFeePerGas = BigInt(maxFeePerGas);
             maxPriorityFeePerGas = BigInt(maxPriorityFeePerGas);
         }
 
         // TODO
-        maxFeePerBlobGas = maxFeePerBlobGas == null ? 100000000n : BigInt(maxFeePerBlobGas);
+        maxFeePerBlobGas = maxFeePerBlobGas == null ? 1000000000n : BigInt(maxFeePerBlobGas);
 
         // blobs
         const commitments = [];
