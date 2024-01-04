@@ -124,8 +124,8 @@ class EthStorage {
                 console.log(`Transaction Id: ${hash}`);
                 const txReceipt = await this.#blobUploader.getTxReceipt(hash);
                 if (txReceipt && txReceipt.status) {
-                    uploadCount++;
                     success = true;
+                    uploadCount += indexArr.length;
                     successIndex += indexArr.length;
                     console.log(`File ${fileName} chunkId: ${indexArr} uploaded!`);
                 }
