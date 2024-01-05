@@ -20,15 +20,13 @@ function sleep(ms) {
 }
 
 function parseBigintValue(value) {
-    if (value) {
-        if(typeof value == 'bigint') {
-            return '0x' + value.toString(16);
-        }
-        if (typeof value == 'object') {
-            const {_hex} = value;
-            const c = BigInt(_hex);
-            return '0x' + c.toString(16);
-        }
+    if (typeof value == 'bigint') {
+        return '0x' + value.toString(16);
+    }
+    if (typeof value == 'object') {
+        const {_hex} = value;
+        const c = BigInt(_hex);
+        return '0x' + c.toString(16);
     }
     return value;
 }
