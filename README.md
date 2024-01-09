@@ -60,7 +60,7 @@ Use this tool to create an ETHStorage storage contract and upload files to the c
 ```js
 const ethStorage = new EthStorage("rpc", "private key");
 // deploy
-await ethStorage.deployDirectory();
+await ethStorage.deployBlobDirectory();
 
 ...
 
