@@ -74,7 +74,7 @@ async function read() {
 // read();
 
 async function ethStorageTest() {
-    const ethStorage = new EthStorage('http://65.109.115.36:8545/', '4f7640027b5805794067693f39539696e903fc5668b6ffb56584bb1bef8faed1');
+    const ethStorage = new EthStorage('http://65.109.115.36:8545/', 'private key');
     await ethStorage.deployBlobDirectory();
     await ethStorage.upload(filePath);
 }
