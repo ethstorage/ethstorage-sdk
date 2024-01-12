@@ -87,7 +87,7 @@ class EthStorage {
             return;
         }
 
-        const fileContract = new ethers.Contract("0x580F6F360E78293510652e4355EEa39257A4a662", flatDirectoryBlobAbi, this.#wallet);
+        const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
         const cost = await fileContract.upfrontPayment();
 
         const content = fs.readFileSync(filePath);
