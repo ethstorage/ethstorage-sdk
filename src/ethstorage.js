@@ -51,6 +51,7 @@ class EthStorage {
 
             // init
             if (ethStorage) {
+                console.log(`Set ETHStorage Address.`);
                 const success = await this.#initParams(contract, ethStorage);
                 if (!success) {
                     console.error(`ERROR: init blob info failed!`);
@@ -85,6 +86,7 @@ class EthStorage {
         const defaultFile = stringToHex(filename);
         try {
             const tx = await fileContract.setDefault(defaultFile);
+            console.log(`Transaction Id: ${tx.hash}`);
             const txReceipt = await tx.wait();
             if (txReceipt.status) {
                 console.log(`Set succeeds`);
@@ -105,6 +107,7 @@ class EthStorage {
         const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
         try {
             const tx = await fileContract.refund();
+            console.log(`Transaction Id: ${tx.hash}`);
             const txReceipt = await tx.wait();
             if (txReceipt.status) {
                 console.log(`Refund succeeds`);
@@ -121,6 +124,7 @@ class EthStorage {
         const hexName = stringToHex(fileName);
         try {
             let tx = await fileContract.remove(hexName);
+            console.log(`Transaction Id: ${tx.hash}`);
             const receipt = await tx.wait();
             if (receipt.status) {
                 console.log(`Remove file: ${fileName} succeeded`);

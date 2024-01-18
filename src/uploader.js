@@ -89,7 +89,6 @@ class BlobUploader {
         this.#wallet = new ethers.Wallet(this.#privateKey, this.#provider);
 
         const SETUP_FILE_PATH = resolve(__dirname, "lib", "trusted_setup.txt");
-        console.log(SETUP_FILE_PATH);
         loadTrustedSetup(SETUP_FILE_PATH);
     }
 
