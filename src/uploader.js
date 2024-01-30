@@ -50,30 +50,20 @@ function commitmentsToVersionedHashes(commitment) {
     return computeVersionedHash(commitment, 0x01);
 }
 
-// TODO get blob gas price
-// const block = await this.#provider.getBlock("latest");
-// console.log(block);
-// function getBlobGasPrice(): bigint {
-//     if (this.excessBlobGas === undefined) {
-//         throw new Error('header must have excessBlobGas field populated')
-//     }
-//     return fakeExponential(
-//         this.common.param('gasPrices', 'minBlobGasPrice'),
-//         this.excessBlobGas,
-//         this.common.param('gasConfig', 'blobGasPriceUpdateFraction')
-//     )
-// }
-// const fakeExponential = (factor: bigint, numerator: bigint, denominator: bigint) => {
-//     let i = BigInt(1)
-//     let output = BigInt(0)
-//     let numerator_accum = factor * denominator
-//     while (numerator_accum > BigInt(0)) {
-//         output += numerator_accum
-//         numerator_accum = (numerator_accum * numerator) / (denominator * i)
-//         i++
-//     }
-//     return output / denominator
-// }
+const MIN_BLOB_GASPRICE = 1n;
+const BLOB_GASPRICE_UPDATE_FRACTION = 3338477n;
+
+function fakeExponential(factor, numerator, denominator) {
+    let i = 1n;
+    let output = 0n;
+    let numerator_accum = factor * denominator;
+    while (numerator_accum > 0n) {
+        output += numerator_accum;
+        numerator_accum = (numerator_accum * numerator) / (denominator * i);
+        i++;
+    }
+    return output / denominator;
+}
 
 class BlobUploader {
     #jsonRpc;
@@ -136,6 +126,16 @@ class BlobUploader {
 
     async getFee() {
         return await this.#provider.getFeeData();
+    }
+
+    async getBlobGasPrice() {
+        // get current block
+        const block = await this.#provider.getBlock("latest");
+        const result = await this.sendRpcCall("eth_getBlockByNumber", [
+            parseBigintValue(BigInt(block.number)), true
+        ]);
+        const excessBlobGas = BigInt(result.excessBlobGas);
+        return fakeExponential(MIN_BLOB_GASPRICE, excessBlobGas ,BLOB_GASPRICE_UPDATE_FRACTION);
     }
 
     async estimateGas(params) {
@@ -203,8 +203,12 @@ class BlobUploader {
             maxPriorityFeePerGas = BigInt(maxPriorityFeePerGas);
         }
 
-        // TODO
-        maxFeePerBlobGas = maxFeePerBlobGas == null ? ethers.parseUnits("20", "gwei") : BigInt(maxFeePerBlobGas);
+        if (maxFeePerBlobGas == null) {
+            maxFeePerBlobGas = await this.getBlobGasPrice();
+            maxFeePerBlobGas = maxFeePerBlobGas * 6n / 5n;
+        } else {
+            maxFeePerBlobGas = BigInt(maxFeePerBlobGas);
+        }
 
         // blobs
         const commitments = [];
