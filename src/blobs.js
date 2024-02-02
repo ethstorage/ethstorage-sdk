@@ -98,6 +98,14 @@ function EncodeOpBlobs(data) {
     }
 }
 
+function copy(src, srcOff, des, desOff) {
+    const srcLength = src.length - srcOff;
+    const desLength = des.length - desOff;
+    const length = Math.min(srcLength, desLength);
+    src.set(des.slice(desOff, length), srcOff);
+    return length;
+}
+
 function EncodeOpBlob(data) {
     if (data.length > MaxBlobDataSize) {
         throw new Error(`too much data to encode in one blob, len=${data.length}`);
@@ -109,7 +117,7 @@ function EncodeOpBlob(data) {
     // read 1 byte of input, 0 if there is no input left
     const read1 = function () {
         if (readOffset >= data.length) {
-            return 0
+            return 0;
         }
         let out = data[readOffset];
         readOffset += 1;
@@ -122,13 +130,12 @@ function EncodeOpBlob(data) {
     // Read up to 31 bytes of input (left-aligned), into buf31.
     const read31 = function() {
         if  (readOffset >= data.length) {
-            buf31.set(zero31);
-            return
+            copy(buf31, 0, zero31, 0);
+            return;
         }
-        // TODO
-        const copyLength = 31 - 4 > data.length ? data.length : 31 - 4;
-        buf31.set(data, readOffset); // copy as much data as we can
-        buf31.set(zero31, n);           // pad with zeroes (since there might not be enough data)
+
+        let n = copy(buf31, 0, data, readOffset); // copy as much data as we can
+        copy(buf31, n, zero31, 0);       // pad with zeroes (since there might not be enough data)
         readOffset += n
     }
     // Write a byte, updates the write-offset.
@@ -138,7 +145,9 @@ function EncodeOpBlob(data) {
         if (writeOffset % 32 !== 0) {
             throw new Error(`blob encoding: invalid byte write offset: ${writeOffset}`);
         }
-        if (v & 0b1100_0000 !== 0) {
+
+        const tag = v & 0b1100_0000;
+        if (tag !== 0) {
             throw new Error(`blob encoding: invalid 6 bit value: 0b${v}`);
         }
         b[writeOffset] = v
@@ -151,8 +160,8 @@ function EncodeOpBlob(data) {
             throw new Error(`blob encoding: invalid bytes31 write offset: ${writeOffset}`);
         }
 
-        b.set(buf31, writeOffset);
-        writeOffset += 31
+        copy(b,writeOffset, buf31, 0);
+        writeOffset += 31;
     }
 
     for (let round = 0; round < Rounds && readOffset < data.length; round++) {
@@ -167,9 +176,7 @@ function EncodeOpBlob(data) {
             buf31[2] = ilen >> 8
             buf31[3] = ilen
 
-            const copyLength = 31 - 4 > data.length ? data.length : 31 - 4;
-            buf31.set(data.slice(0, copyLength), 4);
-            readOffset += copyLength
+            readOffset += copy(buf31, 4, data, 0)
         } else {
             read31()
         }
@@ -207,6 +214,7 @@ module.exports = {
     EncodeBlobs,
     DecodeBlobs,
     DecodeBlob,
+    EncodeOpBlob,
     BLOB_SIZE,
     BLOB_FILE_SIZE
 }

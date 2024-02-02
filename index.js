@@ -3,6 +3,7 @@ const {
   EncodeBlobs,
   DecodeBlobs,
   DecodeBlob,
+  EncodeOpBlob,
   BLOB_SIZE,
   BLOB_FILE_SIZE
 } = require('./src/blobs');
@@ -16,6 +17,7 @@ module.exports = {
   EncodeBlobs,
   DecodeBlobs,
   DecodeBlob,
+  EncodeOpBlob,
   BLOB_SIZE,
   BLOB_FILE_SIZE,
 }
