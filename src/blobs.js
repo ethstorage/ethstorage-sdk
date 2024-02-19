@@ -3,7 +3,7 @@ const {ethers} = require("ethers");
 const BlobTxBytesPerFieldElement         = 32;      // Size in bytes of a field element
 const BlobTxFieldElementsPerBlob         = 4096;
 const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
-const BLOB_FILE_SIZE = 31 * BlobTxFieldElementsPerBlob;
+const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
 
 function EncodeBlobs(data) {
     const len = data.length;
@@ -85,17 +85,26 @@ function DecodeBlobs(blobs) {
 }
 
 
-const BlobSize = 4096 * 32
 const MaxBlobDataSize = (4 * 31 + 3) * 1024 - 4
 const EncodingVersion = 0
-const VersionOffset = 1    // offset of the version byte in the blob encoding
 const Rounds = 1024 // number of encode/decode rounds
+const OP_BLOB_DATA_SIZE = MaxBlobDataSize;
 
 function EncodeOpBlobs(data) {
     const len = data.length;
     if (len === 0) {
         throw Error('invalid blob data')
     }
+    const blobs = [];
+    for (let i = 0; i < len; i += MaxBlobDataSize) {
+        let max = i + MaxBlobDataSize;
+        if (max > len) {
+            max = len;
+        }
+        const blob = EncodeOpBlob(data.subarray(i, max));
+        blobs.push(blob);
+    }
+    return blobs;
 }
 
 function copy(src, srcOff, des, desOff) {
@@ -214,7 +223,9 @@ module.exports = {
     EncodeBlobs,
     DecodeBlobs,
     DecodeBlob,
+    EncodeOpBlobs,
     EncodeOpBlob,
     BLOB_SIZE,
-    BLOB_FILE_SIZE
+    BLOB_DATA_SIZE,
+    OP_BLOB_DATA_SIZE
 }

@@ -17,6 +17,7 @@ const contractABI = [
     'function upfrontPayment() external view returns (uint256)',
 ]
 
+//  ******write******
 async function uploadFile() {
     const provider = new ethers.JsonRpcProvider('http://65.109.115.36:8545/');
     const contract = new Contract(contractAddress, contractABI, provider);
@@ -57,6 +58,10 @@ async function uploadFile() {
     }
 }
 
+// uploadFile();
+
+
+//  ******read******
 const saveFile = (data) => {
     const exp = new Date();
     const path = `${os.tmpdir()}/${exp.getTime()}`;
@@ -65,17 +70,19 @@ const saveFile = (data) => {
 }
 
 async function read() {
-    const data = await DownloadFile('http://88.99.30.186:9545', contractAddress, "2022.jpeg");
+    const data = await DownloadFile('http://65.108.236.27:9540', contractAddress, name);
     const path = saveFile(data);
     console.log(path);
 }
 
-// uploadFile();
 // read();
 
+//  ******ethstorage******
 async function ethStorageTest() {
-    const ethStorage = new EthStorage('http://65.109.115.36:8545/', 'private key');
-    await ethStorage.deployBlobDirectory();
+    const ethStorage = new EthStorage('http://88.99.30.186:8545/', 'private key');
+    await ethStorage.deploySepoliaDirectory();
     await ethStorage.upload(filePath);
+    const data = await ethStorage.download(name);
 }
+
 ethStorageTest();
