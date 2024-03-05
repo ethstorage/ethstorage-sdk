@@ -27,6 +27,16 @@ const ES_TEST_RPC = "http://65.108.236.27:9540";
 
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
 
+const getFileChunk = (path, fileSize, start, end) => {
+    end = end > fileSize ? fileSize : end;
+    const length = end - start;
+    const buf = new Buffer(length);
+    const fd = fs.openSync(path, 'r');
+    fs.readSync(fd, buf, 0, length, start);
+    fs.closeSync(fd);
+    return buf;
+}
+
 class EthStorage {
     #wallet;
     #blobUploader;
@@ -163,14 +173,14 @@ class EthStorage {
             return;
         }
 
-        const content = fs.readFileSync(filePath);
-        const blobs = EncodeBlobs(content);
-        const blobLength = blobs.length;
         const fileSize = fileStat.size;
         const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
         const hexName = stringToHex(fileName);
 
-        const clearState = await this.#clearOldFile(fileContract, fileName, hexName, blobs.length);
+        const blobDataSize = BLOB_DATA_SIZE;
+        const blobLength = Math.ceil(fileSize / blobDataSize);
+
+        const clearState = await this.#clearOldFile(fileContract, fileName, hexName, blobLength);
         if (clearState === REMOVE_FAIL) {
             return {
                 totalChunkCount: blobLength,
@@ -187,17 +197,19 @@ class EthStorage {
         let uploadFileSize = 0;
         let totalCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
+            const content = getFileChunk(filePath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
+            const blobs = EncodeBlobs(content);
+
             const blobArr = [];
             const indexArr = [];
             const lenArr = [];
-            let max = i + MAX_BLOB_COUNT > blobLength ? blobLength : i + MAX_BLOB_COUNT;
-            for (let j = i; j < max; j++) {
+            for (let j = 0; j < blobs.length; j++) {
                 blobArr.push(blobs[j]);
-                indexArr.push(j);
-                if (j === blobLength - 1) {
-                    lenArr.push(fileSize - BLOB_DATA_SIZE * (blobLength - 1));
+                indexArr.push(i + j);
+                if (i + j === blobLength - 1) {
+                    lenArr.push(fileSize - blobDataSize * (blobLength - 1));
                 } else {
-                    lenArr.push(BLOB_DATA_SIZE);
+                    lenArr.push(blobDataSize);
                 }
             }
 
