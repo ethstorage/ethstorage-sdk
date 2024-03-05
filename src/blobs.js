@@ -3,7 +3,7 @@ const {ethers} = require("ethers");
 const BlobTxBytesPerFieldElement         = 32;      // Size in bytes of a field element
 const BlobTxFieldElementsPerBlob         = 4096;
 const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
-const BLOB_FILE_SIZE = 31 * BlobTxFieldElementsPerBlob;
+const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
 
 function EncodeBlobs(data) {
     const len = data.length;
@@ -89,5 +89,5 @@ module.exports = {
     DecodeBlobs,
     DecodeBlob,
     BLOB_SIZE,
-    BLOB_FILE_SIZE
+    BLOB_DATA_SIZE
 }

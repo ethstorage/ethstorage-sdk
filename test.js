@@ -3,9 +3,13 @@ const {ethers, Contract} = require("ethers");
 const fs = require('fs');
 const os = require('os');
 
+const dotenv = require("dotenv")
+dotenv.config()
+const privateKey = process.env.pk;
+
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
 
-const filePath = '/Users/lmp/Downloads/2022.jpeg';
+const filePath = '/Users/lmp/Downloads/dist/img.jpeg';
 const name = filePath.substring(filePath.lastIndexOf("/") + 1);
 const hexName = stringToHex(name);
 
@@ -20,7 +24,7 @@ const contractABI = [
 async function uploadFile() {
     const provider = new ethers.JsonRpcProvider('http://65.109.115.36:8545/');
     const contract = new Contract(contractAddress, contractABI, provider);
-    const blobUploader = new BlobUploader('http://65.109.115.36:8545/', 'private key');
+    const blobUploader = new BlobUploader('http://65.109.115.36:8545/', privateKey);
 
     const content = fs.readFileSync(filePath);
     const blobs = EncodeBlobs(content);
@@ -74,8 +78,11 @@ async function read() {
 // read();
 
 async function ethStorageTest() {
-    const ethStorage = new EthStorage('http://65.109.115.36:8545/', 'private key');
-    await ethStorage.deployBlobDirectory();
-    await ethStorage.upload(filePath);
+    const ethStorage = new EthStorage('http://88.99.30.186:8545/', privateKey, "0xdEE635d1fE680462C62E51037552952dBAF5aD3d");
+    // await ethStorage.deploySepoliaDirectory();
+    // await ethStorage.upload(filePath);
+    const buff = await ethStorage.download(name);
+    const p = saveFile(buff)
+    console.log(p)
 }
 ethStorageTest();
