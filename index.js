@@ -4,7 +4,7 @@ const {
   DecodeBlobs,
   DecodeBlob,
   BLOB_SIZE,
-  BLOB_FILE_SIZE
+  BLOB_DATA_SIZE
 } = require('./src/blobs');
 const { DownloadFile } = require('./src/download');
 const { EthStorage } = require('./src/ethstorage');
@@ -17,5 +17,5 @@ module.exports = {
   DecodeBlobs,
   DecodeBlob,
   BLOB_SIZE,
-  BLOB_FILE_SIZE,
+  BLOB_DATA_SIZE,
 }
