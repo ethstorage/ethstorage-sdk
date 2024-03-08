@@ -166,6 +166,19 @@ class BlobUploader {
             return this.sendNormalTx(tx);
         }
 
+        // blobs
+        const commitments = [];
+        const proofs = [];
+        const versionedHashes = [];
+        const hexHashes = [];
+        for (let i = 0; i < blobs.length; i++) {
+            commitments.push(blobToKzgCommitment(blobs[i]));
+            proofs.push(computeBlobKzgProof(blobs[i], commitments[i]));
+            const hash = commitmentsToVersionedHashes(commitments[i]);
+            versionedHashes.push(hash);
+            hexHashes.push(ethers.hexlify(hash));
+        }
+
         const chain = await this.getChainId();
         let {chainId, nonce, to, value, data, maxPriorityFeePerGas, maxFeePerGas, gasLimit, maxFeePerBlobGas} = tx;
         if (chainId == null) {
@@ -185,7 +198,13 @@ class BlobUploader {
 
         if (gasLimit == null) {
             const hexValue = parseBigintValue(value);
-            const params = { from: this.#wallet.address, to, data, value: hexValue };
+            const params = {
+                from: this.#wallet.address,
+                to,
+                data,
+                value: hexValue,
+                blobVersionedHashes: hexHashes,
+            };
             gasLimit = await this.estimateGas(params);
             if (gasLimit == null) {
                 throw Error('estimateGas: execution reverted')
@@ -210,15 +229,6 @@ class BlobUploader {
             maxFeePerBlobGas = BigInt(maxFeePerBlobGas);
         }
 
-        // blobs
-        const commitments = [];
-        const proofs = [];
-        const versionedHashes = [];
-        for (let i = 0; i < blobs.length; i++) {
-            commitments.push(blobToKzgCommitment(blobs[i]));
-            proofs.push(computeBlobKzgProof(blobs[i], commitments[i]));
-            versionedHashes.push(commitmentsToVersionedHashes(commitments[i]));
-        }
 
         // send
         const common = Common.custom(
