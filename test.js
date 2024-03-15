@@ -9,7 +9,7 @@ const privateKey = process.env.pk;
 
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
 
-const filePath = '/Users/lmp/Downloads/dist/img.jpeg';
+const filePath = '/Users/lmp/Downloads/dist/img2.jpeg';
 const name = filePath.substring(filePath.lastIndexOf("/") + 1);
 const hexName = stringToHex(name);
 
@@ -31,7 +31,7 @@ async function uploadFile() {
     const blobLength = blobs.length;
     for (let i = 0; i < blobLength; i += 2) {
         const dataHash = await contract.getChunkHash(hexName, i);
-        const localHash = blobUploader.getBlobHash(blobs[i]);
+        const localHash = await blobUploader.getBlobHash(blobs[i]);
         console.log(dataHash === localHash);
         if(dataHash === localHash) {
             continue;

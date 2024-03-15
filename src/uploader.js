@@ -2,11 +2,7 @@ const {resolve} = require("path");
 const {ethers} = require("ethers");
 const {BlobEIP4844Transaction} = require("@ethereumjs/tx");
 const {Common} = require("@ethereumjs/common");
-const {
-    loadTrustedSetup,
-    blobToKzgCommitment,
-    computeBlobKzgProof,
-} = require("c-kzg");
+const {createKZG} = require('kzg-wasm');
 
 const defaultAxios = require("axios");
 const axios = defaultAxios.create({
@@ -66,6 +62,7 @@ function fakeExponential(factor, numerator, denominator) {
 }
 
 class BlobUploader {
+    #kzg;
     #jsonRpc;
     #privateKey;
     #provider;
@@ -77,9 +74,16 @@ class BlobUploader {
         this.#privateKey = padHex(pk);
         this.#provider = new ethers.JsonRpcProvider(rpc);
         this.#wallet = new ethers.Wallet(this.#privateKey, this.#provider);
+    }
 
-        const SETUP_FILE_PATH = resolve(__dirname, "lib", "trusted_setup.txt");
-        loadTrustedSetup(SETUP_FILE_PATH);
+    async #getKzg() {
+        if (!this.#kzg) {
+            const SETUP_FILE_PATH = resolve(__dirname, "lib", "trusted_setup.txt");
+            const kzg = await createKZG()
+            kzg.loadTrustedSetup(SETUP_FILE_PATH);
+            this.#kzg = kzg;
+        }
+        return this.#kzg;
     }
 
     async sendRpcCall(method, parameters) {
@@ -167,13 +171,14 @@ class BlobUploader {
         }
 
         // blobs
+        const kzg = await this.#getKzg();
         const commitments = [];
         const proofs = [];
         const versionedHashes = [];
         const hexHashes = [];
         for (let i = 0; i < blobs.length; i++) {
-            commitments.push(blobToKzgCommitment(blobs[i]));
-            proofs.push(computeBlobKzgProof(blobs[i], commitments[i]));
+            commitments.push(kzg.blobToKzgCommitment(blobs[i]));
+            proofs.push(kzg.computeBlobKzgProof(blobs[i], commitments[i]));
             const hash = commitmentsToVersionedHashes(commitments[i]);
             versionedHashes.push(hash);
             hexHashes.push(ethers.hexlify(hash));
@@ -286,8 +291,9 @@ class BlobUploader {
         return txReceipt;
     }
 
-    getBlobHash(blob) {
-        const commit = blobToKzgCommitment(blob);
+    async getBlobHash(blob) {
+        const kzg = await this.#getKzg();
+        const commit = kzg.blobToKzgCommitment(blob);
         const localHash = commitmentsToVersionedHashes(commit);
         const hash = new Uint8Array(32);
         hash.set(localHash.subarray(0, 32 - 8));

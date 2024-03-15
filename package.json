@@ -8,9 +8,9 @@
     "@ethereumjs/common": "^4.1.0",
     "@ethereumjs/tx": "^5.1.0",
     "axios": "^1.4.0",
-    "c-kzg": "^2.1.2",
     "dotenv": "^16.4.5",
-    "ethers": "^6.9.1"
+    "ethers": "^6.9.1",
+    "kzg-wasm": "^0.2.0"
   },
   "repository": {
     "type": "git",

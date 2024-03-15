@@ -218,7 +218,7 @@ class EthStorage {
                 let hasChange = false;
                 for (let j = 0; j < blobArr.length; j++) {
                     const dataHash = await fileContract.getChunkHash(hexName, indexArr[j]);
-                    const localHash = this.#blobUploader.getBlobHash(blobArr[j]);
+                    const localHash = await this.#blobUploader.getBlobHash(blobArr[j]);
                     if (dataHash !== localHash) {
                         hasChange = true;
                         break;
