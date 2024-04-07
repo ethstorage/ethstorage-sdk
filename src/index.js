@@ -1,13 +1,13 @@
-const { BlobUploader } = require('./src/uploader');
+const { BlobUploader } = require('./uploader.js');
 const {
   EncodeBlobs,
   DecodeBlobs,
   DecodeBlob,
   BLOB_SIZE,
   BLOB_DATA_SIZE
-} = require('./src/blobs');
-const { DownloadFile } = require('./src/download');
-const { EthStorage } = require('./src/ethstorage');
+} = require('./blobs.js');
+const { DownloadFile } = require('./download.js');
+const { EthStorage } = require('./ethstorage.js');
 
 module.exports = {
   BlobUploader,

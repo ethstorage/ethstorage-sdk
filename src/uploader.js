@@ -1,8 +1,7 @@
-const {resolve} = require("path");
 const {ethers} = require("ethers");
 const {BlobEIP4844Transaction} = require("@ethereumjs/tx");
 const {Common} = require("@ethereumjs/common");
-const {createKZG} = require('kzg-wasm');
+const {loadKZG} = require('kzg-wasm');
 
 const defaultAxios = require("axios");
 const axios = defaultAxios.create({
@@ -78,10 +77,7 @@ class BlobUploader {
 
     async #getKzg() {
         if (!this.#kzg) {
-            const SETUP_FILE_PATH = resolve(__dirname, "lib", "trusted_setup.txt");
-            const kzg = await createKZG()
-            kzg.loadTrustedSetup(SETUP_FILE_PATH);
-            this.#kzg = kzg;
+            this.#kzg = await loadKZG();
         }
         return this.#kzg;
     }
