@@ -336,8 +336,7 @@ var require_blobs = __commonJS({
           break;
         }
       }
-      const newData = data.slice(0, i + 1);
-      return newData;
+      return data.slice(0, i + 1);
     }
     function DecodeBlobs(blobs) {
       if (!blobs) {
@@ -410,14 +409,48 @@ var require_download = __commonJS({
   }
 });
 
+// src/file/file.js
+var require_file = __commonJS({
+  "src/file/file.js"(exports, module) {
+    var fs = __require("fs");
+    var getFileInfo = (filePath) => {
+      const fileStat = fs.statSync(filePath);
+      if (fileStat.isFile()) {
+        const name = filePath.substring(filePath.lastIndexOf("/") + 1);
+        return {
+          isFile: true,
+          name,
+          size: fileStat.size
+        };
+      }
+      return {
+        isFile: false
+      };
+    };
+    var getFileChunk = (filePath, fileSize, start, end) => {
+      end = end > fileSize ? fileSize : end;
+      const length = end - start;
+      const buf = Buffer.alloc(length);
+      const fd = fs.openSync(filePath, "r");
+      fs.readSync(fd, buf, 0, length, start);
+      fs.closeSync(fd);
+      return buf;
+    };
+    module.exports = {
+      getFileInfo,
+      getFileChunk
+    };
+  }
+});
+
 // src/ethstorage.js
 var require_ethstorage = __commonJS({
   "src/ethstorage.js"(exports, module) {
-    var fs = __require("fs");
     var { ethers } = __require("ethers");
     var { BlobUploader } = require_uploader();
     var { EncodeBlobs, BLOB_DATA_SIZE } = require_blobs();
     var { DownloadFile } = require_download();
+    var { getFileInfo, getFileChunk } = require_file();
     var flatDirectoryBlobAbi = [
       "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
       "function setDefault(bytes memory _defaultFile) public",
@@ -436,15 +469,6 @@ var require_ethstorage = __commonJS({
     var SEPOLIA_ETH_STORAGE = "0x804C520d3c084C805E37A35E90057Ac32831F96f";
     var ES_TEST_RPC = "http://65.108.236.27:9540";
     var stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
-    var getFileChunk = (path, fileSize, start, end) => {
-      end = end > fileSize ? fileSize : end;
-      const length = end - start;
-      const buf = new Buffer(length);
-      const fd = fs.openSync(path, "r");
-      fs.readSync(fd, buf, 0, length, start);
-      fs.closeSync(fd);
-      return buf;
-    };
     var EthStorage = class {
       #wallet;
       #blobUploader;
@@ -549,13 +573,13 @@ var require_ethstorage = __commonJS({
           return REMOVE_NORMAL;
         }
       }
-      async upload(filePath) {
+      async upload(fileOrPath) {
         if (!this.#contractAddr) {
           console.error(`ERROR: flat directory not deployed!`);
           return;
         }
-        const fileStat = fs.statSync(filePath);
-        if (!fileStat.isFile()) {
+        const fileInfo = getFileInfo(fileOrPath);
+        if (!fileInfo.isFile) {
           console.error(`ERROR: only upload file!`);
           return;
         }
@@ -565,8 +589,8 @@ var require_ethstorage = __commonJS({
           console.error(`ERROR: The current contract does not support blob upload!`);
           return;
         }
-        const fileSize = fileStat.size;
-        const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+        const fileSize = fileInfo.size;
+        const fileName = fileInfo.name;
         const hexName = stringToHex(fileName);
         const blobDataSize = BLOB_DATA_SIZE;
         const blobLength = Math.ceil(fileSize / blobDataSize);
@@ -586,7 +610,7 @@ var require_ethstorage = __commonJS({
         let uploadFileSize = 0;
         let totalCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-          const content = getFileChunk(filePath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
+          const content = getFileChunk(fileOrPath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
           const blobs = EncodeBlobs(content);
           const blobArr = [];
           const indexArr = [];
@@ -691,3 +715,4 @@ var require_src = __commonJS({
   }
 });
 export default require_src();
+//# sourceMappingURL=index.mjs.map

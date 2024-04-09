@@ -56,8 +56,7 @@ function DecodeBlob(blob) {
             break
         }
     }
-    const newData = data.slice(0, i + 1);
-    return newData;
+    return data.slice(0, i + 1);
 }
 
 function DecodeBlobs(blobs) {

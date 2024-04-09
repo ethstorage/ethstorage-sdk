@@ -4,8 +4,11 @@
   "description": "eip-4844 blobs upload sdk",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
+  "browser": {
+    "./dist/file.js": "./dist/file-browser.mjs"
+  },
   "scripts": {
-    "build": "tsup src/index.js --format cjs,esm"
+    "build": "tsup"
   },
   "dependencies": {
     "@ethereumjs/common": "^4.1.0",

@@ -1,8 +1,8 @@
-const fs = require("fs");
 const {ethers} = require("ethers");
 const {BlobUploader} = require("./uploader");
 const {EncodeBlobs, BLOB_DATA_SIZE} = require("./blobs");
 const {DownloadFile} = require("./download");
+const {getFileInfo, getFileChunk} = require("./file/file");
 
 const flatDirectoryBlobAbi = [
     "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
@@ -26,16 +26,6 @@ const SEPOLIA_ETH_STORAGE = "0x804C520d3c084C805E37A35E90057Ac32831F96f";
 const ES_TEST_RPC = "http://65.108.236.27:9540";
 
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
-
-const getFileChunk = (path, fileSize, start, end) => {
-    end = end > fileSize ? fileSize : end;
-    const length = end - start;
-    const buf = new Buffer(length);
-    const fd = fs.openSync(path, 'r');
-    fs.readSync(fd, buf, 0, length, start);
-    fs.closeSync(fd);
-    return buf;
-}
 
 class EthStorage {
     #wallet;
@@ -155,13 +145,14 @@ class EthStorage {
         }
     }
 
-    async upload(filePath) {
+    async upload(fileOrPath) {
         if (!this.#contractAddr) {
             console.error(`ERROR: flat directory not deployed!`);
             return;
         }
-        const fileStat = fs.statSync(filePath);
-        if (!fileStat.isFile()) {
+
+        const fileInfo = getFileInfo(fileOrPath);
+        if (!fileInfo.isFile) {
             console.error(`ERROR: only upload file!`);
             return;
         }
@@ -173,8 +164,8 @@ class EthStorage {
             return;
         }
 
-        const fileSize = fileStat.size;
-        const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+        const fileSize = fileInfo.size;
+        const fileName = fileInfo.name;
         const hexName = stringToHex(fileName);
 
         const blobDataSize = BLOB_DATA_SIZE;
@@ -197,7 +188,7 @@ class EthStorage {
         let uploadFileSize = 0;
         let totalCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-            const content = getFileChunk(filePath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
+            const content = getFileChunk(fileOrPath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
             const blobs = EncodeBlobs(content);
 
             const blobArr = [];
