@@ -1,8 +1,8 @@
-const {ethers} = require("ethers");
-const {BlobUploader} = require("./uploader");
-const {EncodeBlobs, BLOB_DATA_SIZE} = require("./blobs");
-const {DownloadFile} = require("./download");
-const {getFileInfo, getFileChunk} = require("./file/file");
+import {ethers} from "ethers";
+import {BlobUploader} from "./uploader";
+import {EncodeBlobs, BLOB_DATA_SIZE} from "./blobs";
+import {DownloadFile} from "./download";
+import {getFileInfo, getFileChunk} from "./file/file";
 
 const flatDirectoryBlobAbi = [
     "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",

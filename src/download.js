@@ -1,4 +1,4 @@
-const {ethers, Contract} = require("ethers");
+import {ethers, Contract} from "ethers";
 
 const contractABI = [
     'function countChunks(bytes memory name) external view returns (uint256)',

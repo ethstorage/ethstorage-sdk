@@ -1,4 +1,4 @@
-const {ethers} = require("ethers");
+import {ethers} from "ethers";
 
 const BlobTxBytesPerFieldElement         = 32;      // Size in bytes of a field element
 const BlobTxFieldElementsPerBlob         = 4096;

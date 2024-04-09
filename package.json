@@ -15,7 +15,7 @@
     "@ethereumjs/tx": "^5.1.0",
     "axios": "^1.4.0",
     "dotenv": "^16.4.5",
-    "ethers": "^6.9.1",
+    "ethers": "^6.11.1",
     "kzg-wasm": "^0.3.1"
   },
   "repository": {

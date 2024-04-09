@@ -1,7 +1,7 @@
-const {ethers} = require("ethers");
-const {BlobEIP4844Transaction} = require("@ethereumjs/tx");
-const {Common} = require("@ethereumjs/common");
-const {loadKZG} = require('kzg-wasm');
+import {ethers} from "ethers";
+import {BlobEIP4844Transaction} from "@ethereumjs/tx";
+import {Common} from "@ethereumjs/common";
+import {loadKZG} from 'kzg-wasm';
 
 const defaultAxios = require("axios");
 const axios = defaultAxios.create({
