@@ -9,7 +9,7 @@ export default [
             file: 'dist/index.cjs.js', format: 'cjs', sourcemap: true
         },
         plugins: [commonjs(), resolve()],
-        external: ["kzg-wasm"],
+        external: ["kzg-wasm", "ethers"],
     },
     {
         input: "./src/index.js",
@@ -18,12 +18,9 @@ export default [
         },
         plugins: [
             commonjs(),
-            resolve({
-                dedupe: ['fs', 'path', 'module'],
-                module: false, fs: false, path: false
-            })
+            resolve()
         ],
-        external: ["kzg-wasm"],
+        external: ["kzg-wasm", "ethers"],
     }
 ];
 
