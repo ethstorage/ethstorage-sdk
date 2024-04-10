@@ -1,7 +1,6 @@
 import { ethers, Contract } from 'ethers';
 import { EventEmitter } from 'events';
 import { loadKZG } from 'kzg-wasm';
-import fs from 'fs';
 
 /**
  * RLP Encoding based on https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
@@ -8569,33 +8568,6 @@ class EthStorage {
     getFileChunk(filePath, fileSize, start, end) {}
 }
 
-class EthStorageNode extends EthStorage{
-    getFileInfo(filePath) {
-        const fileStat = fs.statSync(filePath);
-        if (fileStat.isFile()) {
-            const name = filePath.substring(filePath.lastIndexOf("/") + 1);
-            return {
-                isFile: true,
-                name: name,
-                size: fileStat.size
-            };
-        }
-        return {
-            isFile: false
-        };
-    }
-
-    getFileChunk(filePath, fileSize, start, end) {
-        end = end > fileSize ? fileSize : end;
-        const length = end - start;
-        const buf = Buffer.alloc(length);
-        const fd = fs.openSync(filePath, 'r');
-        fs.readSync(fd, buf, 0, length, start);
-        fs.closeSync(fd);
-        return buf;
-    }
-}
-
 class EthStorageBrowser extends EthStorage{
     getFileInfo(file) {
         return {
@@ -8618,5 +8590,5 @@ class EthStorageBrowser extends EthStorage{
     }
 }
 
-export { BLOB_DATA_SIZE, BLOB_SIZE, BlobUploader, DecodeBlob, DecodeBlobs, DownloadFile, EncodeBlobs, EthStorageBrowser, EthStorageNode };
+export { BLOB_DATA_SIZE, BLOB_SIZE, BlobUploader, DecodeBlob, DecodeBlobs, DownloadFile, EncodeBlobs, EthStorageBrowser };
 //# sourceMappingURL=index.esm.js.map

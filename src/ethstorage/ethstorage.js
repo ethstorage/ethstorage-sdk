@@ -1,7 +1,7 @@
 import {ethers} from "ethers";
-import {BlobUploader} from "./uploader";
-import {EncodeBlobs, BLOB_DATA_SIZE} from "./blobs";
-import {DownloadFile} from "./download";
+import {BlobUploader} from "../uploader";
+import {EncodeBlobs, BLOB_DATA_SIZE} from "../blobs";
+import {DownloadFile} from "../download";
 
 const flatDirectoryBlobAbi = [
     "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
