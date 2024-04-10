@@ -437,7 +437,6 @@ var require_ethstorage = __commonJS({
     var import_uploader = __toESM(require_uploader());
     var import_blobs = __toESM(require_blobs());
     var import_download = __toESM(require_download());
-    var fs = __require("fs");
     var flatDirectoryBlobAbi = [
       "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
       "function setDefault(bytes memory _defaultFile) public",
@@ -670,6 +669,23 @@ var require_ethstorage = __commonJS({
         return await (0, import_download.DownloadFile)(ethStorageRpc, this.#contractAddr, fileName);
       }
       getFileInfo(filePath) {
+      }
+      getFileChunk(filePath, fileSize, start, end) {
+      }
+    };
+    module.exports = {
+      EthStorage
+    };
+  }
+});
+
+// src/ethstorage-node.js
+import fs from "fs";
+var require_ethstorage_node = __commonJS({
+  "src/ethstorage-node.js"(exports, module) {
+    var import_ethstorage = __toESM(require_ethstorage());
+    var EthStorageNode = class extends import_ethstorage.EthStorage {
+      getFileInfo(filePath) {
         const fileStat = fs.statSync(filePath);
         if (fileStat.isFile()) {
           const name = filePath.substring(filePath.lastIndexOf("/") + 1);
@@ -694,7 +710,7 @@ var require_ethstorage = __commonJS({
       }
     };
     module.exports = {
-      EthStorage
+      EthStorageNode
     };
   }
 });
@@ -735,11 +751,11 @@ var require_src = __commonJS({
     var import_uploader = __toESM(require_uploader());
     var import_blobs = __toESM(require_blobs());
     var import_download = __toESM(require_download());
-    var import_ethstorage = __toESM(require_ethstorage());
+    var import_ethstorage_node = __toESM(require_ethstorage_node());
     var import_ethstorage_browser = __toESM(require_ethstorage_browser());
     module.exports = {
       BlobUploader: import_uploader.BlobUploader,
-      EthStorage: import_ethstorage.EthStorage,
+      EthStorageNode: import_ethstorage_node.EthStorageNode,
       EthStorageBrowser: import_ethstorage_browser.EthStorageBrowser,
       DownloadFile: import_download.DownloadFile,
       EncodeBlobs: import_blobs.EncodeBlobs,

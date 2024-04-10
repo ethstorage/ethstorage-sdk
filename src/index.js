@@ -7,12 +7,12 @@ import {
   BLOB_DATA_SIZE
 } from './blobs.js';
 import { DownloadFile } from './download.js';
-import { EthStorage } from './ethstorage.js';
+import { EthStorageNode } from './ethstorage-node.js';
 import { EthStorageBrowser } from './ethstorage-browser';
 
 module.exports = {
   BlobUploader,
-  EthStorage,
+  EthStorageNode,
   EthStorageBrowser,
   DownloadFile,
   EncodeBlobs,

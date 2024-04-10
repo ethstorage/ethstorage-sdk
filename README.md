@@ -48,10 +48,10 @@ const data = await DownloadFile(rpc, contractAddress, fileName);
 Use this tool to create an ETHStorage storage contract and upload files to the contract.
 ```js
 // deploy
-const ethStorage = new EthStorage(rpc, privateKey);
+const ethStorage = new EthStorageNode(rpc, privateKey);
 await ethStorage.deployBlobDirectory();
 // or set contract
-ethStorage = new EthStorage(rpc, privateKey, contractAddress);
+ethStorage = new EthStorageNode(rpc, privateKey, contractAddress);
 
 // upload
 await ethStorage.upload(filePath);

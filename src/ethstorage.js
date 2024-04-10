@@ -2,7 +2,6 @@ import {ethers} from "ethers";
 import {BlobUploader} from "./uploader";
 import {EncodeBlobs, BLOB_DATA_SIZE} from "./blobs";
 import {DownloadFile} from "./download";
-const fs = require("fs");
 
 const flatDirectoryBlobAbi = [
     "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
@@ -268,30 +267,8 @@ class EthStorage {
         return await DownloadFile(ethStorageRpc, this.#contractAddr, fileName);
     }
 
-    getFileInfo(filePath) {
-        const fileStat = fs.statSync(filePath);
-        if (fileStat.isFile()) {
-            const name = filePath.substring(filePath.lastIndexOf("/") + 1);
-            return {
-                isFile: true,
-                name: name,
-                size: fileStat.size
-            };
-        }
-        return {
-            isFile: false
-        };
-    }
-
-    getFileChunk(filePath, fileSize, start, end) {
-        end = end > fileSize ? fileSize : end;
-        const length = end - start;
-        const buf = Buffer.alloc(length);
-        const fd = fs.openSync(filePath, 'r');
-        fs.readSync(fd, buf, 0, length, start);
-        fs.closeSync(fd);
-        return buf;
-    }
+    getFileInfo(filePath) {}
+    getFileChunk(filePath, fileSize, start, end) {}
 }
 
 module.exports = {

@@ -430,7 +430,6 @@ var require_ethstorage = __commonJS({
     var import_uploader2 = __toESM(require_uploader());
     var import_blobs2 = __toESM(require_blobs());
     var import_download2 = __toESM(require_download());
-    var fs = require("fs");
     var flatDirectoryBlobAbi = [
       "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
       "function setDefault(bytes memory _defaultFile) public",
@@ -449,7 +448,7 @@ var require_ethstorage = __commonJS({
     var SEPOLIA_ETH_STORAGE = "0x804C520d3c084C805E37A35E90057Ac32831F96f";
     var ES_TEST_RPC = "http://65.108.236.27:9540";
     var stringToHex = (s) => import_ethers.ethers.hexlify(import_ethers.ethers.toUtf8Bytes(s));
-    var EthStorage2 = class {
+    var EthStorage = class {
       #wallet;
       #blobUploader;
       #contractAddr;
@@ -663,7 +662,24 @@ var require_ethstorage = __commonJS({
         return await (0, import_download2.DownloadFile)(ethStorageRpc, this.#contractAddr, fileName);
       }
       getFileInfo(filePath) {
-        const fileStat = fs.statSync(filePath);
+      }
+      getFileChunk(filePath, fileSize, start, end) {
+      }
+    };
+    module2.exports = {
+      EthStorage
+    };
+  }
+});
+
+// src/ethstorage-node.js
+var require_ethstorage_node = __commonJS({
+  "src/ethstorage-node.js"(exports2, module2) {
+    var import_fs = __toESM(require("fs"));
+    var import_ethstorage = __toESM(require_ethstorage());
+    var EthStorageNode2 = class extends import_ethstorage.EthStorage {
+      getFileInfo(filePath) {
+        const fileStat = import_fs.default.statSync(filePath);
         if (fileStat.isFile()) {
           const name = filePath.substring(filePath.lastIndexOf("/") + 1);
           return {
@@ -680,14 +696,14 @@ var require_ethstorage = __commonJS({
         end = end > fileSize ? fileSize : end;
         const length = end - start;
         const buf = Buffer.alloc(length);
-        const fd = fs.openSync(filePath, "r");
-        fs.readSync(fd, buf, 0, length, start);
-        fs.closeSync(fd);
+        const fd = import_fs.default.openSync(filePath, "r");
+        import_fs.default.readSync(fd, buf, 0, length, start);
+        import_fs.default.closeSync(fd);
         return buf;
       }
     };
     module2.exports = {
-      EthStorage: EthStorage2
+      EthStorageNode: EthStorageNode2
     };
   }
 });
@@ -695,8 +711,8 @@ var require_ethstorage = __commonJS({
 // src/ethstorage-browser.js
 var require_ethstorage_browser = __commonJS({
   "src/ethstorage-browser.js"(exports2, module2) {
-    var import_ethstorage2 = __toESM(require_ethstorage());
-    var EthStorageBrowser2 = class extends import_ethstorage2.EthStorage {
+    var import_ethstorage = __toESM(require_ethstorage());
+    var EthStorageBrowser2 = class extends import_ethstorage.EthStorage {
       getFileInfo(file) {
         return {
           isFile: true,
@@ -726,11 +742,11 @@ var require_ethstorage_browser = __commonJS({
 var import_uploader = __toESM(require_uploader());
 var import_blobs = __toESM(require_blobs());
 var import_download = __toESM(require_download());
-var import_ethstorage = __toESM(require_ethstorage());
+var import_ethstorage_node = __toESM(require_ethstorage_node());
 var import_ethstorage_browser = __toESM(require_ethstorage_browser());
 module.exports = {
   BlobUploader: import_uploader.BlobUploader,
-  EthStorage: import_ethstorage.EthStorage,
+  EthStorageNode: import_ethstorage_node.EthStorageNode,
   EthStorageBrowser: import_ethstorage_browser.EthStorageBrowser,
   DownloadFile: import_download.DownloadFile,
   EncodeBlobs: import_blobs.EncodeBlobs,
