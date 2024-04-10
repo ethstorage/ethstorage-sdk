@@ -1,8 +1,7 @@
 import fs from "fs";
 import {EthStorage} from "./ethstorage";
 
-
-class EthStorageNode extends EthStorage{
+export class EthStorageNode extends EthStorage{
     getFileInfo(filePath) {
         const fileStat = fs.statSync(filePath);
         if (fileStat.isFile()) {
@@ -27,8 +26,4 @@ class EthStorageNode extends EthStorage{
         fs.closeSync(fd);
         return buf;
     }
-}
-
-module.exports = {
-    EthStorageNode
 }

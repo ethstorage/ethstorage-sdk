@@ -60,7 +60,7 @@ function fakeExponential(factor, numerator, denominator) {
     return output / denominator;
 }
 
-class BlobUploader {
+export class BlobUploader {
     #kzg;
     #jsonRpc;
     #privateKey;
@@ -295,8 +295,4 @@ class BlobUploader {
         hash.set(localHash.subarray(0, 32 - 8));
         return ethers.hexlify(hash);
     }
-}
-
-module.exports = {
-    BlobUploader
 }

@@ -2,15 +2,15 @@
   "name": "ethstorage-sdk",
   "version": "1.1.8",
   "description": "eip-4844 blobs upload sdk",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
   "scripts": {
-    "build": "tsup"
+    "build": "rollup -c"
   },
   "dependencies": {
     "@ethereumjs/common": "^4.1.0",
     "@ethereumjs/tx": "^5.1.0",
-    "axios": "^1.4.0",
+    "axios": "^1.6.8",
     "dotenv": "^16.4.5",
     "ethers": "^6.11.1",
     "kzg-wasm": "^0.3.1"
@@ -33,7 +33,9 @@
   "author": "ethsorage",
   "license": "ISC",
   "devDependencies": {
-    "tsup": "^8.0.2",
-    "typescript": "^5.4.4"
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "rollup": "^4.14.1",
+    "rollup-plugin-terser": "^7.0.2"
   }
 }

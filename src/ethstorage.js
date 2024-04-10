@@ -26,7 +26,7 @@ const ES_TEST_RPC = "http://65.108.236.27:9540";
 
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
 
-class EthStorage {
+export class EthStorage {
     #wallet;
     #blobUploader;
     #contractAddr;
@@ -269,8 +269,4 @@ class EthStorage {
 
     getFileInfo(filePath) {}
     getFileChunk(filePath, fileSize, start, end) {}
-}
-
-module.exports = {
-    EthStorage
 }

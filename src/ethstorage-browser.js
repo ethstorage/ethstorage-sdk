@@ -1,7 +1,6 @@
 import {EthStorage} from "./ethstorage";
 
-
-class EthStorageBrowser extends EthStorage{
+export class EthStorageBrowser extends EthStorage{
     getFileInfo(file) {
         return {
             isFile: true,
@@ -21,8 +20,4 @@ class EthStorageBrowser extends EthStorage{
             reader.readAsArrayBuffer(slice);
         });
     }
-}
-
-module.exports = {
-    EthStorageBrowser
 }
