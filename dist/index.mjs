@@ -11,6 +11,9 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
     return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require2() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
@@ -31,6 +34,12 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
+// node_modules/tsup/assets/esm_shims.js
+var init_esm_shims = __esm({
+  "node_modules/tsup/assets/esm_shims.js"() {
+  }
+});
+
 // src/uploader.js
 import { ethers } from "ethers";
 import { BlobEIP4844Transaction } from "@ethereumjs/tx";
@@ -38,6 +47,7 @@ import { Common } from "@ethereumjs/common";
 import { loadKZG } from "kzg-wasm";
 var require_uploader = __commonJS({
   "src/uploader.js"(exports, module) {
+    init_esm_shims();
     var defaultAxios = __require("axios");
     var axios = defaultAxios.create({
       timeout: 5e4
@@ -307,6 +317,7 @@ var require_uploader = __commonJS({
 import { ethers as ethers2 } from "ethers";
 var require_blobs = __commonJS({
   "src/blobs.js"(exports, module) {
+    init_esm_shims();
     var BlobTxBytesPerFieldElement = 32;
     var BlobTxFieldElementsPerBlob = 4096;
     var BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
@@ -394,6 +405,7 @@ var require_blobs = __commonJS({
 import { ethers as ethers3, Contract } from "ethers";
 var require_download = __commonJS({
   "src/download.js"(exports, module) {
+    init_esm_shims();
     var contractABI = [
       "function countChunks(bytes memory name) external view returns (uint256)",
       "function readChunk(bytes memory name, uint256 chunkId) external view returns (bytes memory, bool)"
@@ -434,6 +446,7 @@ var require_download = __commonJS({
 import { ethers as ethers4 } from "ethers";
 var require_ethstorage = __commonJS({
   "src/ethstorage.js"(exports, module) {
+    init_esm_shims();
     var import_uploader = __toESM(require_uploader());
     var import_blobs = __toESM(require_blobs());
     var import_download = __toESM(require_download());
@@ -683,6 +696,7 @@ var require_ethstorage = __commonJS({
 import fs from "fs";
 var require_ethstorage_node = __commonJS({
   "src/ethstorage-node.js"(exports, module) {
+    init_esm_shims();
     var import_ethstorage = __toESM(require_ethstorage());
     var EthStorageNode = class extends import_ethstorage.EthStorage {
       getFileInfo(filePath) {
@@ -718,6 +732,7 @@ var require_ethstorage_node = __commonJS({
 // src/ethstorage-browser.js
 var require_ethstorage_browser = __commonJS({
   "src/ethstorage-browser.js"(exports, module) {
+    init_esm_shims();
     var import_ethstorage = __toESM(require_ethstorage());
     var EthStorageBrowser = class extends import_ethstorage.EthStorage {
       getFileInfo(file) {
@@ -748,6 +763,7 @@ var require_ethstorage_browser = __commonJS({
 // src/index.js
 var require_src = __commonJS({
   "src/index.js"(exports, module) {
+    init_esm_shims();
     var import_uploader = __toESM(require_uploader());
     var import_blobs = __toESM(require_blobs());
     var import_download = __toESM(require_download());
