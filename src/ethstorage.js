@@ -2,7 +2,7 @@ import {ethers} from "ethers";
 import {BlobUploader} from "./uploader";
 import {EncodeBlobs, BLOB_DATA_SIZE} from "./blobs";
 import {DownloadFile} from "./download";
-import {getFileInfo, getFileChunk} from "./file/file";
+const fs = require("fs");
 
 const flatDirectoryBlobAbi = [
     "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
@@ -151,7 +151,7 @@ class EthStorage {
             return;
         }
 
-        const fileInfo = getFileInfo(fileOrPath);
+        const fileInfo = this.getFileInfo(fileOrPath);
         if (!fileInfo.isFile) {
             console.error(`ERROR: only upload file!`);
             return;
@@ -188,7 +188,7 @@ class EthStorage {
         let uploadFileSize = 0;
         let totalCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-            const content = getFileChunk(fileOrPath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
+            const content = this.getFileChunk(fileOrPath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
             const blobs = EncodeBlobs(content);
 
             const blobArr = [];
@@ -266,6 +266,31 @@ class EthStorage {
             return;
         }
         return await DownloadFile(ethStorageRpc, this.#contractAddr, fileName);
+    }
+
+    getFileInfo(filePath) {
+        const fileStat = fs.statSync(filePath);
+        if (fileStat.isFile()) {
+            const name = filePath.substring(filePath.lastIndexOf("/") + 1);
+            return {
+                isFile: true,
+                name: name,
+                size: fileStat.size
+            };
+        }
+        return {
+            isFile: false
+        };
+    }
+
+    getFileChunk(filePath, fileSize, start, end) {
+        end = end > fileSize ? fileSize : end;
+        const length = end - start;
+        const buf = Buffer.alloc(length);
+        const fd = fs.openSync(filePath, 'r');
+        fs.readSync(fd, buf, 0, length, start);
+        fs.closeSync(fd);
+        return buf;
     }
 }
 

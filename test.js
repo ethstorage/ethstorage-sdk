@@ -1,4 +1,4 @@
-const {BlobUploader, EncodeBlobs, BLOB_FILE_SIZE, DownloadFile, EthStorage} = require("./src/index.js");
+const {BlobUploader, EncodeBlobs, BLOB_FILE_SIZE, DownloadFile, EthStorage} = require("./dist/index.js");
 const {ethers, Contract} = require("ethers");
 const fs = require('fs');
 const os = require('os');
