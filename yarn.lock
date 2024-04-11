@@ -30,32 +30,32 @@
     js-tokens "^4.0.0"
     picocolors "^1.0.0"
 
-"@ethereumjs/common@^4.1.0", "@ethereumjs/common@^4.2.0":
-  version "4.2.0"
-  resolved "https://registry.npmjs.org/@ethereumjs/common/-/common-4.2.0.tgz"
-  integrity sha512-UWqovZQksxEY9cU+s1cF3JwFyJdKrJsURM+ORHpZZLQfsqQf+1uGbD3N0AvQ7M+Jz/LxkiVY98+Cd3OMzsrOcA==
+"@ethereumjs/common@^4.3.0":
+  version "4.3.0"
+  resolved "https://registry.npmjs.org/@ethereumjs/common/-/common-4.3.0.tgz#5b45eec7dcf521fa4ddaf0b383072fbcf9913553"
+  integrity sha512-shBNJ0ewcPNTUfZduHiczPmqkfJDn0Dh/9BR5fq7xUFTuIq7Fu1Vx00XDwQVIrpVL70oycZocOhBM6nDO+4FEQ==
   dependencies:
-    "@ethereumjs/util" "^9.0.2"
+    "@ethereumjs/util" "^9.0.3"
 
 "@ethereumjs/rlp@^5.0.2":
   version "5.0.2"
   resolved "https://registry.npmjs.org/@ethereumjs/rlp/-/rlp-5.0.2.tgz"
   integrity sha512-DziebCdg4JpGlEqEdGgXmjqcFoJi+JGulUXwEjsZGAscAQ7MyD/7LE/GVCP29vEQxKc7AAwjT3A2ywHp2xfoCA==
 
-"@ethereumjs/tx@^5.1.0":
-  version "5.2.1"
-  resolved "https://registry.npmjs.org/@ethereumjs/tx/-/tx-5.2.1.tgz"
-  integrity sha512-BzdtUaa7KtP8T5NxJWRxo/RBoJzxYeCdx2n2C4zZLuWJBYVccfcyMiyDgr6W78Utmu/jIfGXknfh2t06+rTkiw==
+"@ethereumjs/tx@^5.3.0":
+  version "5.3.0"
+  resolved "https://registry.npmjs.org/@ethereumjs/tx/-/tx-5.3.0.tgz#473f351729ef4e30eaa3a3fb5aaccd4405a7ee41"
+  integrity sha512-uv++XYuIfuqYbvymL3/o14hHuC6zX0nRQ1nI2FHsbkkorLZ2ChEIDqVeeVk7Xc9/jQNU/22sk9qZZkRlsveXxw==
   dependencies:
-    "@ethereumjs/common" "^4.2.0"
+    "@ethereumjs/common" "^4.3.0"
     "@ethereumjs/rlp" "^5.0.2"
-    "@ethereumjs/util" "^9.0.2"
+    "@ethereumjs/util" "^9.0.3"
     ethereum-cryptography "^2.1.3"
 
-"@ethereumjs/util@^9.0.2":
-  version "9.0.2"
-  resolved "https://registry.npmjs.org/@ethereumjs/util/-/util-9.0.2.tgz"
-  integrity sha512-dasKCj6Vb5spVPnNmRDFHmbfBySvokE440F0RDroPLzO4Mb4hyDqeoOMUxlbLz/BscK2pOpWUendGA+AOvGpNQ==
+"@ethereumjs/util@^9.0.3":
+  version "9.0.3"
+  resolved "https://registry.npmjs.org/@ethereumjs/util/-/util-9.0.3.tgz#c2709e6127a85bbe23a71937ac78358ac93e7241"
+  integrity sha512-PmwzWDflky+7jlZIFqiGsBPap12tk9zK5SVH9YW2OEnDN7OEhCjUOMzbOqwuClrbkSIkM2ERivd7sXZ48Rh/vg==
   dependencies:
     "@ethereumjs/rlp" "^5.0.2"
     ethereum-cryptography "^2.1.3"
@@ -256,7 +256,7 @@
 
 "@types/estree@*", "@types/estree@1.0.5", "@types/estree@^1.0.0":
   version "1.0.5"
-  resolved "https://registry.npmjs.org/@types/estree/-/estree-1.0.5.tgz"
+  resolved "https://registry.npmjs.org/@types/estree/-/estree-1.0.5.tgz#a6ce3e556e00fd9895dd872dd172ad0d4bd687f4"
   integrity sha512-/kYRxGDLWzHOB7q+wtSUQlFrtcdUccpfy+X+9iMBpHK8QLLhx2wIPYuS5DYtR9Wa/YlZAbIovy7qVdB1Aq6Lyw==
 
 "@types/node@*":
@@ -415,6 +415,11 @@ ethers@^6.11.1:
     tslib "2.4.0"
     ws "8.5.0"
 
+ethstorage-kzg-wasm@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.npmjs.org/ethstorage-kzg-wasm/-/ethstorage-kzg-wasm-0.0.2.tgz#87c220da27bdb2a20ff87828b4365c3490d817ff"
+  integrity sha512-gjuuN8QfQHnVN6nVqDb3iYg4/kKOwZSEeXez2rMV7JaFWVAFoYpQQaeC1HEQtsO3WJDU273bfgPMSVOPdCY6hw==
+
 follow-redirects@^1.15.6:
   version "1.15.6"
   resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.6.tgz#7f815c0cda4249c74ff09e95ef97c23b5fd0399b"
@@ -524,11 +529,6 @@ js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
   integrity sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==
-
-kzg-wasm@^0.3.1:
-  version "0.3.1"
-  resolved "https://registry.npmjs.org/kzg-wasm/-/kzg-wasm-0.3.1.tgz#5170ff312bcfcc65c18377806f6dcf034f2a1673"
-  integrity sha512-TBiRFwZnJvxVqotSg1cpPrr7u2qYZdzK0MIc2gNqoIS5TMuSIGzrTlNxkukcYgEeC6SIsBIudL2gkXtoEIOHgA==
 
 magic-string@^0.30.3:
   version "0.30.9"

@@ -8,6 +8,8 @@ export default [
         output: {
             file: 'dist/index.cjs.js', format: 'cjs', sourcemap: true
         },
+        plugins: [commonjs(), resolve()],
+        external: ["ethers", "ethstorage-kzg-wasm", "kzg-wasm", "@ethereumjs/common", "@ethereumjs/tx"]
     },
     {
         input: "./src/index-browser.js",
@@ -18,7 +20,7 @@ export default [
             commonjs(),
             resolve()
         ],
-        external: ["kzg-wasm", "ethers"],
+        external: ["ethers", "ethstorage-kzg-wasm", "kzg-wasm", "@ethereumjs/common", "@ethereumjs/tx"]
     }
 ];
 

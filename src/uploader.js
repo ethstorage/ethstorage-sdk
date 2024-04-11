@@ -1,7 +1,7 @@
 import {ethers} from "ethers";
 import {BlobEIP4844Transaction} from "@ethereumjs/tx";
-import {Common} from "@ethereumjs/common";
-import {loadKZG} from 'kzg-wasm';
+import {Common, Hardfork} from "@ethereumjs/common";
+import {loadKZG} from 'ethstorage-kzg-wasm';
 
 const defaultAxios = require("axios");
 const axios = defaultAxios.create({
@@ -239,8 +239,8 @@ export class BlobUploader {
                 chainId: chainId,
             },
             {
-                baseChain: 1,
-                eips: [1559, 3860, 4844]
+                hardfork: Hardfork.Cancun,
+                customCrypto: {kzg},
             }
         );
         const unsignedTx = new BlobEIP4844Transaction(

@@ -3,7 +3,7 @@
 var ethers = require('ethers');
 var tx = require('@ethereumjs/tx');
 var common = require('@ethereumjs/common');
-var kzgWasm = require('kzg-wasm');
+var ethstorageKzgWasm = require('ethstorage-kzg-wasm');
 var fs = require('fs');
 
 const defaultAxios = require("axios");
@@ -80,7 +80,7 @@ class BlobUploader {
 
     async #getKzg() {
         if (!this.#kzg) {
-            this.#kzg = await kzgWasm.loadKZG();
+            this.#kzg = await ethstorageKzgWasm.loadKZG();
         }
         return this.#kzg;
     }
@@ -242,8 +242,8 @@ class BlobUploader {
                 chainId: chainId,
             },
             {
-                baseChain: 1,
-                eips: [1559, 3860, 4844]
+                hardfork: common.Hardfork.Cancun,
+                customCrypto: {kzg},
             }
         );
         const unsignedTx = new tx.BlobEIP4844Transaction(
