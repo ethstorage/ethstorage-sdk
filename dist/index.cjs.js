@@ -603,7 +603,7 @@ class EthStorage {
         let uploadFileSize = 0;
         let totalCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-            const content = this.getFileChunk(fileOrPath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
+            const content = await this.getFileChunk(fileOrPath, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
             const blobs = EncodeBlobs(content);
 
             const blobArr = [];
@@ -684,7 +684,7 @@ class EthStorage {
     }
 
     getFileInfo(filePath) {}
-    getFileChunk(filePath, fileSize, start, end) {}
+    async getFileChunk(filePath, fileSize, start, end) {}
 }
 
 class EthStorageNode extends EthStorage{
@@ -703,7 +703,7 @@ class EthStorageNode extends EthStorage{
         };
     }
 
-    getFileChunk(filePath, fileSize, start, end) {
+    async getFileChunk(filePath, fileSize, start, end) {
         end = end > fileSize ? fileSize : end;
         const length = end - start;
         const buf = Buffer.alloc(length);

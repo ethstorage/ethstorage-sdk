@@ -17,7 +17,7 @@ export class EthStorageNode extends EthStorage{
         };
     }
 
-    getFileChunk(filePath, fileSize, start, end) {
+    async getFileChunk(filePath, fileSize, start, end) {
         end = end > fileSize ? fileSize : end;
         const length = end - start;
         const buf = Buffer.alloc(length);

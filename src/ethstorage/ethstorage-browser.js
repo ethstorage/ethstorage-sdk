@@ -9,7 +9,7 @@ export class EthStorageBrowser extends EthStorage{
         };
     }
 
-    getFileChunk(file, fileSize, start, end) {
+    async getFileChunk(file, fileSize, start, end) {
         end = end > fileSize ? fileSize : end;
         const slice = file.slice(start, end);
         return new Promise((resolve) => {
