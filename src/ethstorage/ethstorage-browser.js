@@ -1,6 +1,6 @@
-import {EthStorage} from "./ethstorage";
+import {BaseEthStorage} from "./ethstorage";
 
-export class EthStorageBrowser extends EthStorage{
+export class EthStorage extends BaseEthStorage{
     getFileInfo(file) {
         return {
             isFile: true,

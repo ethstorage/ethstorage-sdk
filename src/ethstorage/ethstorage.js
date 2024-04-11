@@ -26,7 +26,7 @@ const ES_TEST_RPC = "http://65.108.236.27:9540";
 
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
 
-export class EthStorage {
+export class BaseEthStorage {
     #wallet;
     #blobUploader;
     #contractAddr;

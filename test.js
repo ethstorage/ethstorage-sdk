@@ -1,4 +1,4 @@
-const {BlobUploader, EncodeBlobs, BLOB_FILE_SIZE, DownloadFile, EthStorageNode} = require("./dist/index.cjs.js");
+const {BlobUploader, EncodeBlobs, BLOB_FILE_SIZE, DownloadFile, EthStorage} = require("./dist/index.cjs.js");
 const {ethers, Contract} = require("ethers");
 const fs = require('fs');
 const os = require('os');
@@ -78,7 +78,7 @@ async function read() {
 // read();
 
 async function ethStorageTest() {
-    const ethStorage = new EthStorageNode('http://88.99.30.186:8545/', privateKey, "0xdEE635d1fE680462C62E51037552952dBAF5aD3d");
+    const ethStorage = new EthStorage('http://88.99.30.186:8545/', privateKey, "0xdEE635d1fE680462C62E51037552952dBAF5aD3d");
     // await ethStorage.deploySepoliaDirectory();
     await ethStorage.upload(filePath);
     const buff = await ethStorage.download(name);

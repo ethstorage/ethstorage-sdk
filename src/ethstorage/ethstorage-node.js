@@ -1,7 +1,7 @@
 import fs from "fs";
-import {EthStorage} from "./ethstorage";
+import {BaseEthStorage} from "./ethstorage";
 
-export class EthStorageNode extends EthStorage{
+export class EthStorage extends BaseEthStorage{
     getFileInfo(filePath) {
         const fileStat = fs.statSync(filePath);
         if (fileStat.isFile()) {

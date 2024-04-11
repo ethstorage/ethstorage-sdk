@@ -1,3 +1,3 @@
 export * from './sdk';
 
-export { EthStorageBrowser } from './ethstorage/ethstorage-browser';
+export { EthStorage } from './ethstorage/ethstorage-browser';

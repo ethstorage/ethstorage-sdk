@@ -439,7 +439,7 @@ const ES_TEST_RPC = "http://65.108.236.27:9540";
 
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
 
-class EthStorage {
+class BaseEthStorage {
     #wallet;
     #blobUploader;
     #contractAddr;
@@ -684,7 +684,7 @@ class EthStorage {
     async getFileChunk(filePath, fileSize, start, end) {}
 }
 
-class EthStorageBrowser extends EthStorage{
+class EthStorage extends BaseEthStorage{
     getFileInfo(file) {
         return {
             isFile: true,
@@ -706,5 +706,5 @@ class EthStorageBrowser extends EthStorage{
     }
 }
 
-export { BLOB_DATA_SIZE, BLOB_SIZE, BlobUploader, DecodeBlob, DecodeBlobs, DownloadFile, EncodeBlobs, EthStorageBrowser };
+export { BLOB_DATA_SIZE, BLOB_SIZE, BlobUploader, DecodeBlob, DecodeBlobs, DownloadFile, EncodeBlobs, EthStorage };
 //# sourceMappingURL=index.esm.js.map
