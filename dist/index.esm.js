@@ -131,10 +131,7 @@ class BlobUploader {
     async getBlobGasPrice() {
         // get current block
         const block = await this.#provider.getBlock("latest");
-        const result = await this.sendRpcCall("eth_getBlockByNumber", [
-            parseBigintValue(BigInt(block.number)), true
-        ]);
-        const excessBlobGas = BigInt(result.excessBlobGas);
+        const excessBlobGas = BigInt(block.excessBlobGas);
         return fakeExponential(MIN_BLOB_GASPRICE, excessBlobGas ,BLOB_GASPRICE_UPDATE_FRACTION);
     }
 
