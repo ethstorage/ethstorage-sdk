@@ -1,5 +1,5 @@
-# Eth Storage SDK
-eth storage sdk, used for uploading and downloading blobs. The sdk is implemented based on c-kzg, so it does not support the browser environment.
+# ethstorage-sdk
+used for uploading and downloading blobs. The sdk is implemented based on [kzg-wasm](https://github.com/ethereumjs/kzg-wasm/), support the browser environment.
 
 ## Installation
 
@@ -17,6 +17,15 @@ Convert files to blobs
 ```js
 const content = fs.readFileSync(filePath);
 const blobs = EncodeBlobs(content);
+
+or
+
+const reader = new FileReader();
+reader.onload = (res) => {
+    const content = Buffer.from(res.target.result);
+    const blobs = EncodeBlobs(content);
+};
+reader.readAsArrayBuffer(file);
 ```
 
 #### DecodeBlob
@@ -39,22 +48,24 @@ const hash = await uploader.sendTx(tx, blobs);
 ### download.js
 Data is obtained using the eip-5018 standard
 ```js
-const data = await DownloadFile(rpc, contractAddress, fileName);
+// Since the data is downloaded from ethstorage, the provided RPC should be an ethstorage RPC.
+const data = await DownloadFile(ethstorageRpc, contractAddress, fileName);
 ```
 
 
 
 ### ethstorage.js
-Use this tool to create an ETHStorage storage contract and upload files to the contract.
+Use this tool to create an ETHStorage contract and upload files to the contract.
 ```js
-// deploy
 const ethStorage = new EthStorage(rpc, privateKey);
+
+// deploy
 await ethStorage.deployBlobDirectory();
 // or set contract
 ethStorage = new EthStorage(rpc, privateKey, contractAddress);
 
 // upload
-await ethStorage.upload(filePath);
+await ethStorage.upload(fileOrPath);
 ```
 
 
