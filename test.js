@@ -9,7 +9,7 @@ const privateKey = process.env.pk;
 
 const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
 
-const filePath = '/Users/lmp/Downloads/dist/img2.jpeg';
+const filePath = '/Users/lmp/Downloads/dist/img1.jpeg';
 const name = filePath.substring(filePath.lastIndexOf("/") + 1);
 const hexName = stringToHex(name);
 

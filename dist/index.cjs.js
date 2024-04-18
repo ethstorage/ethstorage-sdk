@@ -1,8 +1,6 @@
 'use strict';
 
 var ethers = require('ethers');
-var tx = require('@ethereumjs/tx');
-var common = require('@ethereumjs/common');
 var kzgWasm = require('kzg-wasm');
 var fs = require('fs');
 
@@ -10,12 +8,6 @@ const defaultAxios = require("axios");
 const axios = defaultAxios.create({
     timeout: 50000,
 });
-
-function sleep(ms) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
 
 function parseBigintValue(value) {
     if (typeof value == 'bigint') {
@@ -65,17 +57,15 @@ function fakeExponential(factor, numerator, denominator) {
 
 class BlobUploader {
     #kzg;
+
     #jsonRpc;
-    #privateKey;
     #provider;
     #wallet;
-    #chainId;
 
     constructor(rpc, pk) {
         this.#jsonRpc = rpc;
-        this.#privateKey = padHex(pk);
         this.#provider = new ethers.ethers.JsonRpcProvider(rpc);
-        this.#wallet = new ethers.ethers.Wallet(this.#privateKey, this.#provider);
+        this.#wallet = new ethers.ethers.Wallet(padHex(pk), this.#provider);
     }
 
     async #getKzg() {
@@ -97,7 +87,7 @@ class BlobUploader {
                     id: 67
                 },
             });
-            if(response.data.error) {
+            if (response.data.error) {
                 console.log("Response Error:", response.data.error);
                 return null;
             }
@@ -112,30 +102,15 @@ class BlobUploader {
         }
     }
 
-    async sendRawTransaction(param) {
-        return await this.sendRpcCall("eth_sendRawTransaction", [param]);
-    }
-
-    async getChainId() {
-        if (this.#chainId == null) {
-            this.#chainId = await this.sendRpcCall("eth_chainId", []);
-        }
-        return this.#chainId;
-    }
-
     async getNonce() {
         return await this.#wallet.getNonce();
-    }
-
-    async getFee() {
-        return await this.#provider.getFeeData();
     }
 
     async getBlobGasPrice() {
         // get current block
         const block = await this.#provider.getBlock("latest");
         const excessBlobGas = BigInt(block.excessBlobGas);
-        return fakeExponential(MIN_BLOB_GASPRICE, excessBlobGas ,BLOB_GASPRICE_UPDATE_FRACTION);
+        return fakeExponential(MIN_BLOB_GASPRICE, excessBlobGas, BLOB_GASPRICE_UPDATE_FRACTION);
     }
 
     async estimateGas(params) {
@@ -146,57 +121,30 @@ class BlobUploader {
         return null;
     }
 
-    async sendNormalTx(tx) {
-        let {chainId, nonce, to, value, data, maxPriorityFeePerGas, maxFeePerGas, gasLimit} = tx;
-        const txResponse = await this.#wallet.sendTransaction({
-            chainId,
-            nonce,
-            to,
-            value,
-            data,
-            maxPriorityFeePerGas,
-            maxFeePerGas,
-            gasLimit,
-        });
-        return txResponse.hash;
-    }
-
-    async sendTx(tx$1, blobs) {
+    async sendTx(tx, blobs) {
         if (!blobs) {
-            return this.sendNormalTx(tx$1);
+            return await this.#wallet.sendTransaction(tx);
         }
 
         // blobs
         const kzg = await this.#getKzg();
-        const commitments = [];
-        const proofs = [];
+        const ethersBlobs = [];
         const versionedHashes = [];
-        const hexHashes = [];
         for (let i = 0; i < blobs.length; i++) {
-            commitments.push(kzg.blobToKzgCommitment(blobs[i]));
-            proofs.push(kzg.computeBlobKzgProof(blobs[i], commitments[i]));
-            const hash = commitmentsToVersionedHashes(commitments[i]);
-            versionedHashes.push(hash);
-            hexHashes.push(ethers.ethers.hexlify(hash));
+            const blob = blobs[i];
+            const commitment = kzg.blobToKzgCommitment(blob);
+            const proof = kzg.computeBlobKzgProof(blob, commitment);
+            ethersBlobs.push({
+                data: blob,
+                proof: proof,
+                commitment: commitment
+            });
+
+            const hash = commitmentsToVersionedHashes(commitment);
+            versionedHashes.push(ethers.ethers.hexlify(hash));
         }
 
-        const chain = await this.getChainId();
-        let {chainId, nonce, to, value, data, maxPriorityFeePerGas, maxFeePerGas, gasLimit, maxFeePerBlobGas} = tx$1;
-        if (chainId == null) {
-            chainId = chain;
-        } else {
-            chainId = BigInt(chainId);
-            if (chainId !== BigInt(chain)) {
-                throw Error('invalid network id')
-            }
-        }
-
-        if (nonce == null) {
-            nonce = await this.getNonce();
-        }
-
-        value = value == null ? '0x0' : BigInt(value);
-
+        let {to, value, data, gasLimit, maxFeePerBlobGas} = tx;
         if (gasLimit == null) {
             const hexValue = parseBigintValue(value);
             const params = {
@@ -204,87 +152,27 @@ class BlobUploader {
                 to,
                 data,
                 value: hexValue,
-                blobVersionedHashes: hexHashes,
+                blobVersionedHashes: versionedHashes,
             };
             gasLimit = await this.estimateGas(params);
             if (gasLimit == null) {
                 throw Error('estimateGas: execution reverted')
             }
-        } else {
-            gasLimit = BigInt(gasLimit);
-        }
-
-        if (maxFeePerGas == null) {
-            const fee = await this.getFee();
-            maxPriorityFeePerGas = fee.maxPriorityFeePerGas * 6n / 5n;
-            maxFeePerGas = fee.maxFeePerGas * 6n / 5n;
-        } else {
-            maxFeePerGas = BigInt(maxFeePerGas);
-            maxPriorityFeePerGas = BigInt(maxPriorityFeePerGas);
+            tx.gasLimit = gasLimit;
         }
 
         if (maxFeePerBlobGas == null) {
             maxFeePerBlobGas = await this.getBlobGasPrice();
             maxFeePerBlobGas = maxFeePerBlobGas * 6n / 5n;
-        } else {
-            maxFeePerBlobGas = BigInt(maxFeePerBlobGas);
+            tx.maxFeePerBlobGas = maxFeePerBlobGas;
         }
-
 
         // send
-        const common$1 = common.Common.custom(
-            {
-                name: 'custom-chain',
-                networkId: chainId,
-                chainId: chainId,
-            },
-            {
-                hardfork: common.Hardfork.Cancun,
-                customCrypto: {kzg},
-            }
-        );
-        const unsignedTx = new tx.BlobEIP4844Transaction(
-            {
-                chainId,
-                nonce,
-                to,
-                value,
-                data,
-                maxPriorityFeePerGas,
-                maxFeePerGas,
-                gasLimit,
-                maxFeePerBlobGas,
-                blobVersionedHashes: versionedHashes,
-                blobs,
-                kzgCommitments: commitments,
-                kzgProofs: proofs,
-            },
-            {common: common$1}
-        );
-
-        const pk = ethers.ethers.getBytes(this.#privateKey);
-        const signedTx = unsignedTx.sign(pk);
-        const rawData = signedTx.serializeNetworkWrapper();
-
-        const hex = Buffer.from(rawData).toString('hex');
-        return await this.sendRawTransaction('0x' + hex);
-    }
-
-    async isTransactionMined(transactionHash) {
-        const txReceipt = await this.#provider.getTransactionReceipt(transactionHash);
-        if (txReceipt && txReceipt.blockNumber) {
-            return txReceipt;
-        }
-    }
-
-    async getTxReceipt(transactionHash) {
-        let txReceipt;
-        while (!txReceipt) {
-            txReceipt = await this.isTransactionMined(transactionHash);
-            if (txReceipt) break;
-            await sleep(5000);
-        }
-        return txReceipt;
+        tx.type = 3;
+        tx.blobVersionedHashes = versionedHashes;
+        tx.blobs = ethersBlobs;
+        tx.kzg = kzg;
+        return await this.#wallet.sendTransaction(tx);
     }
 
     async getBlobHash(blob) {
@@ -641,10 +529,10 @@ class BaseEthStorage {
                 const tx = await fileContract.writeChunks.populateTransaction(hexName, indexArr, lenArr, {
                     value
                 });
-                const hash = await this.#blobUploader.sendTx(tx, blobArr);
-                console.log(`Transaction Id: ${hash}`);
+                const txRes = await this.#blobUploader.sendTx(tx, blobArr);
+                console.log(`Transaction Id: ${txRes.hash}`);
 
-                const txReceipt = await this.#blobUploader.getTxReceipt(hash);
+                const txReceipt = await txRes.wait();
                 if (txReceipt && txReceipt.status) {
                     success = true;
                     totalCost += value;

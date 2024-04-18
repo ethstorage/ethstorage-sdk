@@ -228,10 +228,10 @@ export class BaseEthStorage {
                 const tx = await fileContract.writeChunks.populateTransaction(hexName, indexArr, lenArr, {
                     value
                 });
-                const hash = await this.#blobUploader.sendTx(tx, blobArr);
-                console.log(`Transaction Id: ${hash}`);
+                const txRes = await this.#blobUploader.sendTx(tx, blobArr);
+                console.log(`Transaction Id: ${txRes.hash}`);
 
-                const txReceipt = await this.#blobUploader.getTxReceipt(hash);
+                const txReceipt = await txRes.wait();
                 if (txReceipt && txReceipt.status) {
                     success = true;
                     totalCost += value;
