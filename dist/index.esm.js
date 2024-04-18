@@ -1,7 +1,7 @@
 import { ethers, Contract } from 'ethers';
 import { BlobEIP4844Transaction } from '@ethereumjs/tx';
 import { Common, Hardfork } from '@ethereumjs/common';
-import { loadKZG } from 'ethstorage-kzg-wasm';
+import { loadKZG } from 'kzg-wasm';
 
 const defaultAxios = require("axios");
 const axios = defaultAxios.create({

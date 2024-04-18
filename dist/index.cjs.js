@@ -3,7 +3,7 @@
 var ethers = require('ethers');
 var tx = require('@ethereumjs/tx');
 var common = require('@ethereumjs/common');
-var ethstorageKzgWasm = require('ethstorage-kzg-wasm');
+var kzgWasm = require('kzg-wasm');
 var fs = require('fs');
 
 const defaultAxios = require("axios");
@@ -80,7 +80,7 @@ class BlobUploader {
 
     async #getKzg() {
         if (!this.#kzg) {
-            this.#kzg = await ethstorageKzgWasm.loadKZG();
+            this.#kzg = await kzgWasm.loadKZG();
         }
         return this.#kzg;
     }

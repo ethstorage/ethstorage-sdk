@@ -13,7 +13,7 @@
     "axios": "^1.6.8",
     "dotenv": "^16.4.5",
     "ethers": "^6.11.1",
-    "ethstorage-kzg-wasm": "^0.0.2"
+    "kzg-wasm": "^0.4.0"
   },
   "repository": {
     "type": "git",

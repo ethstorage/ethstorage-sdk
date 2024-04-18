@@ -415,11 +415,6 @@ ethers@^6.11.1:
     tslib "2.4.0"
     ws "8.5.0"
 
-ethstorage-kzg-wasm@^0.0.2:
-  version "0.0.2"
-  resolved "https://registry.npmjs.org/ethstorage-kzg-wasm/-/ethstorage-kzg-wasm-0.0.2.tgz#87c220da27bdb2a20ff87828b4365c3490d817ff"
-  integrity sha512-gjuuN8QfQHnVN6nVqDb3iYg4/kKOwZSEeXez2rMV7JaFWVAFoYpQQaeC1HEQtsO3WJDU273bfgPMSVOPdCY6hw==
-
 follow-redirects@^1.15.6:
   version "1.15.6"
   resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.6.tgz#7f815c0cda4249c74ff09e95ef97c23b5fd0399b"
@@ -529,6 +524,11 @@ js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
   integrity sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==
+
+kzg-wasm@^0.4.0:
+  version "0.4.0"
+  resolved "https://registry.npmjs.org/kzg-wasm/-/kzg-wasm-0.4.0.tgz#362048470e25fb9683eefa9d2b076283ae653fa0"
+  integrity sha512-hKEwFbKrY1LZnAH5gY8+PlVWfkGnj2wd2tc83eIgzuC4NoshXqplW9OzGlBDqpAmXxwhiN8fgPG2+NcvUIBSwg==
 
 magic-string@^0.30.3:
   version "0.30.9"
