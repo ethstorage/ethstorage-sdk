@@ -40,7 +40,7 @@ const fileData = DecodeBlobs(blobs);
 Send blob type transaction
 ```js
 const uploader = new BlobUploader(rpc, privateKey);
-const hash = await uploader.sendTx(tx, blobs);
+const txResponse = await uploader.sendTx(tx, blobs);
 ```
 
 
