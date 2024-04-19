@@ -6,4 +6,4 @@ export {
   BLOB_SIZE,
   BLOB_DATA_SIZE
 } from './blobs.js';
-export { DownloadFile } from './download.js';
+export { Download } from './download.js';
