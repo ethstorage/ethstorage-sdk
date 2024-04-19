@@ -30,6 +30,7 @@ export class BaseEthStorage {
     #wallet;
     #blobUploader;
     #contractAddr;
+    #nonce;
 
     constructor(rpc, privateKey, contractAddr = null) {
         const provider = new ethers.JsonRpcProvider(rpc);
@@ -187,6 +188,118 @@ export class BaseEthStorage {
                 }
             }
 
+            const result = await this.#uploadBlob(fileContract, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost);
+            if (result.isSuccess) {
+                if(result.totalUploadSize === 0) {
+                    currentSuccessIndex += blobs.length;
+                    console.log(`File ${fileName} chunkId: ${chunkIdArr}: The data is not changed.`);
+                } else {
+                    totalCost += result.totalCost;
+                    totalUploadSize += result.totalUploadSize;
+                    totalUploadCount += blobs.length;
+                    currentSuccessIndex += blobs.length;
+                    console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
+                }
+            } else {
+                //  fail
+                break;
+            }
+        }
+        return {
+            totalChunkCount: blobLength,
+            currentSuccessIndex: currentSuccessIndex,
+            totalUploadCount: totalUploadCount,
+            totalUploadSize: totalUploadSize,
+            totalCost: totalCost,
+        }
+    }
+
+    async uploadData(fileName, data) {
+        if (!this.#contractAddr) {
+            console.error(`ERROR: flat directory not deployed!`);
+            return;
+        }
+
+        const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
+        const isSupport = await fileContract.isSupportBlob();
+        if (!isSupport) {
+            console.error(`ERROR: The current contract does not support blob upload!`);
+            return;
+        }
+
+        const hexName = stringToHex(fileName);
+        const content = Buffer.from(data);
+        const fileSize = content.length;
+        const blobs = EncodeBlobs(content);
+        const blobLength = blobs.length;
+        const blobDataSize = BLOB_DATA_SIZE;
+
+        const clearState = await this.#clearOldFile(fileContract, fileName, hexName, blobLength);
+        if (clearState === REMOVE_FAIL) {
+            console.error(`ERROR: Failed to delete old data!`);
+            return;
+        }
+
+        const cost = await fileContract.upfrontPayment();
+        let currentSuccessIndex = 0;
+        let totalUploadCount = 0;
+        let totalUploadSize = 0;
+        let totalCost = 0n;
+        for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
+            const blobArr = [];
+            const chunkIdArr = [];
+            const chunkSizeArr = [];
+            let max = i + MAX_BLOB_COUNT > blobLength ? blobLength : i + MAX_BLOB_COUNT;
+            for (let j = i; j < max; j++) {
+                blobArr.push(blobs[j]);
+                chunkIdArr.push(j);
+                if (j === blobLength - 1) {
+                    chunkSizeArr.push(fileSize - blobDataSize * (blobLength - 1));
+                } else {
+                    chunkSizeArr.push(blobDataSize);
+                }
+            }
+
+            const result = await this.#uploadBlob(fileContract, hexName, clearState, blobArr, chunkIdArr, chunkSizeArr, cost);
+            if (result.isSuccess) {
+                if(result.totalUploadSize === 0) {
+                    currentSuccessIndex += blobArr.length;
+                    console.log(`File ${fileName} chunkId: ${chunkIdArr}: The data is not changed.`);
+                } else {
+                    totalCost += result.totalCost;
+                    totalUploadSize += result.totalUploadSize;
+                    totalUploadCount += blobArr.length;
+                    currentSuccessIndex += blobArr.length;
+                    console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
+                }
+            } else {
+                //  fail
+                break;
+            }
+        }
+        return {
+            totalChunkCount: blobLength,
+            currentSuccessIndex: currentSuccessIndex,
+            totalUploadCount: totalUploadCount,
+            totalUploadSize: totalUploadSize,
+            totalCost: totalCost,
+        }
+    }
+
+    async initNonce() {
+        this.#nonce = await this.#blobUploader.getNonce();
+        console.log("Success: current nonce is", this.#nonce);
+    }
+
+    #increasingNonce() {
+        if (this.#nonce) {
+            return this.#nonce++;
+        }
+        return undefined;
+    }
+
+    async #uploadBlob(fileContract, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost) {
+        try {
             // check
             if (clearState === REMOVE_NORMAL) {
                 let hasChange = false;
@@ -199,43 +312,40 @@ export class BaseEthStorage {
                     }
                 }
                 if (!hasChange) {
-                    currentSuccessIndex += blobs.length;
-                    console.log(`File ${fileName} chunkId: ${chunkIdArr}: The data is not changed.`);
-                    continue;
+                    return {
+                        isSuccess: true,
+                        totalUploadSize: 0,
+                    }
                 }
             }
 
             // send
-            try {
-                const value = cost * BigInt(blobs.length);
-                const tx = await fileContract.writeChunks.populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
-                    value
-                });
-                const txRes = await this.#blobUploader.sendTx(tx, blobs);
-                console.log(`Transaction Id: ${txRes.hash}`);
+            const value = cost * BigInt(blobs.length);
+            const tx = await fileContract.writeChunks.populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
+                value
+            });
+            tx.nonce = this.#increasingNonce();
+            const txRes = await this.#blobUploader.sendTx(tx, blobs);
+            console.log(`Transaction Id: ${txRes.hash}`);
+            const txReceipt = await txRes.wait();
 
-                const txReceipt = await txRes.wait();
-                if (txReceipt && txReceipt.status) {
-                    totalCost += value;
-                    totalUploadSize += blobDataSize * blobs.length;
-                    if (i + blobs.length === blobLength) {
-                        totalUploadSize = totalUploadSize - blobDataSize + chunkSizeArr[chunkSizeArr.length - 1];
-                    }
-                    totalUploadCount += blobs.length;
-                    currentSuccessIndex += blobs.length;
-                    console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
+            if (txReceipt && txReceipt.status) {
+                let totalUploadSize = 0;
+                for (let i =0; i< chunkSizeArr.length; i++)  {
+                    totalUploadSize  += chunkSizeArr[i];
                 }
-            } catch (e) {
-                console.log('Error:' + e.message);
-                break;
+                return {
+                    isSuccess: true,
+                    totalUploadSize: totalUploadSize,
+                    totalCost : value,
+                }
             }
+        } catch (e) {
+            console.log('Error:' + e.message);
         }
+
         return {
-            totalChunkCount: blobLength,
-            currentSuccessIndex: currentSuccessIndex,
-            totalUploadCount: totalUploadCount,
-            totalUploadSize: totalUploadSize,
-            totalCost: totalCost,
+            isSuccess: false,
         }
     }
 
