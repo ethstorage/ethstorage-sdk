@@ -467,7 +467,7 @@ class BaseEthStorage {
         }
 
         const cost = await fileContract.upfrontPayment();
-        let currentSuccessIndex = 0;
+        let currentSuccessIndex = -1;
         let totalUploadCount = 0;
         let totalUploadSize = 0;
         let totalCost = 0n;
@@ -486,17 +486,15 @@ class BaseEthStorage {
                 }
             }
 
-            const result = await this.#uploadBlob(fileContract, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost);
+            const result = await this.#uploadBlob(fileContract, fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost);
             if (result.isSuccess) {
                 if(result.totalUploadSize === 0) {
                     currentSuccessIndex += blobs.length;
-                    console.log(`File ${fileName} chunkId: ${chunkIdArr}: The data is not changed.`);
                 } else {
                     totalCost += result.totalCost;
                     totalUploadSize += result.totalUploadSize;
                     totalUploadCount += blobs.length;
                     currentSuccessIndex += blobs.length;
-                    console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
                 }
             } else {
                 //  fail
@@ -539,7 +537,7 @@ class BaseEthStorage {
         }
 
         const cost = await fileContract.upfrontPayment();
-        let currentSuccessIndex = 0;
+        let currentSuccessIndex = -1;
         let totalUploadCount = 0;
         let totalUploadSize = 0;
         let totalCost = 0n;
@@ -558,17 +556,15 @@ class BaseEthStorage {
                 }
             }
 
-            const result = await this.#uploadBlob(fileContract, hexName, clearState, blobArr, chunkIdArr, chunkSizeArr, cost);
+            const result = await this.#uploadBlob(fileContract, fileName, hexName, clearState, blobArr, chunkIdArr, chunkSizeArr, cost);
             if (result.isSuccess) {
                 if(result.totalUploadSize === 0) {
                     currentSuccessIndex += blobArr.length;
-                    console.log(`File ${fileName} chunkId: ${chunkIdArr}: The data is not changed.`);
                 } else {
                     totalCost += result.totalCost;
                     totalUploadSize += result.totalUploadSize;
                     totalUploadCount += blobArr.length;
                     currentSuccessIndex += blobArr.length;
-                    console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
                 }
             } else {
                 //  fail
@@ -596,7 +592,7 @@ class BaseEthStorage {
         return undefined;
     }
 
-    async #uploadBlob(fileContract, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost) {
+    async #uploadBlob(fileContract, fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost) {
         try {
             // check
             if (clearState === REMOVE_NORMAL) {
@@ -610,6 +606,7 @@ class BaseEthStorage {
                     }
                 }
                 if (!hasChange) {
+                    console.log(`File ${fileName} chunkId: ${chunkIdArr}: The data is not changed.`);
                     return {
                         isSuccess: true,
                         totalUploadSize: 0,
@@ -624,10 +621,12 @@ class BaseEthStorage {
             });
             tx.nonce = this.#increasingNonce();
             const txRes = await this.#blobUploader.sendTx(tx, blobs);
+            console.log(`${fileName}, chunkId: ${chunkIdArr}`);
             console.log(`Transaction Id: ${txRes.hash}`);
             const txReceipt = await txRes.wait();
 
             if (txReceipt && txReceipt.status) {
+                console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
                 let totalUploadSize = 0;
                 for (let i =0; i< chunkSizeArr.length; i++)  {
                     totalUploadSize  += chunkSizeArr[i];
