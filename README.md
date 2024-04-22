@@ -12,7 +12,7 @@ $ npm install ethstorage-sdk
 ## Example
 
 ### Constructor
-Init ethstorage-sdk
+Init ethstorage-sdk.
 ```js
 const { EthStorage } = require("ethstorage-sdk")
 
@@ -24,7 +24,7 @@ const ethStorage = new EthStorage(rpc, privateKey, flatDirectoryAddress);
 ```
 
 ### Deploy
-Deploy the implementation contract of the eip-5018 standard ([FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/SimpleFlatDirectory.sol)).
+Deploy the implementation contract of the eip-5018 standard [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/SimpleFlatDirectory.sol).
 ```js
 // ethStorageContract is the contract address of ETHstorage deployed on L1. 
 await ethStorage.deploy(ethStorageContract);
@@ -34,7 +34,7 @@ await ethStorage.deploySepolia();
 ```
 
 ### Upload
-Upload files to ([FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/SimpleFlatDirectory.sol))
+Upload files to [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/SimpleFlatDirectory.sol).
 ```js
 // Pass the file path or file selected via browser folder.
 await ethStorage.upload(fileOrPath);
