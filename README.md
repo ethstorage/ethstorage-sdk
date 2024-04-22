@@ -12,7 +12,7 @@ $ npm install ethstorage-sdk
 ## Example
 
 ### Constructor
-init ethstorage-sdk
+Init ethstorage-sdk
 ```js
 const { EthStorage } = require("ethstorage-sdk")
 
@@ -34,6 +34,7 @@ await ethStorage.deploySepolia();
 ```
 
 ### Upload
+Upload files to ([FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/SimpleFlatDirectory.sol))
 ```js
 // Pass the file path or file selected via browser folder.
 await ethStorage.upload(fileOrPath);
@@ -46,6 +47,7 @@ await ethStorage.uploadData(fileName, data);
 
 
 ### Download
+Download uploaded data from the EthStorage network.
 ```js
 // Since the data is downloaded from ethstorage, the provided RPC should be an ethstorage RPC.
 const data = await ethStorage.download(fileName, ethStorageRpc);
