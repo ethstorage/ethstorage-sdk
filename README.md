@@ -1,7 +1,7 @@
 # ethstorage-sdk
 Tool for uploading and downloading data for EthStorage network, utilizing the [EIP-5018](https://eips.ethereum.org/EIPS/eip-5018) standard for data.
 
-## Installatio
+## Installation
 
 With [npm](https://www.npmjs.com/package/ethstorage-sdk) do
 
