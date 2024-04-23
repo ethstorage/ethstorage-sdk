@@ -585,13 +585,6 @@ class BaseEthStorage {
         console.log("Success: current nonce is", this.#nonce);
     }
 
-    #increasingNonce() {
-        if (this.#nonce) {
-            return this.#nonce++;
-        }
-        return undefined;
-    }
-
     async #uploadBlob(fileContract, fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost) {
         try {
             // check
@@ -619,7 +612,7 @@ class BaseEthStorage {
             const tx = await fileContract.writeChunks.populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
                 value
             });
-            tx.nonce = this.#increasingNonce();
+            tx.nonce = this.#nonce ? this.#nonce++ : undefined;
             const txRes = await this.#blobUploader.sendTx(tx, blobs);
             console.log(`${fileName}, chunkId: ${chunkIdArr}`);
             console.log(`Transaction Id: ${txRes.hash}`);
