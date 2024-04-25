@@ -1319,13 +1319,13 @@ function fromIterable(iterable) {
 }
 function fromAsyncIterable(asyncIterable) {
     return new Observable(function (subscriber) {
-        process(asyncIterable, subscriber).catch(function (err) { return subscriber.error(err); });
+        process$1(asyncIterable, subscriber).catch(function (err) { return subscriber.error(err); });
     });
 }
 function fromReadableStreamLike(readableStream) {
     return fromAsyncIterable(readableStreamLikeToAsyncGenerator(readableStream));
 }
-function process(asyncIterable, subscriber) {
+function process$1(asyncIterable, subscriber) {
     var asyncIterable_1, asyncIterable_1_1;
     var e_2, _a;
     return __awaiter(this, void 0, void 0, function () {
@@ -1587,6 +1587,413 @@ function mergeMap(project, resultSelector, concurrent) {
     return operate(function (source, subscriber) { return mergeInternals(source, subscriber, project, concurrent); });
 }
 
+function getDefaultExportFromCjs (x) {
+	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
+}
+
+var stylesName = {
+  // 字背景颜色范围:40~49
+  // 40:黑, 41:深红, 42:绿, 43:黄色, 44:蓝色, 45:紫色, 46:深绿, 47:白色,
+  // 字颜色:30~39
+  // 30:黑, 31:红, 32:绿, 33:黄, 34:蓝色, 35:紫色, 36:深绿, 37:白色,
+  //
+  // echo -e "\x1b[31;1m color red underline \x1b[0m"
+  // 1m 亮的颜色，默认不给是暗淡的颜色
+  //
+  // |    ANSI |    ANSI |    ANSI    |                | Aixterm | Aixterm
+  // |   Color | FG Code | BG Code    | Bright Color   | FG Code | BG Code
+  // +---------+---------+--------    +----------------+---------+--------
+  // |   Black |      30 |      40    |   Bright Black |      90 |     100
+  // |     Red |      31 |      41    |     Bright Red |      91 |     101
+  // |   Green |      32 |      42    |   Bright Green |      92 |     102
+  // |  Yellow |      33 |      43    |  Bright Yellow |      93 |     103
+  // |    Blue |      34 |      44    |    Bright Blue |      94 |     104
+  // | Magenta |      35 |      45    | Bright Magenta |      95 |     105
+  // |    Cyan |      36 |      46    |    Bright Cyan |      96 |     106
+  // |   White |      37 |      47    |   Bright White |      97 |     107
+  //
+  colors: [
+    'black',
+    'red',
+    'green',
+    'yellow',
+    'blue',
+    'magenta',
+    'cyan',
+    'white'
+  ],
+  styles:[
+    'bold', //粗体
+    'faint',
+    'italic',
+    'underline',
+    'blink',
+    'overline',
+    'inverse',
+    'conceal',
+    'strike'
+  ]
+};
+
+// https://github.com/chalk/ansi-regex/blob/master/index.js
+
+var ansiRegex$1 = function () {
+  const pattern = [
+    '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
+    '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))'
+  ].join('|');
+  return new RegExp(pattern, 'g');
+};
+
+var color$2 = {};
+
+var argv = process.argv;
+
+var supportsColors = (function () {
+  if (argv.indexOf('--no-color') !== -1 ||
+    argv.indexOf('--color=false') !== -1) {
+    return false;
+  }
+
+  if (argv.indexOf('--color') !== -1 ||
+    argv.indexOf('--color=true') !== -1 ||
+    argv.indexOf('--color=always') !== -1) {
+    return true;
+  }
+
+  if (process.stdout && !process.stdout.isTTY) {
+    return false;
+  }
+
+  if (process.platform === 'win32') {
+    return true;
+  }
+
+  if ('COLORTERM' in process.env) {
+    return true;
+  }
+
+  if (process.env.TERM === 'dumb') {
+    return false;
+  }
+
+  if (/^screen|^xterm|^vt100|color|ansi|cygwin|linux/i.test(process.env.TERM)) {
+    return true;
+  }
+
+  return false;
+})();
+
+/**
+ *
+ * [The opaque named colors](https://drafts.csswg.org/css-color/#named-colors)
+ * [ANSI Escape sequences](http://ascii-table.com/ansi-escape-sequences.php)
+ * [ANSI escape code](https://en.wikipedia.org/wiki/ANSI_escape_code)
+ * [Linux Shell Scripting Tutorial](http://www.freeos.com/guides/lsst/misc.htm#colorfunandmore)
+ *
+ * [tip colors and formatting](http://misc.flogisoft.com/bash/tip_colors_and_formatting)
+ *
+ */
+
+(function (exports) {
+	var _styles = stylesName;
+	var isSupported = supportsColors;
+	var colors = _styles.colors;
+	var styles = _styles.styles;
+
+	exports.color = {};
+
+	function Colors(str){
+	  this.string = str;
+	  this.styles = [];
+	  this.fgcolor = null;    // Foreground
+	  this.bgcolor = null;    // Background
+	  this.fgcolor_bt = null; // Bright Foreground
+	  this.bgcolor_bt = null; // Bright Background
+	  this.fgcolor_x = null;  // 256 Foreground
+	  this.bgcolor_x = null; // 256 Background
+	}
+
+	// 字背景颜色范围:40~49
+	// 40:黑, 41:深红, 42:绿, 43:黄色, 44:蓝色, 45:紫色, 46:深绿, 47:白色,
+	// 字颜色:30~39
+	// 30:黑, 31:红, 32:绿, 33:黄, 34:蓝色, 35:紫色, 36:深绿, 37:白色,
+	//
+	// echo -e "\x1b[31;1m color red underline \x1b[0m"
+	// 1m 亮的颜色，默认不给是暗淡的颜色
+	//
+	// |    ANSI |    ANSI |    ANSI    |                | Aixterm | Aixterm
+	// |   Color | FG Code | BG Code    | Bright Color   | FG Code | BG Code
+	// +---------+---------+--------    +----------------+---------+--------
+	// |   Black |      30 |      40    |   Bright Black |      90 |     100
+	// |     Red |      31 |      41    |     Bright Red |      91 |     101
+	// |   Green |      32 |      42    |   Bright Green |      92 |     102
+	// |  Yellow |      33 |      43    |  Bright Yellow |      93 |     103
+	// |    Blue |      34 |      44    |    Bright Blue |      94 |     104
+	// | Magenta |      35 |      45    | Bright Magenta |      95 |     105
+	// |    Cyan |      36 |      46    |    Bright Cyan |      96 |     106
+	// |   White |      37 |      47    |   Bright White |      97 |     107
+	//
+
+	for (var i = 0; i < colors.length; i++) {
+	  (function(i){
+	    var name = colors[i];
+	    Object.defineProperty(Colors.prototype, name, {
+	      get: function() {
+	        // Foreground 前景色
+	        this.fgcolor = i;
+	        return this;
+	      }
+	    });
+	    Object.defineProperty(Colors.prototype, name + '_b', {
+	      get: function () {
+	        // Background 背景色
+	        this.bgcolor = i;
+	        return this;
+	      }
+	    });
+	    Object.defineProperty(Colors.prototype, name + '_bt', {
+	      get: function () {
+	        // Bright Foreground 明亮 前景色
+	        this.fgcolor_bt = i;
+	        return this;
+	      }
+	    });
+	    Object.defineProperty(Colors.prototype, name + '_bbt', {
+	      get: function () {
+	        // Bright Background 明亮 背景色
+	        this.bgcolor_bt = i;
+	        return this;
+	      }
+	    });
+
+	    exports.color[name] = exports[name] = function(text) {
+	      if (!isSupported) return text;
+	      return '\x1b[' + (30 + i) + 'm' + text + '\x1b[0m';
+	    };
+	    exports.color[name + '_b'] = exports[name + '_b'] = function(text) {
+	      if (!isSupported) return text;
+	      return '\x1b[' + (40 + i) + 'm' + text + '\x1b[0m';
+	    };
+
+	    exports.color[name + '_bt'] = exports[name + '_bt'] = function(text) {
+	      if (!isSupported) return text;
+	      return '\x1b[' + (90 + i) + 'm' + text + '\x1b[0m';
+	    };
+	    exports.color[name + '_bbt'] = exports[name + '_bbt'] = function(text) {
+	      if (!isSupported) return text;
+	      return '\x1b[' + (100 + i) + 'm' + text + '\x1b[0m';
+	    };
+	  })(i);
+	}
+
+
+	for (var i = 0; i < 256; i++) {
+	  (function(i){
+	    Object.defineProperty(Colors.prototype, 'x'+i, {
+	      get: function() {
+	        this.fgcolor_x = i;
+	        return this;
+	      }
+	    });
+	    Object.defineProperty(Colors.prototype, 'xb'+i, {
+	      get: function() {
+	        this.bgcolor_x = i;
+	        return this;
+	      }
+	    });
+
+	    exports.color['x'+i] = exports['x'+i] = function(text) {
+	      if (!isSupported) return text;
+	      return '\x1b[38;5;' + i + 'm' + text + '\x1b[0m';
+	    };
+
+	    exports.color['xb'+i] = exports['xb'+i] = function(text) {
+	      if (!isSupported) return text;
+	      return '\x1b[48;5;' + i + 'm' + text + '\x1b[0m';
+	    };
+	  })(i);
+	}
+	/**
+	 * ANSI控制码的说明
+	 *
+	 * 33[0m 关闭所有属性
+	 * 33[1m 设置高亮度
+	 * 33[4m 下划线
+	 * 33[5m 闪烁
+	 * 33[7m 反显
+	 * 33[8m 消隐
+	 * 33[30m -- 33[37m 设置前景色
+	 * 33[40m -- 33[47m 设置背景色
+	 * 33[nA 光标上移n行
+	 * 33[nB 光标下移n行
+	 * 33[nC 光标右移n行
+	 * 33[nD 光标左移n行
+	 * 33[y;xH设置光标位置
+	 * 33[2J 清屏
+	 * 33[K 清除从光标到行尾的内容
+	 * 33[s 保存光标位置
+	 * 33[u 恢复光标位置
+	 * 33[?25l 隐藏光标
+	 * 33[?25h 显示光标
+	 */
+
+	for (var i = 0; i < styles.length; i++) {
+	  (function(i) {
+	    var name = styles[i];
+	    Object.defineProperty(Colors.prototype, name, {
+	      get: function() {
+	        if (this.styles.indexOf(i) === -1) {
+	          this.styles = this.styles.concat(i + 1);
+	        }
+	        return this;
+	      }
+	    });
+	    exports.color[name] = exports[name] = function(text) {
+	      if (!isSupported) return text;
+	      return '\x1b[' + (i + 1) + 'm' + text + '\x1b[0m';
+	    };
+	  })(i);
+	}
+
+	Colors.prototype.colored = function (text) {
+	  var reset = '\x1b[0m';
+	  var is256 = isSupported;
+	  // 256 Foreground 256 前景色
+	  if (this.fgcolor_x && this.fgcolor_x !== null && is256) {
+	    text = '\x1b[38;5;' + this.fgcolor_x + 'm' + text + reset;
+	  }
+	  // 256 Foreground 256 前景色
+	  if (this.bgcolor_x && this.bgcolor_x !== null && is256) {
+	    text = '\x1b[48;5;' + this.bgcolor_x + 'm' + text + reset;
+	  }
+	  // Foreground 前景色
+	  if (this.fgcolor !== null && this.fgcolor < 8) {
+	    text = '\x1b[' + (30 + this.fgcolor) + 'm' + text + reset;
+	  }
+	  // Bright Foreground 亮 前景色
+	  if (this.fgcolor_bt !== null && this.fgcolor_bt < 8) {
+	    text = '\x1b[' + (90 + this.fgcolor_bt) + 'm' + text + reset;
+	  }
+	  // Background 背景色
+	  if (this.bgcolor !== null && this.bgcolor < 8) {
+	    text = '\x1b[' + (40 + this.bgcolor) + 'm' + text + reset;
+	  }
+	  // Bright Background 亮 背景色
+	  if (this.bgcolor_bt !== null && this.bgcolor_bt < 8) {
+	    text = '\x1b[' + (100 + this.bgcolor_bt) + 'm' + text + reset;
+	  }
+
+	  if (this.styles && this.styles.length) {
+	    text = '\x1b[' + this.styles.join(';') + 'm' + text + reset;
+	  }
+	  return text;
+	};
+
+	Colors.prototype.valueOf = function(type){
+	  var text = this.string;
+	  text = this.colored(text);
+	  return text;
+	};
+
+	exports.Colors = Colors; 
+} (color$2));
+
+var colors$1 = {};
+var colorSafe = colors$1;
+
+var defineProps = Object.defineProperties;
+var styles_data = stylesName;
+var ansiRegex = ansiRegex$1;
+var ansiColors = styles_data.colors;
+var ansiStyles = styles_data.styles;
+
+var Colors = color$2.Colors;
+var color$1 = color$2.color;
+
+// Get all the color attribute.
+ansiColors = Object.keys(color$1);
+
+var styles = (function () {
+  var ret = {};
+  var retarr = ansiStyles.concat(ansiColors);
+  retarr.forEach(function (key) {
+    ret[key] = {
+      get: function () {
+        return build(this._styles.concat(key));
+      }
+    };
+  });
+  return ret;
+})();
+
+var proto = defineProps(function colors() {}, styles);
+
+
+function build(_styles_more) {
+  var builder = function builder() {
+    return applyStyle.apply(builder, arguments);
+  };
+  builder._styles = _styles_more;
+  // 使用它 __proto__ 是必须返回一个函数
+  builder.__proto__ = proto;
+  return builder;
+}
+
+function applyStyleCallback(str, _sty) {
+  var _Colors = new Colors();
+  for (var i = 0; i < _sty.length; i++) {
+    _Colors.string = str;
+    if (_sty[i]) str = _Colors[_sty[i]].valueOf(_sty[i]);
+  }
+  return str;
+}
+
+function regexReplace(str) {
+  return str.replace(/(\[)/ig, '\\[').replace(/(\])/ig, '\\]');
+}
+
+// 应用 Ansi 样式
+function applyStyle(){
+  var args_len = arguments.length;
+  var str = args_len !== 0 && String(arguments[0]);
+  var _sty = this._styles;
+  var ansiArray = str.match(ansiRegex());
+  // 文本中是否带 ANSI 控制码
+  if (ansiRegex().test(str) && ansiArray) {
+    var leftReg = regexReplace(ansiArray[0]);
+    var rightReg = regexReplace(ansiArray[ansiArray.length - 1]);
+    var centerReg = new RegExp(leftReg + '(.*)' + rightReg, "g");
+    var centerStr = str.match(centerReg);
+    var sidesStr = str.split(centerStr);
+    str = applyStyleCallback(sidesStr[0], _sty) + centerStr + applyStyleCallback(sidesStr[1], _sty);
+  } else {
+    str = applyStyleCallback(str, _sty);
+  }
+  return str;
+}
+
+function init() {
+  var ret = {};
+  Object.keys(styles).forEach(function (name) {
+    ret[name] = {
+      get: function () {
+        return build([name]);
+      }
+    };
+  });
+  return ret;
+}
+
+defineProps(colors$1, init());
+
+var colors = colorSafe;
+var safe = colors;
+
+var color = /*@__PURE__*/getDefaultExportFromCjs(safe);
+
+const error = color.red.bold;
+
 const flatDirectoryBlobAbi = [
     "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
     "function setDefault(bytes memory _defaultFile) public",
@@ -1596,7 +2003,8 @@ const flatDirectoryBlobAbi = [
     "function refund() public",
     "function remove(bytes memory name) external returns (uint256)",
     "function countChunks(bytes memory name) external view returns (uint256)",
-    "function isSupportBlob() view public returns (bool)"
+    "function isSupportBlob() view public returns (bool)",
+    "function getStorageMode(bytes memory name) public view returns(uint256)"
 ];
 
 const REMOVE_FAIL = -1;
@@ -1604,6 +2012,8 @@ const REMOVE_NORMAL = 0;
 const REMOVE_SUCCESS = 1;
 
 const MAX_BLOB_COUNT = 3;
+
+const VERSION_BLOB = '2';
 
 const SEPOLIA_ETH_STORAGE = "0x804C520d3c084C805E37A35E90057Ac32831F96f";
 const ES_TEST_RPC = "http://65.108.236.27:9540";
@@ -1711,9 +2121,15 @@ class BaseEthStorage {
     }
 
     async remove(fileName) {
+        return await this.#remove(fileName, undefined);
+    }
+
+    async #remove(fileName, nonce) {
         const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
         try {
-            const tx = await fileContract.remove(stringToHex(fileName));
+            const tx = await fileContract.remove(stringToHex(fileName), {
+                nonce: nonce
+            });
             console.log(`Transaction Id: ${tx.hash}`);
             const receipt = await tx.wait();
             if (receipt.status) {
@@ -1740,7 +2156,7 @@ class BaseEthStorage {
     async #clearOldFile(fileName, chunkLength, oldChunkLength) {
         if (oldChunkLength > chunkLength) {
             // remove
-            const v = await this.remove(fileName);
+            const v = await this.#remove(fileName, this.#increasingNonce());
             if (v) {
                 return REMOVE_SUCCESS;
             } else {
@@ -1763,13 +2179,17 @@ class BaseEthStorage {
         const fileSize = content.length;
 
         const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
-        const [isSupport, cost, oldChunkLength] = await Promise.all([
+        const [isSupport, cost, oldChunkLength, fileMod] = await Promise.all([
             fileContract.isSupportBlob(),
             fileContract.upfrontPayment(),
-            fileContract.countChunks(hexName)
+            fileContract.countChunks(hexName),
+            fileContract.getStorageMode(hexName)
         ]);
         if (!isSupport) {
             throw new Error(`ERROR: The current contract does not support blob upload!`);
+        }
+        if (fileMod !== BigInt(VERSION_BLOB) && fileMod !== 0n) {
+            throw new Error(`ERROR: This file does not support blob upload! file=${fileName}`);
         }
 
         const blobs = EncodeBlobs(content);
@@ -1837,13 +2257,8 @@ class BaseEthStorage {
             throw new Error(`ERROR: The current contract does not support blob upload!`);
         }
 
-        // check file
-        const fileInfo = this.getFileInfo(fileOrPath);
-        if(fileInfo.isFile || fileInfo.isDirectory) {
-           return await this.#uploadFiles(fileOrPath, syncPoolSize);
-        }
-
-        throw new Error(`ERROR: Unsupported file path!`);
+        // upload file
+        return await this.#uploadFiles(fileOrPath, syncPoolSize);
     }
 
     async #initNonce() {
@@ -1876,17 +2291,23 @@ class BaseEthStorage {
         const hexName = stringToHex(fileName);
 
         const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
-        const [cost, oldChunkLength] = await Promise.all([
+        const [cost, oldChunkLength, fileMod] = await Promise.all([
             fileContract.upfrontPayment(),
-            fileContract.countChunks(hexName)
+            fileContract.countChunks(hexName),
+            fileContract.getStorageMode(hexName)
         ]);
+        if (fileMod !== BigInt(VERSION_BLOB) && fileMod !== 0n) {
+            console.log(error(`ERROR: This file does not support blob upload! file=${fileName}`));
+            return {status: 0, fileName: fileName};
+        }
 
         const blobDataSize = BLOB_DATA_SIZE;
         const blobLength = Math.ceil(fileSize / blobDataSize);
         // check old data
         const clearState = await this.#clearOldFile(fileName, blobLength, oldChunkLength);
         if (clearState === REMOVE_FAIL) {
-            throw new Error(`ERROR: Failed to delete old data!`);
+            console.log(error(`ERROR: Failed to delete old data! file=${fileName}`));
+            return {status: 0, fileName: fileName};
         }
 
         // upload
@@ -1925,11 +2346,12 @@ class BaseEthStorage {
             }
         }
         return {
+            status: 1,
             fileName: fileName,
             totalChunkCount: blobLength,
             currentSuccessIndex: currentSuccessIndex,
             totalUploadCount: totalUploadCount,
-            totalUploadSize: totalUploadSize,
+            totalUploadSize: totalUploadSize / 1024,
             totalCost: totalCost,
         }
     }
@@ -1974,7 +2396,9 @@ class BaseEthStorage {
                 }
             }
         } catch (e) {
-            console.log('Error:' + e.message);
+            const length = e.message.length;
+            console.log(length > 210 ? (e.message.substring(0, 100) + " ... " + e.message.substring(length - 100, length)) : e.message);
+            console.log(error(`ERROR: upload ${fileName} fail!`));
         }
         return {
             isSuccess: false,
@@ -1987,8 +2411,7 @@ class BaseEthStorage {
             // lock
             tx.nonce = this.#increasingNonce();
             const txRes = await this.#blobUploader.sendTx(tx, blobs);
-            console.log(`${fileName}, chunkId: ${chunkIdArr}`);
-            console.log(`Transaction Id: ${txRes.hash}`);
+            console.log(`Send Success: File: ${fileName}, Chunk Id: ${chunkIdArr}, Transaction hash: ${txRes.hash}`);
             return txRes;
         } finally {
             // unlock

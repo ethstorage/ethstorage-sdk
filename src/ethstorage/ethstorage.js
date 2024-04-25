@@ -6,6 +6,9 @@ import {BlobUploader} from "../uploader";
 import {BLOB_DATA_SIZE, EncodeBlobs} from "../blobs";
 import {Download} from "../download";
 
+import color from "colors-cli/safe";
+const error = color.red.bold;
+
 const flatDirectoryBlobAbi = [
     "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
     "function setDefault(bytes memory _defaultFile) public",
@@ -15,7 +18,8 @@ const flatDirectoryBlobAbi = [
     "function refund() public",
     "function remove(bytes memory name) external returns (uint256)",
     "function countChunks(bytes memory name) external view returns (uint256)",
-    "function isSupportBlob() view public returns (bool)"
+    "function isSupportBlob() view public returns (bool)",
+    "function getStorageMode(bytes memory name) public view returns(uint256)"
 ];
 
 const REMOVE_FAIL = -1;
@@ -23,6 +27,8 @@ const REMOVE_NORMAL = 0;
 const REMOVE_SUCCESS = 1;
 
 const MAX_BLOB_COUNT = 3;
+
+const VERSION_BLOB = '2';
 
 const SEPOLIA_ETH_STORAGE = "0x804C520d3c084C805E37A35E90057Ac32831F96f";
 const ES_TEST_RPC = "http://65.108.236.27:9540";
@@ -130,9 +136,15 @@ export class BaseEthStorage {
     }
 
     async remove(fileName) {
+        return await this.#remove(fileName, undefined);
+    }
+
+    async #remove(fileName, nonce) {
         const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
         try {
-            const tx = await fileContract.remove(stringToHex(fileName));
+            const tx = await fileContract.remove(stringToHex(fileName), {
+                nonce: nonce
+            });
             console.log(`Transaction Id: ${tx.hash}`);
             const receipt = await tx.wait();
             if (receipt.status) {
@@ -159,7 +171,7 @@ export class BaseEthStorage {
     async #clearOldFile(fileName, chunkLength, oldChunkLength) {
         if (oldChunkLength > chunkLength) {
             // remove
-            const v = await this.remove(fileName);
+            const v = await this.#remove(fileName, this.#increasingNonce());
             if (v) {
                 return REMOVE_SUCCESS;
             } else {
@@ -182,13 +194,17 @@ export class BaseEthStorage {
         const fileSize = content.length;
 
         const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
-        const [isSupport, cost, oldChunkLength] = await Promise.all([
+        const [isSupport, cost, oldChunkLength, fileMod] = await Promise.all([
             fileContract.isSupportBlob(),
             fileContract.upfrontPayment(),
-            fileContract.countChunks(hexName)
+            fileContract.countChunks(hexName),
+            fileContract.getStorageMode(hexName)
         ]);
         if (!isSupport) {
             throw new Error(`ERROR: The current contract does not support blob upload!`);
+        }
+        if (fileMod !== BigInt(VERSION_BLOB) && fileMod !== 0n) {
+            throw new Error(`ERROR: This file does not support blob upload! file=${fileName}`);
         }
 
         const blobs = EncodeBlobs(content);
@@ -256,13 +272,8 @@ export class BaseEthStorage {
             throw new Error(`ERROR: The current contract does not support blob upload!`);
         }
 
-        // check file
-        const fileInfo = this.getFileInfo(fileOrPath);
-        if(fileInfo.isFile || fileInfo.isDirectory) {
-           return await this.#uploadFiles(fileOrPath, syncPoolSize);
-        }
-
-        throw new Error(`ERROR: Unsupported file path!`);
+        // upload file
+        return await this.#uploadFiles(fileOrPath, syncPoolSize);
     }
 
     async #initNonce() {
@@ -295,17 +306,23 @@ export class BaseEthStorage {
         const hexName = stringToHex(fileName);
 
         const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
-        const [cost, oldChunkLength] = await Promise.all([
+        const [cost, oldChunkLength, fileMod] = await Promise.all([
             fileContract.upfrontPayment(),
-            fileContract.countChunks(hexName)
+            fileContract.countChunks(hexName),
+            fileContract.getStorageMode(hexName)
         ]);
+        if (fileMod !== BigInt(VERSION_BLOB) && fileMod !== 0n) {
+            console.log(error(`ERROR: This file does not support blob upload! file=${fileName}`));
+            return {status: 0, fileName: fileName};
+        }
 
         const blobDataSize = BLOB_DATA_SIZE;
         const blobLength = Math.ceil(fileSize / blobDataSize);
         // check old data
         const clearState = await this.#clearOldFile(fileName, blobLength, oldChunkLength);
         if (clearState === REMOVE_FAIL) {
-            throw new Error(`ERROR: Failed to delete old data!`);
+            console.log(error(`ERROR: Failed to delete old data! file=${fileName}`));
+            return {status: 0, fileName: fileName};
         }
 
         // upload
@@ -344,11 +361,12 @@ export class BaseEthStorage {
             }
         }
         return {
+            status: 1,
             fileName: fileName,
             totalChunkCount: blobLength,
             currentSuccessIndex: currentSuccessIndex,
             totalUploadCount: totalUploadCount,
-            totalUploadSize: totalUploadSize,
+            totalUploadSize: totalUploadSize / 1024,
             totalCost: totalCost,
         }
     }
@@ -393,7 +411,9 @@ export class BaseEthStorage {
                 }
             }
         } catch (e) {
-            console.log('Error:' + e.message);
+            const length = e.message.length;
+            console.log(length > 210 ? (e.message.substring(0, 100) + " ... " + e.message.substring(length - 100, length)) : e.message);
+            console.log(error(`ERROR: upload ${fileName} fail!`));
         }
         return {
             isSuccess: false,
@@ -406,8 +426,7 @@ export class BaseEthStorage {
             // lock
             tx.nonce = this.#increasingNonce();
             const txRes = await this.#blobUploader.sendTx(tx, blobs);
-            console.log(`${fileName}, chunkId: ${chunkIdArr}`);
-            console.log(`Transaction Id: ${txRes.hash}`);
+            console.log(`Send Success: File: ${fileName}, Chunk Id: ${chunkIdArr}, Transaction hash: ${txRes.hash}`);
             return txRes;
         } finally {
             // unlock

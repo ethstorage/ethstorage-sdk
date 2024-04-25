@@ -81,14 +81,12 @@ async function ethStorageTest() {
     const ethStorage = new EthStorage('http://88.99.30.186:8545/', privateKey, "0x1F82DCFD590B4FbE5B2eCDa8E34bed3f2044e0F7");
     // await ethStorage.deploySepolia();
 
-    // await ethStorage.initNonce();
-    const content = fs.readFileSync(filePath);
-    await ethStorage.uploadData("img1.jpeg", content);
-    // const result = await ethStorage.upload(filePath);
-    // console.log(result)
-
-    // const buff = await ethStorage.download(name);
-    // const p = saveFile(buff)
-    // console.log(p)
+    // const content = fs.readFileSync(filePath);
+    // await ethStorage.uploadData("img1.jpeg", content);
+    const result = await ethStorage.upload(filePath);
+    console.log(result)
+    const buff = await ethStorage.download(name);
+    const p = saveFile(buff)
+    console.log(p)
 }
 ethStorageTest();
