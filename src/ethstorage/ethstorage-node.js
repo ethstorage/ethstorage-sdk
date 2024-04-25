@@ -8,12 +8,15 @@ export class EthStorage extends BaseEthStorage{
             const name = filePath.substring(filePath.lastIndexOf("/") + 1);
             return {
                 isFile: true,
+                isDirectory: false,
                 name: name,
-                size: fileStat.size
+                size: fileStat.size,
+                path: filePath
             };
         }
         return {
-            isFile: false
+            isFile: false,
+            isDirectory: fileStat.isDirectory()
         };
     }
 
