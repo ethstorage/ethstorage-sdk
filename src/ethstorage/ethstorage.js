@@ -261,13 +261,13 @@ export class BaseEthStorage {
         }
     }
 
-    async upload(fileOrPath, syncPoolSize = 15) {
+    async upload(fileOrPath, syncPoolSize = 7) {
         if (!this.#contractAddr) {
             throw new Error(`ERROR: flat directory not deployed!`);
         }
 
         const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
-        const isSupport = fileContract.isSupportBlob();
+        const isSupport = await fileContract.isSupportBlob();
         if (!isSupport) {
             throw new Error(`ERROR: The current contract does not support blob upload!`);
         }
@@ -386,27 +386,35 @@ export class BaseEthStorage {
                 }
                 if (!hasChange) {
                     console.log(`File ${fileName} chunkId: ${chunkIdArr}: The data is not changed.`);
-                    return {
-                        isSuccess: true,
-                        totalUploadSize: 0,
-                    }
+                    return {isSuccess: true, totalUploadSize: 0};
                 }
             }
 
             // create tx
             const value = cost * BigInt(blobs.length);
-            const tx = await fileContract.writeChunks.populateTransaction(hexName, chunkIdArr, chunkSizeArr, {value});
+            const data = fileContract.interface.encodeFunctionData("writeChunks", [
+                hexName,
+                chunkIdArr,
+                chunkSizeArr
+            ]);
             const [maxFeePerBlobGas, gasFeeData] = await Promise.all([
                 this.#blobUploader.getBlobGasPrice(),
                 this.#blobUploader.getGasPrice(),
             ]);
-            tx.maxFeePerBlobGas = maxFeePerBlobGas * 6n / 5n;
-            tx.maxFeePerGas = gasFeeData.maxFeePerGas * 6n / 5n;
-            tx.maxPriorityFeePerGas = gasFeeData.maxPriorityFeePerGas * 6n / 5n;
-            tx.gasLimit = 1000000n;
+            const tx = {
+                from: this.#wallet.address,
+                to: this.#contractAddr,
+                data: data,
+                value: value,
+                maxFeePerBlobGas: maxFeePerBlobGas * 6n / 5n,
+                maxFeePerGas: gasFeeData.maxFeePerGas * 6n / 5n,
+                maxPriorityFeePerGas: gasFeeData.maxPriorityFeePerGas * 6n / 5n,
+                gasLimit: 1000000n
+            }
 
             // send
-            const txResponse = await this.#send(fileName, tx, blobs, chunkIdArr);
+            const txResponse = await this.#send(fileName, tx, blobs);
+            console.log(`Send Success: File: ${fileName}, Chunk Id: ${chunkIdArr}, Transaction hash: ${txResponse.hash}`);
             const txReceipt = await txResponse.wait();
             if (txReceipt && txReceipt.status) {
                 console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
@@ -425,19 +433,15 @@ export class BaseEthStorage {
             console.log(length > 210 ? (e.message.substring(0, 100) + " ... " + e.message.substring(length - 100, length)) : e.message);
             console.log(error(`ERROR: upload ${fileName} fail!`));
         }
-        return {
-            isSuccess: false,
-        }
+        return {isSuccess: false};
     }
 
-    async #send(fileName, tx, blobs, chunkIdArr) {
+    async #send(fileName, tx, blobs) {
         const release = await this.#mutex.acquire();
         try {
             // lock
             tx.nonce = this.#increasingNonce();
-            const txRes = await this.#blobUploader.sendTx(tx, blobs);
-            console.log(`Send Success: File: ${fileName}, Chunk Id: ${chunkIdArr}, Transaction hash: ${txRes.hash}`);
-            return txRes;
+            return await this.#blobUploader.sendTx(tx, blobs);
         } finally {
             // unlock
             release();
