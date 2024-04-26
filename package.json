@@ -1,6 +1,6 @@
 {
   "name": "ethstorage-sdk",
-  "version": "1.2.6",
+  "version": "1.2.5",
   "description": "eip-4844 blobs upload sdk",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
@@ -13,7 +13,6 @@
     "colors-cli": "^1.0.33",
     "dotenv": "^16.4.5",
     "ethers": "^6.12.0",
-    "ethstorage-sdk": "^1.2.5",
     "kzg-wasm": "^0.4.0",
     "rxjs": "^7.8.1"
   },

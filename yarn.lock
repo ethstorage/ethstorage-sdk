@@ -353,19 +353,6 @@ ethers@^6.12.0:
     tslib "2.4.0"
     ws "8.5.0"
 
-ethstorage-sdk@^1.2.5:
-  version "1.2.5"
-  resolved "https://registry.npmjs.org/ethstorage-sdk/-/ethstorage-sdk-1.2.5.tgz#6d62c8a195ff7be79292e3a4df14df924a6e8d45"
-  integrity sha512-weT/Ag5kkTo0ho9tsfdL5iHsoxWDOXJlS/EQYbN74wLm2FloTBqGPMStlue989rLyBuOCTQqlrgc7VwbTEb5bQ==
-  dependencies:
-    async-mutex "^0.5.0"
-    axios "^1.6.8"
-    colors-cli "^1.0.33"
-    dotenv "^16.4.5"
-    ethers "^6.12.0"
-    kzg-wasm "^0.4.0"
-    rxjs "^7.8.1"
-
 follow-redirects@^1.15.6:
   version "1.15.6"
   resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.15.6.tgz#7f815c0cda4249c74ff09e95ef97c23b5fd0399b"
