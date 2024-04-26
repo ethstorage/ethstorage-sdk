@@ -110,6 +110,10 @@ export class BlobUploader {
         return fakeExponential(MIN_BLOB_GASPRICE, excessBlobGas, BLOB_GASPRICE_UPDATE_FRACTION);
     }
 
+    async getGasPrice() {
+        return await this.#provider.getFeeData();
+    }
+
     async estimateGas(params) {
         const limit = await this.sendRpcCall("eth_estimateGas", [params]);
         if (limit) {

@@ -111,6 +111,10 @@ class BlobUploader {
         return fakeExponential(MIN_BLOB_GASPRICE, excessBlobGas, BLOB_GASPRICE_UPDATE_FRACTION);
     }
 
+    async getGasPrice() {
+        return await this.#provider.getFeeData();
+    }
+
     async estimateGas(params) {
         const limit = await this.sendRpcCall("eth_estimateGas", [params]);
         if (limit) {
@@ -2378,9 +2382,19 @@ class BaseEthStorage {
                 }
             }
 
-            // send
+            // create tx
             const value = cost * BigInt(blobs.length);
             const tx = await fileContract.writeChunks.populateTransaction(hexName, chunkIdArr, chunkSizeArr, {value});
+            const [maxFeePerBlobGas, gasFeeData] = await Promise.all([
+                this.#blobUploader.getBlobGasPrice(),
+                this.#blobUploader.getGasPrice(),
+            ]);
+            tx.maxFeePerBlobGas = maxFeePerBlobGas * 6n / 5n;
+            tx.maxFeePerGas = gasFeeData.maxFeePerGas * 6n / 5n;
+            tx.maxPriorityFeePerGas = gasFeeData.maxPriorityFeePerGas * 6n / 5n;
+            tx.gasLimit = 1000000n;
+
+            // send
             const txResponse = await this.#send(fileName, tx, blobs, chunkIdArr);
             const txReceipt = await txResponse.wait();
             if (txReceipt && txReceipt.status) {
