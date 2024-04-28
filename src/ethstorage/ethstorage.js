@@ -1,6 +1,5 @@
 import fs from "fs";
 import {ethers} from "ethers";
-import {Mutex} from 'async-mutex';
 import {from, mergeMap} from 'rxjs';
 import {BlobUploader} from "../uploader";
 import {BLOB_DATA_SIZE, EncodeBlobs} from "../blobs";
@@ -61,7 +60,6 @@ export class BaseEthStorage {
     #blobUploader;
     #contractAddr;
 
-    #mutex;
     #nonce;
 
     constructor(rpc, privateKey, contractAddr = null) {
@@ -69,7 +67,6 @@ export class BaseEthStorage {
         this.#wallet = new ethers.Wallet(privateKey, provider);
         this.#blobUploader = new BlobUploader(rpc, privateKey);
         this.#contractAddr = contractAddr;
-        this.#mutex = new Mutex();
     }
 
     async deploy(ethStorage = "0x0000000000000000000000000000000000000000") {
@@ -261,7 +258,7 @@ export class BaseEthStorage {
         }
     }
 
-    async upload(fileOrPath, syncPoolSize = 7) {
+    async upload(fileOrPath, syncPoolSize = 3) {
         if (!this.#contractAddr) {
             throw new Error(`ERROR: flat directory not deployed!`);
         }
@@ -402,6 +399,7 @@ export class BaseEthStorage {
                 this.#blobUploader.getGasPrice(),
             ]);
             const tx = {
+                nonce: this.#increasingNonce(),
                 from: this.#wallet.address,
                 to: this.#contractAddr,
                 data: data,
@@ -413,7 +411,7 @@ export class BaseEthStorage {
             }
 
             // send
-            const txResponse = await this.#send(fileName, tx, blobs);
+            const txResponse = await this.#blobUploader.sendTx(tx, blobs);
             console.log(`Send Success: File: ${fileName}, Chunk Id: ${chunkIdArr}, Transaction hash: ${txResponse.hash}`);
             const txReceipt = await txResponse.wait();
             if (txReceipt && txReceipt.status) {
@@ -434,18 +432,6 @@ export class BaseEthStorage {
             console.log(error(`ERROR: upload ${fileName} fail!`));
         }
         return {isSuccess: false};
-    }
-
-    async #send(fileName, tx, blobs) {
-        const release = await this.#mutex.acquire();
-        try {
-            // lock
-            tx.nonce = this.#increasingNonce();
-            return await this.#blobUploader.sendTx(tx, blobs);
-        } finally {
-            // unlock
-            release();
-        }
     }
 
     getFileInfo(filePath) {}
