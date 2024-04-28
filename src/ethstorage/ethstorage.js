@@ -234,7 +234,7 @@ export class BaseEthStorage {
                 }
             }
 
-            const result = await this.#uploadBlob(fileContract, fileName, hexName, clearState, blobArr, chunkIdArr, chunkSizeArr, cost);
+            const result = await this.#uploadBlob(fileName, hexName, clearState, blobArr, chunkIdArr, chunkSizeArr, cost);
             if(!result.isSuccess) {
                 break; //  fail
             }
@@ -342,7 +342,7 @@ export class BaseEthStorage {
                 }
             }
 
-            const result = await this.#uploadBlob(fileContract, fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost);
+            const result = await this.#uploadBlob(fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost);
             if(!result.isSuccess) {
                 break; //  fail
             }
@@ -368,7 +368,8 @@ export class BaseEthStorage {
         }
     }
 
-    async #uploadBlob(fileContract, fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost) {
+    async #uploadBlob(fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost) {
+        const fileContract = new ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
         try {
             // check
             if (clearState === REMOVE_NORMAL) {
@@ -413,7 +414,7 @@ export class BaseEthStorage {
             // send
             const txResponse = await this.#blobUploader.sendTx(tx, blobs);
             console.log(`Send Success: File: ${fileName}, Chunk Id: ${chunkIdArr}, Transaction hash: ${txResponse.hash}`);
-            const txReceipt = await txResponse.wait();
+            const txReceipt = await this.#blobUploader.getTxReceipt(txResponse.hash);
             if (txReceipt && txReceipt.status) {
                 console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
                 let totalUploadSize = 0;

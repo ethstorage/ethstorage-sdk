@@ -9,6 +9,12 @@ const axios = defaultAxios.create({
     timeout: 50000,
 });
 
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
 function parseBigintValue(value) {
     if (typeof value == 'bigint') {
         return '0x' + value.toString(16);
@@ -187,6 +193,23 @@ class BlobUploader {
         hash.set(localHash.subarray(0, 32 - 8));
         return ethers.ethers.hexlify(hash);
     }
+
+    async isTransactionMined(transactionHash) {
+        const txReceipt = await this.#provider.getTransactionReceipt(transactionHash);
+        if (txReceipt && txReceipt.blockNumber) {
+            return txReceipt;
+        }
+    }
+
+    async getTxReceipt(transactionHash) {
+        let txReceipt;
+        while (!txReceipt) {
+            txReceipt = await this.isTransactionMined(transactionHash);
+            if (txReceipt) break;
+            await sleep(5000);
+        }
+        return txReceipt;
+    }
 }
 
 const BlobTxBytesPerFieldElement         = 32;      // Size in bytes of a field element
@@ -306,182 +329,6 @@ async function Download(ethStorageRpc, ethStorageAddress, fileName) {
         buff = [...buff, ...chunk];
     }
     return new Buffer(buff);
-}
-
-const E_CANCELED = new Error('request for lock canceled');
-
-var __awaiter$2 = function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-class Semaphore {
-    constructor(_value, _cancelError = E_CANCELED) {
-        this._value = _value;
-        this._cancelError = _cancelError;
-        this._queue = [];
-        this._weightedWaiters = [];
-    }
-    acquire(weight = 1, priority = 0) {
-        if (weight <= 0)
-            throw new Error(`invalid weight ${weight}: must be positive`);
-        return new Promise((resolve, reject) => {
-            const task = { resolve, reject, weight, priority };
-            const i = findIndexFromEnd(this._queue, (other) => priority <= other.priority);
-            if (i === -1 && weight <= this._value) {
-                // Needs immediate dispatch, skip the queue
-                this._dispatchItem(task);
-            }
-            else {
-                this._queue.splice(i + 1, 0, task);
-            }
-        });
-    }
-    runExclusive(callback_1) {
-        return __awaiter$2(this, arguments, void 0, function* (callback, weight = 1, priority = 0) {
-            const [value, release] = yield this.acquire(weight, priority);
-            try {
-                return yield callback(value);
-            }
-            finally {
-                release();
-            }
-        });
-    }
-    waitForUnlock(weight = 1, priority = 0) {
-        if (weight <= 0)
-            throw new Error(`invalid weight ${weight}: must be positive`);
-        if (this._couldLockImmediately(weight, priority)) {
-            return Promise.resolve();
-        }
-        else {
-            return new Promise((resolve) => {
-                if (!this._weightedWaiters[weight - 1])
-                    this._weightedWaiters[weight - 1] = [];
-                insertSorted(this._weightedWaiters[weight - 1], { resolve, priority });
-            });
-        }
-    }
-    isLocked() {
-        return this._value <= 0;
-    }
-    getValue() {
-        return this._value;
-    }
-    setValue(value) {
-        this._value = value;
-        this._dispatchQueue();
-    }
-    release(weight = 1) {
-        if (weight <= 0)
-            throw new Error(`invalid weight ${weight}: must be positive`);
-        this._value += weight;
-        this._dispatchQueue();
-    }
-    cancel() {
-        this._queue.forEach((entry) => entry.reject(this._cancelError));
-        this._queue = [];
-    }
-    _dispatchQueue() {
-        this._drainUnlockWaiters();
-        while (this._queue.length > 0 && this._queue[0].weight <= this._value) {
-            this._dispatchItem(this._queue.shift());
-            this._drainUnlockWaiters();
-        }
-    }
-    _dispatchItem(item) {
-        const previousValue = this._value;
-        this._value -= item.weight;
-        item.resolve([previousValue, this._newReleaser(item.weight)]);
-    }
-    _newReleaser(weight) {
-        let called = false;
-        return () => {
-            if (called)
-                return;
-            called = true;
-            this.release(weight);
-        };
-    }
-    _drainUnlockWaiters() {
-        if (this._queue.length === 0) {
-            for (let weight = this._value; weight > 0; weight--) {
-                const waiters = this._weightedWaiters[weight - 1];
-                if (!waiters)
-                    continue;
-                waiters.forEach((waiter) => waiter.resolve());
-                this._weightedWaiters[weight - 1] = [];
-            }
-        }
-        else {
-            const queuedPriority = this._queue[0].priority;
-            for (let weight = this._value; weight > 0; weight--) {
-                const waiters = this._weightedWaiters[weight - 1];
-                if (!waiters)
-                    continue;
-                const i = waiters.findIndex((waiter) => waiter.priority <= queuedPriority);
-                (i === -1 ? waiters : waiters.splice(0, i))
-                    .forEach((waiter => waiter.resolve()));
-            }
-        }
-    }
-    _couldLockImmediately(weight, priority) {
-        return (this._queue.length === 0 || this._queue[0].priority < priority) &&
-            weight <= this._value;
-    }
-}
-function insertSorted(a, v) {
-    const i = findIndexFromEnd(a, (other) => v.priority <= other.priority);
-    a.splice(i + 1, 0, v);
-}
-function findIndexFromEnd(a, predicate) {
-    for (let i = a.length - 1; i >= 0; i--) {
-        if (predicate(a[i])) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-var __awaiter$1 = function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-class Mutex {
-    constructor(cancelError) {
-        this._semaphore = new Semaphore(1, cancelError);
-    }
-    acquire() {
-        return __awaiter$1(this, arguments, void 0, function* (priority = 0) {
-            const [, releaser] = yield this._semaphore.acquire(1, priority);
-            return releaser;
-        });
-    }
-    runExclusive(callback, priority = 0) {
-        return this._semaphore.runExclusive(() => callback(), 1, priority);
-    }
-    isLocked() {
-        return this._semaphore.isLocked();
-    }
-    waitForUnlock(priority = 0) {
-        return this._semaphore.waitForUnlock(1, priority);
-    }
-    release() {
-        if (this._semaphore.isLocked())
-            this._semaphore.release();
-    }
-    cancel() {
-        return this._semaphore.cancel();
-    }
 }
 
 /******************************************************************************
@@ -2052,7 +1899,6 @@ class BaseEthStorage {
     #blobUploader;
     #contractAddr;
 
-    #mutex;
     #nonce;
 
     constructor(rpc, privateKey, contractAddr = null) {
@@ -2060,7 +1906,6 @@ class BaseEthStorage {
         this.#wallet = new ethers.ethers.Wallet(privateKey, provider);
         this.#blobUploader = new BlobUploader(rpc, privateKey);
         this.#contractAddr = contractAddr;
-        this.#mutex = new Mutex();
     }
 
     async deploy(ethStorage = "0x0000000000000000000000000000000000000000") {
@@ -2228,7 +2073,7 @@ class BaseEthStorage {
                 }
             }
 
-            const result = await this.#uploadBlob(fileContract, fileName, hexName, clearState, blobArr, chunkIdArr, chunkSizeArr, cost);
+            const result = await this.#uploadBlob(fileName, hexName, clearState, blobArr, chunkIdArr, chunkSizeArr, cost);
             if(!result.isSuccess) {
                 break; //  fail
             }
@@ -2252,7 +2097,7 @@ class BaseEthStorage {
         }
     }
 
-    async upload(fileOrPath, syncPoolSize = 7) {
+    async upload(fileOrPath, syncPoolSize = 3) {
         if (!this.#contractAddr) {
             throw new Error(`ERROR: flat directory not deployed!`);
         }
@@ -2336,7 +2181,7 @@ class BaseEthStorage {
                 }
             }
 
-            const result = await this.#uploadBlob(fileContract, fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost);
+            const result = await this.#uploadBlob(fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost);
             if(!result.isSuccess) {
                 break; //  fail
             }
@@ -2362,7 +2207,8 @@ class BaseEthStorage {
         }
     }
 
-    async #uploadBlob(fileContract, fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost) {
+    async #uploadBlob(fileName, hexName, clearState, blobs, chunkIdArr, chunkSizeArr, cost) {
+        const fileContract = new ethers.ethers.Contract(this.#contractAddr, flatDirectoryBlobAbi, this.#wallet);
         try {
             // check
             if (clearState === REMOVE_NORMAL) {
@@ -2393,6 +2239,7 @@ class BaseEthStorage {
                 this.#blobUploader.getGasPrice(),
             ]);
             const tx = {
+                nonce: this.#increasingNonce(),
                 from: this.#wallet.address,
                 to: this.#contractAddr,
                 data: data,
@@ -2404,9 +2251,9 @@ class BaseEthStorage {
             };
 
             // send
-            const txResponse = await this.#send(fileName, tx, blobs);
+            const txResponse = await this.#blobUploader.sendTx(tx, blobs);
             console.log(`Send Success: File: ${fileName}, Chunk Id: ${chunkIdArr}, Transaction hash: ${txResponse.hash}`);
-            const txReceipt = await txResponse.wait();
+            const txReceipt = await this.#blobUploader.getTxReceipt(txResponse.hash);
             if (txReceipt && txReceipt.status) {
                 console.log(`File ${fileName} chunkId: ${chunkIdArr} uploaded!`);
                 let totalUploadSize = 0;
@@ -2425,18 +2272,6 @@ class BaseEthStorage {
             console.log(error(`ERROR: upload ${fileName} fail!`));
         }
         return {isSuccess: false};
-    }
-
-    async #send(fileName, tx, blobs) {
-        const release = await this.#mutex.acquire();
-        try {
-            // lock
-            tx.nonce = this.#increasingNonce();
-            return await this.#blobUploader.sendTx(tx, blobs);
-        } finally {
-            // unlock
-            release();
-        }
     }
 
     getFileInfo(filePath) {}

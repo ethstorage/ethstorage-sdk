@@ -6,6 +6,12 @@ const axios = defaultAxios.create({
     timeout: 50000,
 });
 
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
 function parseBigintValue(value) {
     if (typeof value == 'bigint') {
         return '0x' + value.toString(16);
@@ -183,5 +189,22 @@ export class BlobUploader {
         const hash = new Uint8Array(32);
         hash.set(localHash.subarray(0, 32 - 8));
         return ethers.hexlify(hash);
+    }
+
+    async isTransactionMined(transactionHash) {
+        const txReceipt = await this.#provider.getTransactionReceipt(transactionHash);
+        if (txReceipt && txReceipt.blockNumber) {
+            return txReceipt;
+        }
+    }
+
+    async getTxReceipt(transactionHash) {
+        let txReceipt;
+        while (!txReceipt) {
+            txReceipt = await this.isTransactionMined(transactionHash);
+            if (txReceipt) break;
+            await sleep(5000);
+        }
+        return txReceipt;
     }
 }
