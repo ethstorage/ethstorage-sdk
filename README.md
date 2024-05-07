@@ -12,48 +12,79 @@ $ npm install ethstorage-sdk
 ## Example
 
 ### Constructor
-Init ethstorage-sdk.
+
+Init SDK.
 ```js
 const { EthStorage } = require("ethstorage-sdk")
 
+const rpc = "https://rpc.sepolia.org";
+const privateKey =  "0xabcd...";
+
 const ethStorage = new EthStorage(rpc, privateKey);
-
-or
-
-const ethStorage = new EthStorage(rpc, privateKey, flatDirectoryAddress);
 ```
 
 ### Deploy
-Deploy the implementation contract of the eip-5018 standard [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/SimpleFlatDirectory.sol).
-```js
-// ethStorageContract is the contract address of ETHstorage deployed on L1. 
-await ethStorage.deploy(ethStorageContract);
 
-// Sepolia integrates this address internally
+Deploy the implementation contract [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/FlatDirectory.sol) for EIP-5018 standard.
+```js
+// EthStorage Contract is the contract address where EthStorage is deployed on Layer 1.
+const ethStorageContract = "0x804C520d3c084C805E37A35E90057Ac32831F96f";
+
+await ethStorage.deploy(ethStorageContract);
+```
+
+Sepolia network can invoke the following methods:
+```js
 await ethStorage.deploySepolia();
 ```
 
-### Upload
-Upload files to [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/SimpleFlatDirectory.sol).
+If FlatDirectory has already been deployed, you can set it.
 ```js
-// Pass the file path or file selected via browser folder.
+const rpc = "https://rpc.sepolia.org";
+const privateKey =  "0xabcd...";
+const flatDirectory = "0xdcba...";
+
+const ethStorage = new EthStorage(rpc, privateKey, flatDirectory);
+```
+
+### Upload
+Upload files to FlatDirectory.
+
+You can set the file or folder path, and if it is a browser environment, you can also set the file object.
+```js
+const fileOrPath = "/users/dist/test.txt";
+
 await ethStorage.upload(fileOrPath);
+```
 
-or
-
+If you want to upload data, use 'uploadData'
+```js
+const fileName = "test.txt";
+const filePath = "/users/dist/test.txt";
 const data = fs.readFileSync(filePath);
+
 await ethStorage.uploadData(fileName, data);
 ```
 
-
 ### Download
-Download uploaded data from the EthStorage network.
+Download data from the EthStorage network.
 ```js
 // Since the data is downloaded from ethstorage, the provided RPC should be an ethstorage RPC.
+const ethStorageRpc = "https://ethstorage.rpc.io";
+const fileName = "test.txt";
+
 const data = await ethStorage.download(fileName, ethStorageRpc);
+```
 
 or
 
+```js
+// Since the data is downloaded from ethstorage, the provided RPC should be an ethstorage RPC.
 const { Download } = require("ethstorage-sdk")
-const data = await Download(ethstorageRpc, flatDirectoryAddress, fileName);
+
+const flatDirectory = "0xdcba...";
+const ethStorageRpc = "https://ethstorage.rpc.io";
+const fileName = "test.txt";
+
+const data = await Download(ethStorageRpc, flatDirectory, fileName);
 ```
