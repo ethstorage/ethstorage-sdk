@@ -1,11 +1,6 @@
 import {ethers} from "ethers";
 import {loadKZG} from 'kzg-wasm';
 
-const defaultAxios = require("axios");
-const axios = defaultAxios.create({
-    timeout: 50000,
-});
-
 function sleep(ms) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -24,13 +19,6 @@ function parseBigintValue(value) {
     return value;
 }
 
-function padHex(hex) {
-    if (typeof (hex) === "string" && !hex.startsWith("0x")) {
-        return "0x" + hex;
-    }
-    return hex;
-}
-
 function computeVersionedHash(commitment, blobCommitmentVersion) {
     const computedVersionedHash = new Uint8Array(32);
     computedVersionedHash.set([blobCommitmentVersion], 0);
@@ -43,6 +31,7 @@ function commitmentsToVersionedHashes(commitment) {
     return computeVersionedHash(commitment, 0x01);
 }
 
+// blob gas price
 const MIN_BLOB_GASPRICE = 1n;
 const BLOB_GASPRICE_UPDATE_FRACTION = 3338477n;
 
@@ -68,7 +57,7 @@ export class BlobUploader {
     constructor(rpc, pk) {
         this.#jsonRpc = rpc;
         this.#provider = new ethers.JsonRpcProvider(rpc);
-        this.#wallet = new ethers.Wallet(padHex(pk), this.#provider);
+        this.#wallet = new ethers.Wallet(pk, this.#provider);
     }
 
     async #getKzg() {
@@ -76,33 +65,6 @@ export class BlobUploader {
             this.#kzg = await loadKZG();
         }
         return this.#kzg;
-    }
-
-    async sendRpcCall(method, parameters) {
-        try {
-            let response = await axios({
-                method: "POST",
-                url: this.#jsonRpc,
-                data: {
-                    jsonrpc: "2.0",
-                    method: method,
-                    params: parameters,
-                    id: 67
-                },
-            });
-            if (response.data.error) {
-                console.log("Response Error:", response.data.error);
-                return null;
-            }
-            let returnedValue = response.data.result;
-            if (returnedValue === "0x") {
-                return null;
-            }
-            return returnedValue;
-        } catch (error) {
-            console.log('send error', error);
-            return null;
-        }
     }
 
     async getNonce() {
@@ -121,9 +83,9 @@ export class BlobUploader {
     }
 
     async estimateGas(params) {
-        const limit = await this.sendRpcCall("eth_estimateGas", [params]);
+        const limit = await this.#provider.send("eth_estimateGas", [params]);
         if (limit) {
-            return BigInt(limit);
+            return BigInt(limit) * 6n / 5n;
         }
         return null;
     }
@@ -154,14 +116,13 @@ export class BlobUploader {
         let {to, value, data, gasLimit, maxFeePerBlobGas} = tx;
         if (gasLimit == null) {
             const hexValue = parseBigintValue(value);
-            const params = {
+            gasLimit = await this.estimateGas({
                 from: this.#wallet.address,
                 to,
                 data,
                 value: hexValue,
                 blobVersionedHashes: versionedHashes,
-            };
-            gasLimit = await this.estimateGas(params);
+            });
             if (gasLimit == null) {
                 throw Error('estimateGas: execution reverted')
             }
