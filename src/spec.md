@@ -3,24 +3,26 @@
 
 ## Table of Contents
 
-1. Introduction
-2. Terminology
-3. Class Overview
-4. EthStorage Class
+- [1. Introduction](#Introduction)
+- [2. Terminology](#Terminology)
+- [3. Class Overview](#Class_Overview)
+- [4. EthStorage Class](#EthStorage)
     - Constructor
     - Methods
         - read
         - write
-5. FlatDirectory Class
+- [5. FlatDirectory Class](#FlatDirectory)
     - Constructor
     - Methods
         - upload
         - download
         - deploy
         - setDefault
-6. Version History
+- [6. Version History](#Version)
 
 ---
+
+<p id="Introduction"></p>
 
 ## 1. Introduction
 
@@ -32,12 +34,16 @@ The `EthStorage` class provides asynchronous read and write operations for key-v
 The `FlatDirectory` class is a higher-level data management tool that provides methods for uploading and downloading data of arbitrary size.
 
 
+<p id="Terminology"></p>
+
 ## 2. Terminology
 
 - **SDK**: Software Development Kit, a library that provides file upload and storage functionality.
 - **Method**: Callable functions provided by the SDK.
 - **Callback Function**: Provided by the user, passed as a parameter to methods, used to handle asynchronous operation results.
 
+
+<p id="Class_Overview"></p>
 
 ## 3. Class Overview
 
@@ -59,6 +65,8 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 | deploy      | Deploy a FlatDirectory contract              |
 | setDefault  | Set the default file for FlatDirectory.      |
 
+
+<p id="EthStorage"></p>
 
 ## 4. EthStorage Class
 
@@ -117,8 +125,9 @@ const data = await ethStorage.read("example.txt", ethStorageRpc);
 ```
 
 
+<p id="FlatDirectory"></p>
 
-## 4. FlatDirectory Class
+## 5. FlatDirectory Class
 
 ### Constructor
 
@@ -227,6 +236,7 @@ const defaultFile = "index.html";
 await ethStorage.setDefault(defaultFile);
 ```
 
+<p id="Version"></p>
 
 ## 6. Version History
 
