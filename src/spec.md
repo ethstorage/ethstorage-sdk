@@ -26,8 +26,7 @@
 
 ## 1. Introduction
 
-This document provides a specification for interacting with the EthStorage network, aiming to standardize 
-the interaction between various applications and the EthStorage network to achieve reliable and efficient data management functionality.
+This document aims to standardize the interaction between applications and the EthStorage network to achieve reliable and efficient data management functionality.
 
 This document includes two main classes: `EthStorage` and `FlatDirectory`. 
 The `EthStorage` class provides asynchronous read and write operations for key-value pairs of a specified size. 
@@ -38,7 +37,7 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 
 ## 2. Terminology
 
-- **SDK**: Software Development Kit, a library that provides file upload and storage functionality.
+- **SDK**: Software Development Kit, a library that provides data upload and storage functionality.
 - **Method**: Callable functions provided by the SDK.
 - **Callback Function**: Provided by the user, passed as a parameter to methods, used to handle asynchronous operation results.
 
@@ -137,7 +136,7 @@ const data = await ethStorage.read("example.txt", ethStorageRpc);
 - `config` (object): Configuration object containing necessary settings.
     - `rpc` (string): RPC for any evm network.
     - `privateKey` (string): Wallet private key.
-    - `address` (string, optional): FlatDirectory contract address, you can call sdk deployment.
+    - `address` (string, optional): FlatDirectory contract address. If it does not exist, the `deploy` method can be called to create one.
 
 **Example**
 ```javascript
@@ -174,7 +173,7 @@ const dataArray = [
 ];
 const concurrent = true;
 
-await ethStorage.write(dataArray, concurrent, {
+await ethStorage.upload(dataArray, concurrent, {
     onProgress: function(key, progress) {
         console.log(`Uploaded ${progress.count} of ${progress.totalCount} chunks`);
     },
