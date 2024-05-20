@@ -156,32 +156,27 @@ const flatDirectory = new FlatDirectory(config);
 **Description**: Upload data of arbitrary size.
 
 **Parameters**
-- `dataArray`(Array): An array of objects representing the data to be uploaded. Each object should contain:
-  - `key` (string): The key of the data.
-  - `data` (Buffer): The data to be uploaded.
-- `isConcurrent` (boolean): A flag indicating whether to upload data concurrently.
+- `key` (string): The key of the data.
+- `data` (Buffer): The data to be uploaded.
 - `callbacks` (object): An object containing callback functions:
-  - `onProgress` (function): Callback function that receives `(key, progress)`, where `progress` is an object containing `count` and `totalCount`.
+  - `onProgress` (function): Callback function that receives `(progress)`, where `progress` is an object containing `count` and `totalCount`.
   - `onFail` (function): Callback function that receives `(error)`.
-  - `onSuccess` (function): Callback function that receives `(key)`.
+  - `onSuccess` (function): Callback function that receives `()`.
 
 **Example**
 ```javascript
-const dataArray = [
-    { key: "example1.txt", data: Buffer.from("large data to upload 1") },
-    { key: "example2.txt", data: Buffer.from("large data to upload 2") }
-];
-const concurrent = true;
+const key = "example1.txt";
+const data = Buffer.from("large data to upload");
 
-await ethStorage.upload(dataArray, concurrent, {
-    onProgress: function(key, progress) {
+await ethStorage.upload(key, data, {
+    onProgress: function(progress) {
         console.log(`Uploaded ${progress.count} of ${progress.totalCount} chunks`);
     },
     onFail: function(error) {
         console.error("Error uploading data:", error);
     },
-    onSuccess: function(key) {
-        console.log("Data uploaded with KEY:", key);
+    onSuccess: function() {
+        console.log("Data uploaded success.");
     }
 });
 ```
