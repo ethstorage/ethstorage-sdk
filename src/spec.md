@@ -4,21 +4,20 @@
 ## Table of Contents
 
 - [1. Introduction](#Introduction)
-- [2. Terminology](#Terminology)
-- [3. Class Overview](#Class_Overview)
-- [4. EthStorage Class](#EthStorage)
+- [2. Class Overview](#Class_Overview)
+- [3. EthStorage Class](#EthStorage)
     - Constructor
     - Methods
         - read
         - write
-- [5. FlatDirectory Class](#FlatDirectory)
+- [4. FlatDirectory Class](#FlatDirectory)
     - Constructor
     - Methods
         - upload
         - download
         - deploy
         - setDefault
-- [6. Version History](#Version)
+- [5. Version History](#Version)
 
 ---
 
@@ -26,25 +25,16 @@
 
 ## 1. Introduction
 
-This document aims to standardize the interaction between applications and the EthStorage network to achieve reliable and efficient data management functionality.
+This SDK aims to standardize the interaction between applications and the EthStorage network to achieve reliable and efficient data management functionality.
 
-This document includes two main classes: `EthStorage` and `FlatDirectory`. 
+This SDK includes two main classes: `EthStorage` and `FlatDirectory`. 
 The `EthStorage` class provides asynchronous read and write operations for key-value pairs of a specified size. 
 The `FlatDirectory` class is a higher-level data management tool that provides methods for uploading and downloading data of arbitrary size.
 
 
-<p id="Terminology"></p>
-
-## 2. Terminology
-
-- **SDK**: Software Development Kit, a library that provides data upload and storage functionality.
-- **Method**: Callable functions provided by the SDK.
-- **Callback Function**: Provided by the user, passed as a parameter to methods, used to handle asynchronous operation results.
-
-
 <p id="Class_Overview"></p>
 
-## 3. Class Overview
+## 2. Class Overview
 
 ### EthStorage Class
 
@@ -67,7 +57,7 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 
 <p id="EthStorage"></p>
 
-## 4. EthStorage Class
+## 3. EthStorage Class
 
 ### Constructor
 
@@ -76,21 +66,45 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 **Parameters**
 - `config` (object): Configuration object containing necessary settings.
    - `rpc` (string): RPC for any evm network.
+   - `ethStorageRpc` (string): RPC of EthStorage network, because the data is obtained from the EthStorage network.
    - `privateKey` (string): Wallet private key.
-   - `address` (string): EthStorage contract address.
 
 **Example**
 ```javascript
 const config = {
    rpc: "your_rpc",
-   privateKey: "your_private_key",
-   address: "eth_storage_address"
+   ethStorageRpc: "ethstorage_rpc",
+   privateKey: "your_private_key"
 };
 
 const ethStorage = new EthStorage(config);
 ```
 
+
+
 ### Methods
+
+
+
+#### estimateCost
+
+**Description**: Estimate the cost of uploading data.
+
+**Parameters**
+- `key` (string): The key for the data to be written.
+- `data` (Buffer): The data to be written, its size cannot exceed the maximum value of the content that can be transferred by a blob.
+
+**Returns**
+- `cost` (Promise<Bigint>): A Promise that resolves to the cost.
+
+**Example**
+```javascript
+const dataToWrite = Buffer.from("some data");
+const cost = await ethStorage.estimateCost("dataKey", dataToWrite);
+```
+
+
+
 
 #### write
 
@@ -100,11 +114,17 @@ const ethStorage = new EthStorage(config);
 - `key` (string): The key for the data to be written.
 - `data` (Buffer): The data to be written, its size cannot exceed the maximum value of the content that can be transferred by a blob.
 
+**Returns**
+- `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
+
 **Example**
 ```javascript
 const dataToWrite = Buffer.from("some data");
-await ethStorage.write("dataKey", dataToWrite);
+const status = await ethStorage.write("dataKey", dataToWrite);
 ```
+
+
+
 
 #### read
 
@@ -112,21 +132,20 @@ await ethStorage.write("dataKey", dataToWrite);
 
 **Parameters**
 - `key` (string): The key for the data to be read.
-- `ethStorageRpc` (string): RPC of EthStorage network, because the data is obtained from the EthStorage network.
 
 **Returns**
-- `data` (Buffer): The content.
+- `data` (Promise<Buffer>): A Promise that resolves to the content.
 
 **Example**
 ```javascript
-const ethStorageRpc = "https://xxx.rpc";
-const data = await ethStorage.read("example.txt", ethStorageRpc);
+const data = await ethStorage.read("example.txt");
 ```
+
 
 
 <p id="FlatDirectory"></p>
 
-## 5. FlatDirectory Class
+## 4. FlatDirectory Class
 
 ### Constructor
 
@@ -135,13 +154,15 @@ const data = await ethStorage.read("example.txt", ethStorageRpc);
 **Parameters**
 - `config` (object): Configuration object containing necessary settings.
     - `rpc` (string): RPC for any evm network.
+    - `ethStorageRpc` (string): RPC of EthStorage network, because the data is obtained from the EthStorage network.
     - `privateKey` (string): Wallet private key.
     - `address` (string, optional): FlatDirectory contract address. If it does not exist, the `deploy` method can be called to create one.
 
 **Example**
 ```javascript
 const config = {
-   rpc: "your_rpc",
+   rpc: "your_rpc", 
+   ethStorageRpc: "ethstorage_rpc", 
    privateKey: "your_private_key",
    address: "flat_directory_address"
 };
@@ -149,7 +170,29 @@ const config = {
 const flatDirectory = new FlatDirectory(config);
 ```
 
+
 ### Methods
+
+#### estimateCost
+
+**Description**: Estimate the cost of uploading data.
+
+**Parameters**
+- `key` (string): The key of the data.
+- `data` (Buffer): The data to be uploaded.
+
+**Returns**
+- `cost` (Promise<Bigint>): A Promise that resolves to the cost.
+
+**Example**
+```javascript
+const key = "example1.txt";
+const data = Buffer.from("large data to upload");
+const cost = await ethStorage.estimateCost(key, data);
+```
+
+
+
 
 #### upload
 
@@ -161,7 +204,7 @@ const flatDirectory = new FlatDirectory(config);
 - `callbacks` (object): An object containing callback functions:
   - `onProgress` (function): Callback function that receives `(progress)`, where `progress` is an object containing `count` and `totalCount`.
   - `onFail` (function): Callback function that receives `(error)`.
-  - `onSuccess` (function): Callback function that receives `()`.
+  - `onSuccess` (function): Indicates that the upload was successful.
 
 **Example**
 ```javascript
@@ -181,57 +224,86 @@ await ethStorage.upload(key, data, {
 });
 ```
 
-#### download
 
-**Description**: Download data by key.
+
+
+
+#### downloadSync
+
+**Description**: Synchronously download data by key. Get the progress and data in the callback function.
 
 **Parameters**
 - `key` (string): The key for the data to be read.
-- `ethStorageRpc` (string): RPC of EthStorage network, because the data is obtained from the EthStorage network.
-
-**Returns**
-- `data` (Buffer): The content.
+- `callbacks` (object): An object containing callback functions:
+  - `onProgress` (function): Callback function that receives `(progress)`, where `progress` is an object containing `count` and `totalCount`.
+  - `onFail` (function): Callback function that receives `(error)`.
+  - `onSuccess` (function): Callback function that receives `(data)`.
 
 **Example**
 ```javascript
-const ethStorageRpc = "https://xxx.rpc";
-
-const data = await ethStorage.download("example.txt", ethStorageRpc);
+ethStorage.download("example.txt", {
+    onProgress: function (progress) {
+        console.log(`Download ${progress.count} of ${progress.totalCount} chunks`);
+    },
+    onFail: function (error) {
+        console.error("Error download data:", error);
+    },
+    onSuccess: function (data) {
+        console.log("Download success.", data);
+    }
+});
 ```
+
+#### download
+
+**Description**: Asynchronously download data by key, returning a Promise that resolves to the result.
+
+**Parameters**
+- `key` (string): The key for the data to be read.
+
+**Returns**
+- `data` (Promise<Buffer>): A Promise that resolves to the downloaded data.
+
+**Example**
+```javascript
+const data = await ethStorage.downloadSync("example.txt");
+```
+
+
 
 
 #### deploy
 
 **Description**: Deploy a FlatDirectory contract.
 
-**Parameters**
-- `ethStorageAddress` (string): EthStorage contract address, used to store data in EthStorage.
-
 **Returns**
-- `address` (string): FlatDirectory address.
+- `address` (Promise<string>): A Promise that resolves to the flatDirectory address.
 
 **Example**
 ```javascript
-const ethStorageAddress = "0x804C520d3c084C805E37A35E90057Ac32831F96f";
-const data = await ethStorage.deploy(ethStorageAddress);
+const address = await ethStorage.deploy();
 ```
+
 
 
 #### setDefault
 
-**Description**: Set the default file for FlatDirectory.
+**Description**: Set the default file for FlatDirectory, the file that is accessed by default when no file name is provided.
 
 **Parameters**
 - `defaultFile` (string): The filename of the default file.
 
+**Returns**
+- `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
+
 **Example**
 ```javascript
 const defaultFile = "index.html";
-await ethStorage.setDefault(defaultFile);
+const status = await ethStorage.setDefault(defaultFile);
 ```
 
 <p id="Version"></p>
 
-## 6. Version History
+## 5. Version History
 
 - v1.0.0: Initial release with basic storage and data management functionalities.
