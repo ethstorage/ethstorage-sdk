@@ -224,7 +224,7 @@ const cost = await ethStorage.estimateCost(key, data);
 - `key` (string): The key of the data.
 - `data` (Buffer): The data to be uploaded.
 - `callbacks` (object): An object containing callback functions:
-  - `onProgress` (function): Callback function that receives `(progress)`, where `progress` is an object containing `count` and `totalCount`.
+  - `onProgress` (function): Callback function that receives `(progress, totalCount)`.
   - `onFail` (function): Callback function that receives `(error)`.
   - `onSuccess` (function): Indicates that the upload was successful.
 
@@ -234,8 +234,8 @@ const key = "example1.txt";
 const data = Buffer.from("large data to upload");
 
 await ethStorage.upload(key, data, {
-    onProgress: function(progress) {
-        console.log(`Uploaded ${progress.count} of ${progress.totalCount} chunks`);
+    onProgress: function(progress, totalCount) {
+        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
     onFail: function(error) {
         console.error("Error uploading data:", error);
@@ -257,15 +257,15 @@ await ethStorage.upload(key, data, {
 **Parameters**
 - `key` (string): The key for the data to be read.
 - `callbacks` (object): An object containing callback functions:
-  - `onProgress` (function): Callback function that receives `(progress)`, where `progress` is an object containing `count` and `totalCount`.
+  - `onProgress` (function): Callback function that receives `(progress, totalCount, chunk)`.
   - `onFail` (function): Callback function that receives `(error)`.
-  - `onSuccess` (function): Callback function that receives `(data)`.
+  - `onSuccess` (function): Indicates that the upload was successful.
 
 **Example**
 ```javascript
 ethStorage.download("example.txt", {
-    onProgress: function (progress) {
-        console.log(`Download ${progress.count} of ${progress.totalCount} chunks`);
+    onProgress: function (progress, totalCount, chunk) {
+        console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);
