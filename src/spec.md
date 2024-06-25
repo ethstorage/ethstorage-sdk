@@ -8,12 +8,16 @@
 - [3. EthStorage Class](#EthStorage)
     - Constructor
     - Methods
+        - estimateCost
         - read
         - write
+        - putBlobs
 - [4. FlatDirectory Class](#FlatDirectory)
     - Constructor
     - Methods
+        - estimateCost
         - upload
+        - downloadSync
         - download
         - deploy
         - setDefault
@@ -27,9 +31,10 @@
 
 This SDK aims to standardize the interaction between applications and the EthStorage network to achieve reliable and efficient data management functionality.
 
-This SDK includes two main classes: `EthStorage` and `FlatDirectory`. 
-The `EthStorage` class provides asynchronous read and write operations for key-value pairs of a specified size. 
+This SDK includes two main classes: `EthStorage` and `FlatDirectory`.
+The `EthStorage` class provides asynchronous read and write operations for key-value pairs of a specified size.
 The `FlatDirectory` class is a higher-level data management tool that provides methods for uploading and downloading data of arbitrary size.
+
 
 
 <p id="Class_Overview"></p>
@@ -57,6 +62,8 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 | download     | Asynchronously download data                 |
 | deploy       | Deploy a FlatDirectory contract              |
 | setDefault   | Set the default file for FlatDirectory       |
+
+
 
 
 <p id="EthStorage"></p>
@@ -101,8 +108,7 @@ const ethStorage = new EthStorage(config);
 
 **Example**
 ```javascript
-const dataToWrite = Buffer.from("some data");
-const cost = await ethStorage.estimateCost("dataKey", dataToWrite);
+const cost = await ethStorage.estimateCost("dataKey", Buffer.from("some data"));
 ```
 
 
@@ -120,8 +126,7 @@ const cost = await ethStorage.estimateCost("dataKey", dataToWrite);
 
 **Example**
 ```javascript
-const dataToWrite = Buffer.from("some data");
-const status = await ethStorage.write("dataKey", dataToWrite);
+const status = await ethStorage.write("dataKey", Buffer.from("some data"));
 ```
 
 
@@ -154,8 +159,8 @@ const data = await ethStorage.read("example.txt");
 
 **Example**
 ```javascript
-const dataToWrite = Buffer.from("some data");
-const status = await ethStorage.putBlobs(number, dataToWrite);
+const blobData = Buffer.from("some data");
+const status = await ethStorage.putBlobs(number, blobData);
 ```
 
 
@@ -294,7 +299,7 @@ const data = await ethStorage.downloadSync("example.txt");
 **Description**: Deploy a FlatDirectory contract.
 
 **Returns**
-- `address` (Promise<string>): A Promise that resolves to the flatDirectory address.
+- `address` (Promise<string>): A Promise that resolves to the FlatDirectory address.
 
 **Example**
 ```javascript
