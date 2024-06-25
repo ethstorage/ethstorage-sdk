@@ -43,25 +43,25 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 
 ### EthStorage Class
 
-| Method Name  | Description                                      |
-|--------------|--------------------------------------------------|
-| constructor  | Create an instance of EthStorage                 |
-| estimateCost | Estimate the cost of uploading data              |
-| write        | Asynchronously write data                        |
-| read         | Asynchronously read data                         |
-| putBlobs     | Batch upload blob data to the EthStorage network |
+| Method Name  | Description                                                    |
+|--------------|----------------------------------------------------------------|
+| constructor  | Create an instance of EthStorage                               |
+| estimateCost | Estimate the cost of uploading data(gas cost and storage cost) |
+| write        | Asynchronously write data                                      |
+| read         | Asynchronously read data                                       |
+| putBlobs     | Batch upload blob data to the EthStorage network               |
 
 ### FlatDirectory Class
 
-| Method Name  | Description                                  |
-|--------------|----------------------------------------------|
-| constructor  | Create an instance of FlatDirectory          |
-| estimateCost | Estimate the cost of uploading data          |
-| upload       | Asynchronously upload data of arbitrary size |
-| downloadSync | Synchronously download data                  |
-| download     | Asynchronously download data                 |
-| deploy       | Deploy a FlatDirectory contract              |
-| setDefault   | Set the default file for FlatDirectory       |
+| Method Name  | Description                                                    |
+|--------------|----------------------------------------------------------------|
+| constructor  | Create an instance of FlatDirectory                            |
+| deploy       | Deploy a FlatDirectory contract                                |
+| estimateCost | Estimate the cost of uploading data(gas cost and storage cost) |
+| upload       | Asynchronously upload data of arbitrary size                   |
+| downloadSync | Synchronously download data                                    |
+| download     | Asynchronously download data                                   |
+| setDefault   | Set the default file for FlatDirectory                         |
 
 
 
@@ -104,11 +104,14 @@ const ethStorage = new EthStorage(config);
 - `data` (Buffer): The data to be written, its size cannot exceed the maximum value of the content that can be transferred by a blob.
 
 **Returns**
-- `cost` (Promise<Bigint>): A Promise that resolves to the cost.
+- `cost` (Promise<object>): A Promise that resolves to an object containing:
+    - `gasCost` (BigInt): The estimated gas cost.
+    - `storageCost` (BigInt): The estimated storage cost.
 
 **Example**
 ```javascript
 const cost = await ethStorage.estimateCost("dataKey", Buffer.from("some data"));
+console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
 
@@ -152,7 +155,7 @@ const data = await ethStorage.read("example.txt");
 
 **Parameters**
 - `number` (number): Number of blobs.
-- `data` (Buffer): Blob content to be written, its size cannot exceed the maximum value of the content that can be transferred by a blob.
+- `data` (Buffer): Blob content to be written.
 
 **Returns**
 - `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
@@ -194,6 +197,19 @@ const flatDirectory = new FlatDirectory(config);
 
 
 ### Methods
+#### deploy
+
+**Description**: Deploy a FlatDirectory contract. If the `address` is not set when creating a `FlatDirectory`, you must call deploy before other functions.
+
+**Returns**
+- `address` (Promise<string>): A Promise that resolves to the FlatDirectory address.
+
+**Example**
+```javascript
+const address = await ethStorage.deploy();
+```
+
+
 
 #### estimateCost
 
@@ -204,13 +220,16 @@ const flatDirectory = new FlatDirectory(config);
 - `data` (Buffer): The data to be uploaded.
 
 **Returns**
-- `cost` (Promise<Bigint>): A Promise that resolves to the cost.
+- `cost` (Promise<object>): A Promise that resolves to an object containing:
+  - `gasCost` (BigInt): The estimated gas cost.
+  - `storageCost` (BigInt): The estimated storage cost.
 
 **Example**
 ```javascript
 const key = "example1.txt";
 const data = Buffer.from("large data to upload");
 const cost = await ethStorage.estimateCost(key, data);
+console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
 
@@ -289,21 +308,6 @@ ethStorage.download("example.txt", {
 **Example**
 ```javascript
 const data = await ethStorage.downloadSync("example.txt");
-```
-
-
-
-
-#### deploy
-
-**Description**: Deploy a FlatDirectory contract.
-
-**Returns**
-- `address` (Promise<string>): A Promise that resolves to the FlatDirectory address.
-
-**Example**
-```javascript
-const address = await ethStorage.deploy();
 ```
 
 
