@@ -38,21 +38,25 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 
 ### EthStorage Class
 
-| Method Name  | Description                      |
-|--------------|----------------------------------|
-| constructor  | Create an instance of EthStorage |
-| write        | Asynchronously write data        |
-| read         | Asynchronously read data         |
+| Method Name  | Description                                      |
+|--------------|--------------------------------------------------|
+| constructor  | Create an instance of EthStorage                 |
+| estimateCost | Estimate the cost of uploading data              |
+| write        | Asynchronously write data                        |
+| read         | Asynchronously read data                         |
+| putBlobs     | Batch upload blob data to the EthStorage network |
 
 ### FlatDirectory Class
 
-| Method Name | Description                                  |
-|-------------|----------------------------------------------|
-| constructor | Create an instance of FlatDirectory          |
-| upload      | Asynchronously upload data of arbitrary size |
-| download    | Asynchronously download data                 |
-| deploy      | Deploy a FlatDirectory contract              |
-| setDefault  | Set the default file for FlatDirectory.      |
+| Method Name  | Description                                  |
+|--------------|----------------------------------------------|
+| constructor  | Create an instance of FlatDirectory          |
+| estimateCost | Estimate the cost of uploading data          |
+| upload       | Asynchronously upload data of arbitrary size |
+| downloadSync | Synchronously download data                  |
+| download     | Asynchronously download data                 |
+| deploy       | Deploy a FlatDirectory contract              |
+| setDefault   | Set the default file for FlatDirectory       |
 
 
 <p id="EthStorage"></p>
@@ -66,7 +70,7 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 **Parameters**
 - `config` (object): Configuration object containing necessary settings.
    - `rpc` (string): RPC for any evm network.
-   - `ethStorageRpc` (string): RPC of EthStorage network, because the data is obtained from the EthStorage network.
+   - `ethStorageRpc` (string): The EthStorage network rpc corresponding to this evm network, the data is obtained from the EthStorage network.
    - `privateKey` (string): Wallet private key.
 
 **Example**
@@ -84,8 +88,6 @@ const ethStorage = new EthStorage(config);
 
 ### Methods
 
-
-
 #### estimateCost
 
 **Description**: Estimate the cost of uploading data.
@@ -102,7 +104,6 @@ const ethStorage = new EthStorage(config);
 const dataToWrite = Buffer.from("some data");
 const cost = await ethStorage.estimateCost("dataKey", dataToWrite);
 ```
-
 
 
 
@@ -125,7 +126,6 @@ const status = await ethStorage.write("dataKey", dataToWrite);
 
 
 
-
 #### read
 
 **Description**: Read data asynchronously from the EthStorage network through key.
@@ -142,6 +142,23 @@ const data = await ethStorage.read("example.txt");
 ```
 
 
+#### putBlobs
+**Description**: Batch upload blob data to the EthStorage network.
+
+**Parameters**
+- `number` (number): Number of blobs.
+- `data` (Buffer): Blob content to be written, its size cannot exceed the maximum value of the content that can be transferred by a blob.
+
+**Returns**
+- `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
+
+**Example**
+```javascript
+const dataToWrite = Buffer.from("some data");
+const status = await ethStorage.putBlobs(number, dataToWrite);
+```
+
+
 
 <p id="FlatDirectory"></p>
 
@@ -154,7 +171,7 @@ const data = await ethStorage.read("example.txt");
 **Parameters**
 - `config` (object): Configuration object containing necessary settings.
     - `rpc` (string): RPC for any evm network.
-    - `ethStorageRpc` (string): RPC of EthStorage network, because the data is obtained from the EthStorage network.
+    - `ethStorageRpc` (string): The EthStorage network rpc corresponding to this evm network, the data is obtained from the EthStorage network.
     - `privateKey` (string): Wallet private key.
     - `address` (string, optional): FlatDirectory contract address. If it does not exist, the `deploy` method can be called to create one.
 
