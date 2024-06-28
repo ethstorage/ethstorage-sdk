@@ -2,8 +2,7 @@ import {ethers} from "ethers";
 
 const BlobTxBytesPerFieldElement         = 32;      // Size in bytes of a field element
 const BlobTxFieldElementsPerBlob         = 4096;
-export const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
-export const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
+const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
 
 export function EncodeBlobs(data) {
     const len = data.length;

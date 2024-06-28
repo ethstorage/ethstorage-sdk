@@ -1,24 +1,6 @@
 import {ethers} from "ethers";
 import {loadKZG} from 'kzg-wasm';
 
-function sleep(ms) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
-
-function parseBigintValue(value) {
-    if (typeof value == 'bigint') {
-        return '0x' + value.toString(16);
-    }
-    if (typeof value == 'object') {
-        const {_hex} = value;
-        const c = BigInt(_hex);
-        return '0x' + c.toString(16);
-    }
-    return value;
-}
-
 function computeVersionedHash(commitment, blobCommitmentVersion) {
     const computedVersionedHash = new Uint8Array(32);
     computedVersionedHash.set([blobCommitmentVersion], 0);
@@ -50,12 +32,10 @@ function fakeExponential(factor, numerator, denominator) {
 export class BlobUploader {
     #kzg;
 
-    #jsonRpc;
     #provider;
     #wallet;
 
     constructor(rpc, pk) {
-        this.#jsonRpc = rpc;
         this.#provider = new ethers.JsonRpcProvider(rpc);
         this.#wallet = new ethers.Wallet(pk, this.#provider);
     }
@@ -75,7 +55,8 @@ export class BlobUploader {
         // get current block
         const block = await this.#provider.getBlock("latest");
         const excessBlobGas = BigInt(block.excessBlobGas);
-        return fakeExponential(MIN_BLOB_GASPRICE, excessBlobGas, BLOB_GASPRICE_UPDATE_FRACTION);
+        const gas = fakeExponential(MIN_BLOB_GASPRICE, excessBlobGas, BLOB_GASPRICE_UPDATE_FRACTION);
+        return gas * 11n / 10n;
     }
 
     async getGasPrice() {
@@ -85,7 +66,7 @@ export class BlobUploader {
     async estimateGas(params) {
         const limit = await this.#provider.send("eth_estimateGas", [params]);
         if (limit) {
-            return BigInt(limit) * 6n / 5n;
+            return BigInt(limit) * 11n / 10n;
         }
         return null;
     }
@@ -93,6 +74,10 @@ export class BlobUploader {
     async sendTx(tx, blobs) {
         if (!blobs) {
             return await this.#wallet.sendTransaction(tx);
+        }
+
+        if (tx.maxFeePerBlobGas == null) {
+            tx.maxFeePerBlobGas = await this.getBlobGasPrice();
         }
 
         // blobs
@@ -113,28 +98,6 @@ export class BlobUploader {
             versionedHashes.push(ethers.hexlify(hash));
         }
 
-        let {to, value, data, gasLimit, maxFeePerBlobGas} = tx;
-        if (gasLimit == null) {
-            const hexValue = parseBigintValue(value);
-            gasLimit = await this.estimateGas({
-                from: this.#wallet.address,
-                to,
-                data,
-                value: hexValue,
-                blobVersionedHashes: versionedHashes,
-            });
-            if (gasLimit == null) {
-                throw Error('estimateGas: execution reverted')
-            }
-            tx.gasLimit = gasLimit;
-        }
-
-        if (maxFeePerBlobGas == null) {
-            maxFeePerBlobGas = await this.getBlobGasPrice();
-            maxFeePerBlobGas = maxFeePerBlobGas * 6n / 5n;
-            tx.maxFeePerBlobGas = maxFeePerBlobGas;
-        }
-
         // send
         tx.type = 3;
         tx.blobVersionedHashes = versionedHashes;
@@ -150,22 +113,5 @@ export class BlobUploader {
         const hash = new Uint8Array(32);
         hash.set(localHash.subarray(0, 32 - 8));
         return ethers.hexlify(hash);
-    }
-
-    async isTransactionMined(transactionHash) {
-        const txReceipt = await this.#provider.getTransactionReceipt(transactionHash);
-        if (txReceipt && txReceipt.blockNumber) {
-            return txReceipt;
-        }
-    }
-
-    async getTxReceipt(transactionHash) {
-        let txReceipt;
-        while (!txReceipt) {
-            txReceipt = await this.isTransactionMined(transactionHash);
-            if (txReceipt) break;
-            await sleep(5000);
-        }
-        return txReceipt;
     }
 }
