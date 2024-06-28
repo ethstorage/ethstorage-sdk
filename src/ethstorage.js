@@ -3,12 +3,13 @@ import {
     BlobUploader,
     stringToHex,
     getChainId,
-    EncodeBlobs
+    encodeBlobs
 } from "./utils";
 import {
     ETHSTORAGE_MAPPING,
     BLOB_DATA_SIZE,
     BLOB_SIZE,
+    PaddingPer31Bytes,
     EthStorageAbi
 } from "./param";
 
@@ -27,10 +28,16 @@ export class EthStorage {
             throw new Error("EthStorage: Network not supported yet.");
         }
 
-        return new EthStorage(rpc, ethStorageRpc, privateKey, ethStorageAddress);
+        return new EthStorage({
+            rpc,
+            ethStorageRpc,
+            privateKey,
+            ethStorageAddress
+        });
     }
 
-    constructor(rpc, ethStorageRpc, privateKey, ethStorageAddress) {
+    constructor(config) {
+        const {rpc, ethStorageRpc, privateKey, ethStorageAddress} = config;
         this.#ethStorageRpc = ethStorageRpc;
         this.#contractAddr = ethStorageAddress;
 
@@ -55,7 +62,7 @@ export class EthStorage {
             this.#blobUploader.getGasPrice(),
         ]);
 
-        const blobs = EncodeBlobs(data);
+        const blobs = encodeBlobs(data);
         const blobHash = await this.#blobUploader.getBlobHash(blobs[0]);
         const gasLimit = await contract.putBlob.estimateGas(hexKey, 0, data.length, {
             value: storageCost,
@@ -87,15 +94,33 @@ export class EthStorage {
             value: storageCost,
         });
 
-        const blobs = EncodeBlobs(data);
+        const blobs = encodeBlobs(data);
         let txRes = await this.#blobUploader.sendTx(tx, blobs);
         console.log(`EthStorage: Send Success! hash is ${txRes.hash}`)
         txRes = await txRes.wait();
         return txRes.status;
     }
 
-    async read() {
-
+    async read(key) {
+        if (!key) {
+            throw new Error(`EthStorage: Invalid key.`);
+        }
+        if(!this.#ethStorageRpc) {
+            throw new Error(`EthStorage: Reading content requires providing 'ethStorageRpc'.`)
+        }
+        const hexKey = ethers.keccak256(stringToHex(key));
+        const provider = new ethers.JsonRpcProvider(this.#ethStorageRpc);
+        const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, provider);
+        const size = await contract.size(hexKey, {
+            from: this.#wallet.address
+        });
+        if (size === 0n) {
+            throw new Error(`EthStorage: There is no data corresponding to key ${key} under wallet address ${this.#wallet.address}.`)
+        }
+        const data = await contract.get(hexKey, PaddingPer31Bytes, 0, size, {
+            from: this.#wallet.address
+        });
+        return ethers.getBytes(data);
     }
 
     async putBlobs(number, data) {
@@ -109,7 +134,7 @@ export class EthStorage {
             value: storageCost * BigInt(number),
         });
 
-        const blobs = EncodeBlobs(data);
+        const blobs = encodeBlobs(data);
         let txRes = await this.#blobUploader.sendTx(tx, [blobs[0]]);
         console.log(`EthStorage: Send Success! hash is ${txRes.hash}`)
         txRes = await txRes.wait();

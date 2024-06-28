@@ -13,3 +13,7 @@ const BlobTxBytesPerFieldElement         = 32;      // Size in bytes of a field 
 const BlobTxFieldElementsPerBlob         = 4096;
 export const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
 export const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
+
+// DecodeType
+export const RawData = 0;
+export const PaddingPer31Bytes = 1;
