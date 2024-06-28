@@ -282,7 +282,7 @@ await ethStorage.upload(key, data, {
 
 **Example**
 ```javascript
-ethStorage.download("example.txt", {
+ethStorage.downloadSync("example.txt", {
     onProgress: function (progress, totalCount, chunk) {
         console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
     },
@@ -307,7 +307,7 @@ ethStorage.download("example.txt", {
 
 **Example**
 ```javascript
-const data = await ethStorage.downloadSync("example.txt");
+const data = await ethStorage.download("example.txt");
 ```
 
 
