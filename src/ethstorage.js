@@ -96,7 +96,7 @@ export class EthStorage {
 
         const blobs = encodeBlobs(data);
         let txRes = await this.#blobUploader.sendTx(tx, blobs);
-        console.log(`EthStorage: Send Success! hash is ${txRes.hash}`)
+        console.log(`EthStorage: Tx hash is ${txRes.hash}`)
         txRes = await txRes.wait();
         return txRes.status;
     }
@@ -136,7 +136,7 @@ export class EthStorage {
 
         const blobs = encodeBlobs(data);
         let txRes = await this.#blobUploader.sendTx(tx, [blobs[0]]);
-        console.log(`EthStorage: Send Success! hash is ${txRes.hash}`)
+        console.log(`EthStorage: Tx hash is ${txRes.hash}`)
         txRes = await txRes.wait();
         return txRes.status;
     }

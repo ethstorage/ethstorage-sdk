@@ -17,3 +17,7 @@ export const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
 // DecodeType
 export const RawData = 0;
 export const PaddingPer31Bytes = 1;
+
+
+
+export const MAX_BLOB_COUNT = 3;
