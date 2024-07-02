@@ -1,5 +1,6 @@
 import {ethers} from "ethers";
 import {loadKZG} from 'kzg-wasm';
+import {Mutex} from 'async-mutex';
 
 function computeVersionedHash(commitment, blobCommitmentVersion) {
     const computedVersionedHash = new Uint8Array(32);
@@ -34,10 +35,12 @@ export class BlobUploader {
 
     #provider;
     #wallet;
+    #mutex;
 
     constructor(rpc, pk) {
         this.#provider = new ethers.JsonRpcProvider(rpc);
         this.#wallet = new ethers.Wallet(pk, this.#provider);
+        this.#mutex = new Mutex();
     }
 
     async #getKzg() {
@@ -104,6 +107,15 @@ export class BlobUploader {
         tx.blobs = ethersBlobs;
         tx.kzg = kzg;
         return await this.#wallet.sendTransaction(tx);
+    }
+
+    async sendTxLock(tx, blobs) {
+        const release = await this.#mutex.acquire();
+        try {
+            return await this.sendTx(tx, blobs);
+        } finally {
+            release();
+        }
     }
 
     async getBlobHash(blob) {

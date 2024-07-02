@@ -6,7 +6,6 @@ import {
     FlatDirectoryAbi, BLOB_SIZE
 } from './param';
 import {BlobUploader, encodeBlobs, getChainId, stringToHex} from "./utils";
-import {Download} from "./download";
 
 const REMOVE_FAIL = -1;
 const REMOVE_NORMAL = 0;
@@ -86,11 +85,11 @@ export class FlatDirectory {
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         try {
             const tx = await fileContract.setDefault(hexName);
-            console.log(`FlatDirectory: tx hash is ${tx.hash}`);
+            console.log(`FlatDirectory: Tx hash is ${tx.hash}`);
             const txReceipt = await tx.wait();
             return txReceipt.status;
         } catch (e) {
-            console.error(`FlatDirectory: set default file failed!`, e.message);
+            console.error(`FlatDirectory: Set default file failed!`, e.message);
         }
         return false;
     }
@@ -105,7 +104,7 @@ export class FlatDirectory {
             const txReceipt = await tx.wait();
             return txReceipt.status;
         } catch (e) {
-            console.error(`FlatDirectory: refund failed!`, e.message);
+            console.error(`FlatDirectory: Refund failed!`, e.message);
         }
         return false;
     }
@@ -127,8 +126,56 @@ export class FlatDirectory {
 
     async download(key) {
         this.check();
+        if (!this.#ethStorageRpc) {
+            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
+        }
 
-        return await Download(this.#ethStorageRpc, this.#contractAddr, key);
+        let buff = [];
+        const hexName = stringToHex(key);
+        const provider = new ethers.JsonRpcProvider(this.#ethStorageRpc);
+        const contract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, provider);
+        try {
+            const blobCount = contract.countChunks(hexName);
+            for (let i = 0; i < blobCount; i++) {
+                const result = await contract.readChunk(hexName, i);
+                const chunk = ethers.getBytes(result[0]);
+                buff = [...buff, ...chunk];
+            }
+        } catch (e) {
+            console.error(`FlatDirectory: Download failed!`, e.message);
+        }
+        return Buffer.from(buff);
+    }
+
+    downloadSync(key, cb = defaultCallback) {
+        this.check();
+        if (!this.#ethStorageRpc) {
+            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
+        }
+
+        const hexName = stringToHex(key);
+        const provider = new ethers.JsonRpcProvider(this.#ethStorageRpc);
+        const contract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, provider);
+        try {
+            contract.countChunks(hexName).then(async (blobCount) => {
+                let buff = [];
+                for (let i = 0; i < blobCount; i++) {
+                    let result;
+                    try {
+                        result = await contract.readChunk(hexName, i);
+                    } catch (e) {
+                        cb.onFail(e);
+                        return;
+                    }
+                    const chunk = ethers.getBytes(result[0]);
+                    cb.onProgress(i, blobCount, Buffer.from(chunk));
+                    buff = [...buff, ...chunk];
+                }
+                cb.onSuccess(Buffer.from(buff));
+            });
+        } catch (err) {
+            cb.onFail(err)
+        }
     }
 
     async estimateCost(key, data) {
@@ -169,11 +216,13 @@ export class FlatDirectory {
             for (let j = i; j < max; j++) {
                 blobArr.push(blobs[j]);
                 chunkIdArr.push(j);
-                blobHashArr.push(await this.#blobUploader.getBlobHash(blobs[j]));
-                if (j === blobLength - 1) {
-                    chunkSizeArr.push(fileSize - blobDataSize * (blobLength - 1));
-                } else {
-                    chunkSizeArr.push(blobDataSize);
+                if (gasLimit === 0) {
+                    blobHashArr.push(await this.#blobUploader.getBlobHash(blobs[j]));
+                    if (j === blobLength - 1) {
+                        chunkSizeArr.push(fileSize - blobDataSize * (blobLength - 1));
+                    } else {
+                        chunkSizeArr.push(blobDataSize);
+                    }
                 }
             }
 
@@ -341,7 +390,7 @@ export class FlatDirectory {
             value: value,
         });
         // send
-        const txResponse = await this.#blobUploader.sendTx(tx, blobArr);
+        const txResponse = await this.#blobUploader.sendTxLock(tx, blobArr);
         console.log(`FlatDirectory: The ${chunkIdArr} chunks of file ${key} hash is ${txResponse.hash}.`);
         const txReceipt = await txResponse.wait();
         return txReceipt && txReceipt.status;

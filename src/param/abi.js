@@ -17,5 +17,6 @@ export const FlatDirectoryAbi = [
   "function remove(bytes memory name) external returns (uint256)",
   "function countChunks(bytes memory name) external view returns (uint256)",
   "function isSupportBlob() view public returns (bool)",
-  "function getStorageMode(bytes memory name) public view returns(uint256)"
+  "function getStorageMode(bytes memory name) public view returns(uint256)",
+  'function readChunk(bytes memory name, uint256 chunkId) external view returns (bytes memory, bool)'
 ];

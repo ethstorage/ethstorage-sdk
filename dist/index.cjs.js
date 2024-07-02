@@ -3,7 +3,7 @@
 var ethers = require('ethers');
 var kzgWasm = require('kzg-wasm');
 
-const stringToHex$1 = (s) => ethers.ethers.hexlify(ethers.ethers.toUtf8Bytes(s));
+const stringToHex = (s) => ethers.ethers.hexlify(ethers.ethers.toUtf8Bytes(s));
 
 async function getChainId(rpc) {
     const provider = new ethers.ethers.JsonRpcProvider(rpc);
@@ -93,6 +93,182 @@ function decodeBlobs(blobs) {
     return new Buffer(buf);
 }
 
+const E_CANCELED = new Error('request for lock canceled');
+
+var __awaiter$2 = function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+class Semaphore {
+    constructor(_value, _cancelError = E_CANCELED) {
+        this._value = _value;
+        this._cancelError = _cancelError;
+        this._queue = [];
+        this._weightedWaiters = [];
+    }
+    acquire(weight = 1, priority = 0) {
+        if (weight <= 0)
+            throw new Error(`invalid weight ${weight}: must be positive`);
+        return new Promise((resolve, reject) => {
+            const task = { resolve, reject, weight, priority };
+            const i = findIndexFromEnd(this._queue, (other) => priority <= other.priority);
+            if (i === -1 && weight <= this._value) {
+                // Needs immediate dispatch, skip the queue
+                this._dispatchItem(task);
+            }
+            else {
+                this._queue.splice(i + 1, 0, task);
+            }
+        });
+    }
+    runExclusive(callback_1) {
+        return __awaiter$2(this, arguments, void 0, function* (callback, weight = 1, priority = 0) {
+            const [value, release] = yield this.acquire(weight, priority);
+            try {
+                return yield callback(value);
+            }
+            finally {
+                release();
+            }
+        });
+    }
+    waitForUnlock(weight = 1, priority = 0) {
+        if (weight <= 0)
+            throw new Error(`invalid weight ${weight}: must be positive`);
+        if (this._couldLockImmediately(weight, priority)) {
+            return Promise.resolve();
+        }
+        else {
+            return new Promise((resolve) => {
+                if (!this._weightedWaiters[weight - 1])
+                    this._weightedWaiters[weight - 1] = [];
+                insertSorted(this._weightedWaiters[weight - 1], { resolve, priority });
+            });
+        }
+    }
+    isLocked() {
+        return this._value <= 0;
+    }
+    getValue() {
+        return this._value;
+    }
+    setValue(value) {
+        this._value = value;
+        this._dispatchQueue();
+    }
+    release(weight = 1) {
+        if (weight <= 0)
+            throw new Error(`invalid weight ${weight}: must be positive`);
+        this._value += weight;
+        this._dispatchQueue();
+    }
+    cancel() {
+        this._queue.forEach((entry) => entry.reject(this._cancelError));
+        this._queue = [];
+    }
+    _dispatchQueue() {
+        this._drainUnlockWaiters();
+        while (this._queue.length > 0 && this._queue[0].weight <= this._value) {
+            this._dispatchItem(this._queue.shift());
+            this._drainUnlockWaiters();
+        }
+    }
+    _dispatchItem(item) {
+        const previousValue = this._value;
+        this._value -= item.weight;
+        item.resolve([previousValue, this._newReleaser(item.weight)]);
+    }
+    _newReleaser(weight) {
+        let called = false;
+        return () => {
+            if (called)
+                return;
+            called = true;
+            this.release(weight);
+        };
+    }
+    _drainUnlockWaiters() {
+        if (this._queue.length === 0) {
+            for (let weight = this._value; weight > 0; weight--) {
+                const waiters = this._weightedWaiters[weight - 1];
+                if (!waiters)
+                    continue;
+                waiters.forEach((waiter) => waiter.resolve());
+                this._weightedWaiters[weight - 1] = [];
+            }
+        }
+        else {
+            const queuedPriority = this._queue[0].priority;
+            for (let weight = this._value; weight > 0; weight--) {
+                const waiters = this._weightedWaiters[weight - 1];
+                if (!waiters)
+                    continue;
+                const i = waiters.findIndex((waiter) => waiter.priority <= queuedPriority);
+                (i === -1 ? waiters : waiters.splice(0, i))
+                    .forEach((waiter => waiter.resolve()));
+            }
+        }
+    }
+    _couldLockImmediately(weight, priority) {
+        return (this._queue.length === 0 || this._queue[0].priority < priority) &&
+            weight <= this._value;
+    }
+}
+function insertSorted(a, v) {
+    const i = findIndexFromEnd(a, (other) => v.priority <= other.priority);
+    a.splice(i + 1, 0, v);
+}
+function findIndexFromEnd(a, predicate) {
+    for (let i = a.length - 1; i >= 0; i--) {
+        if (predicate(a[i])) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+var __awaiter$1 = function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+class Mutex {
+    constructor(cancelError) {
+        this._semaphore = new Semaphore(1, cancelError);
+    }
+    acquire() {
+        return __awaiter$1(this, arguments, void 0, function* (priority = 0) {
+            const [, releaser] = yield this._semaphore.acquire(1, priority);
+            return releaser;
+        });
+    }
+    runExclusive(callback, priority = 0) {
+        return this._semaphore.runExclusive(() => callback(), 1, priority);
+    }
+    isLocked() {
+        return this._semaphore.isLocked();
+    }
+    waitForUnlock(priority = 0) {
+        return this._semaphore.waitForUnlock(1, priority);
+    }
+    release() {
+        if (this._semaphore.isLocked())
+            this._semaphore.release();
+    }
+    cancel() {
+        return this._semaphore.cancel();
+    }
+}
+
 function computeVersionedHash(commitment, blobCommitmentVersion) {
     const computedVersionedHash = new Uint8Array(32);
     computedVersionedHash.set([blobCommitmentVersion], 0);
@@ -126,10 +302,12 @@ class BlobUploader {
 
     #provider;
     #wallet;
+    #mutex;
 
     constructor(rpc, pk) {
         this.#provider = new ethers.ethers.JsonRpcProvider(rpc);
         this.#wallet = new ethers.ethers.Wallet(pk, this.#provider);
+        this.#mutex = new Mutex();
     }
 
     async #getKzg() {
@@ -198,6 +376,15 @@ class BlobUploader {
         return await this.#wallet.sendTransaction(tx);
     }
 
+    async sendTxLock(tx, blobs) {
+        const release = await this.#mutex.acquire();
+        try {
+            return await this.sendTx(tx, blobs);
+        } finally {
+            release();
+        }
+    }
+
     async getBlobHash(blob) {
         const kzg = await this.#getKzg();
         const commit = kzg.blobToKzgCommitment(blob);
@@ -226,7 +413,8 @@ const FlatDirectoryAbi = [
   "function remove(bytes memory name) external returns (uint256)",
   "function countChunks(bytes memory name) external view returns (uint256)",
   "function isSupportBlob() view public returns (bool)",
-  "function getStorageMode(bytes memory name) public view returns(uint256)"
+  "function getStorageMode(bytes memory name) public view returns(uint256)",
+  'function readChunk(bytes memory name, uint256 chunkId) external view returns (bytes memory, bool)'
 ];
 
 const SEPOLIA_CHAIN_ID = 11155111;
@@ -290,7 +478,7 @@ class EthStorage {
             throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${BLOB_DATA_SIZE}.`);
         }
 
-        const hexKey = ethers.ethers.keccak256(stringToHex$1(key));
+        const hexKey = ethers.ethers.keccak256(stringToHex(key));
         const contract = new ethers.ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         const [storageCost, maxFeePerBlobGas, gasFeeData] = await Promise.all([
             contract.upfrontPayment(),
@@ -324,7 +512,7 @@ class EthStorage {
         }
 
         const contract = new ethers.ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
-        const hexKey = ethers.ethers.keccak256(stringToHex$1(key));
+        const hexKey = ethers.ethers.keccak256(stringToHex(key));
         const storageCost = await contract.upfrontPayment();
         const tx = await contract.putBlob.populateTransaction(hexKey, 0, data.length, {
             value: storageCost,
@@ -344,7 +532,7 @@ class EthStorage {
         if(!this.#ethStorageRpc) {
             throw new Error(`EthStorage: Reading content requires providing 'ethStorageRpc'.`)
         }
-        const hexKey = ethers.ethers.keccak256(stringToHex$1(key));
+        const hexKey = ethers.ethers.keccak256(stringToHex(key));
         const provider = new ethers.ethers.JsonRpcProvider(this.#ethStorageRpc);
         const contract = new ethers.ethers.Contract(this.#contractAddr, EthStorageAbi, provider);
         const size = await contract.size(hexKey, {
@@ -376,42 +564,6 @@ class EthStorage {
         txRes = await txRes.wait();
         return txRes.status;
     }
-}
-
-const contractABI = [
-    'function countChunks(bytes memory name) external view returns (uint256)',
-    'function readChunk(bytes memory name, uint256 chunkId) external view returns (bytes memory, bool)'
-];
-
-const stringToHex = (s) => ethers.ethers.hexlify(ethers.ethers.toUtf8Bytes(s));
-
-async function readChunk(ethStorageRpc, ethStorageAddress, hexName, index) {
-    let result;
-    try {
-        const provider = new ethers.ethers.JsonRpcProvider(ethStorageRpc);
-        const contract = new ethers.Contract(ethStorageAddress, contractABI, provider);
-        result = await contract.readChunk(hexName, index);
-    } catch (e) {
-        const provider = new ethers.ethers.JsonRpcProvider(ethStorageRpc);
-        const contract = new ethers.Contract(ethStorageAddress, contractABI, provider);
-        result = await contract.readChunk(hexName, index);
-    }
-    return ethers.ethers.getBytes(result[0]);
-}
-
-async function Download(ethStorageRpc, ethStorageAddress, fileName) {
-    const hexName = stringToHex(fileName);
-
-    const provider = new ethers.ethers.JsonRpcProvider(ethStorageRpc);
-    const contract = new ethers.Contract(ethStorageAddress, contractABI, provider);
-    const blobCount = await contract.countChunks(hexName);
-
-    let buff = [];
-    for (let i = 0; i < blobCount; i++) {
-        const chunk = await readChunk(ethStorageRpc, ethStorageAddress, hexName, i);
-        buff = [...buff, ...chunk];
-    }
-    return new Buffer(buff);
 }
 
 const REMOVE_FAIL = -1;
@@ -488,15 +640,15 @@ class FlatDirectory {
     async setDefault(filename) {
         this.check();
 
-        const hexName = filename ? stringToHex$1(filename) : "0x";
+        const hexName = filename ? stringToHex(filename) : "0x";
         const fileContract = new ethers.ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         try {
             const tx = await fileContract.setDefault(hexName);
-            console.log(`FlatDirectory: tx hash is ${tx.hash}`);
+            console.log(`FlatDirectory: Tx hash is ${tx.hash}`);
             const txReceipt = await tx.wait();
             return txReceipt.status;
         } catch (e) {
-            console.error(`FlatDirectory: set default file failed!`, e.message);
+            console.error(`FlatDirectory: Set default file failed!`, e.message);
         }
         return false;
     }
@@ -511,7 +663,7 @@ class FlatDirectory {
             const txReceipt = await tx.wait();
             return txReceipt.status;
         } catch (e) {
-            console.error(`FlatDirectory: refund failed!`, e.message);
+            console.error(`FlatDirectory: Refund failed!`, e.message);
         }
         return false;
     }
@@ -521,7 +673,7 @@ class FlatDirectory {
 
         const fileContract = new ethers.ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         try {
-            const tx = await fileContract.remove(stringToHex$1(key));
+            const tx = await fileContract.remove(stringToHex(key));
             console.log(`FlatDirectory: tx hash is ${tx.hash}`);
             const receipt = await tx.wait();
             return receipt.status;
@@ -533,14 +685,62 @@ class FlatDirectory {
 
     async download(key) {
         this.check();
+        if (!this.#ethStorageRpc) {
+            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
+        }
 
-        return await Download(this.#ethStorageRpc, this.#contractAddr, key);
+        let buff = [];
+        const hexName = stringToHex(key);
+        const provider = new ethers.ethers.JsonRpcProvider(this.#ethStorageRpc);
+        const contract = new ethers.ethers.Contract(this.#contractAddr, FlatDirectoryAbi, provider);
+        try {
+            const blobCount = contract.countChunks(hexName);
+            for (let i = 0; i < blobCount; i++) {
+                const result = await contract.readChunk(hexName, i);
+                const chunk = ethers.ethers.getBytes(result[0]);
+                buff = [...buff, ...chunk];
+            }
+        } catch (e) {
+            console.error(`FlatDirectory: Download failed!`, e.message);
+        }
+        return Buffer.from(buff);
+    }
+
+    downloadSync(key, cb = defaultCallback) {
+        this.check();
+        if (!this.#ethStorageRpc) {
+            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
+        }
+
+        const hexName = stringToHex(key);
+        const provider = new ethers.ethers.JsonRpcProvider(this.#ethStorageRpc);
+        const contract = new ethers.ethers.Contract(this.#contractAddr, FlatDirectoryAbi, provider);
+        try {
+            contract.countChunks(hexName).then(async (blobCount) => {
+                let buff = [];
+                for (let i = 0; i < blobCount; i++) {
+                    let result;
+                    try {
+                        result = await contract.readChunk(hexName, i);
+                    } catch (e) {
+                        cb.onFail(e);
+                        return;
+                    }
+                    const chunk = ethers.ethers.getBytes(result[0]);
+                    cb.onProgress(i, blobCount, Buffer.from(chunk));
+                    buff = [...buff, ...chunk];
+                }
+                cb.onSuccess(Buffer.from(buff));
+            });
+        } catch (err) {
+            cb.onFail(err);
+        }
     }
 
     async estimateCost(key, data) {
         this.check();
 
-        const hexName = stringToHex$1(key);
+        const hexName = stringToHex(key);
         const fileContract = new ethers.ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         const [isSupport, fileMod, cost, maxFeePerBlobGas, gasFeeData] = await Promise.all([
             fileContract.isSupportBlob(),
@@ -556,16 +756,16 @@ class FlatDirectory {
             throw new Error(`FlatDirectory: This file does not support blob upload!`);
         }
 
+        let totalGasCost = 0n;
+        let totalStorageCost = 0n;
         let gasLimit = 0;
+
         const content = Buffer.from(data);
         const blobs = encodeBlobs(content);
         const blobLength = blobs.length;
         const blobDataSize = BLOB_DATA_SIZE;
         const fileSize = content.length;
-
         // send
-        let totalGasCost = 0n;
-        let totalStorageCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
             const blobArr = [];
             const chunkIdArr = [];
@@ -575,11 +775,13 @@ class FlatDirectory {
             for (let j = i; j < max; j++) {
                 blobArr.push(blobs[j]);
                 chunkIdArr.push(j);
-                blobHashArr.push(await this.#blobUploader.getBlobHash(blobs[j]));
-                if (j === blobLength - 1) {
-                    chunkSizeArr.push(fileSize - blobDataSize * (blobLength - 1));
-                } else {
-                    chunkSizeArr.push(blobDataSize);
+                if (gasLimit === 0) {
+                    blobHashArr.push(await this.#blobUploader.getBlobHash(blobs[j]));
+                    if (j === blobLength - 1) {
+                        chunkSizeArr.push(fileSize - blobDataSize * (blobLength - 1));
+                    } else {
+                        chunkSizeArr.push(blobDataSize);
+                    }
                 }
             }
 
@@ -615,7 +817,7 @@ class FlatDirectory {
     async uploadData(key, data, cb = defaultCallback) {
         this.check();
 
-        const hexName = stringToHex$1(key);
+        const hexName = stringToHex(key);
         const fileContract = new ethers.ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         const [isSupport, fileMod] = await Promise.all([
             fileContract.isSupportBlob(),
@@ -747,7 +949,7 @@ class FlatDirectory {
             value: value,
         });
         // send
-        const txResponse = await this.#blobUploader.sendTx(tx, blobArr);
+        const txResponse = await this.#blobUploader.sendTxLock(tx, blobArr);
         console.log(`FlatDirectory: The ${chunkIdArr} chunks of file ${key} hash is ${txResponse.hash}.`);
         const txReceipt = await txResponse.wait();
         return txReceipt && txReceipt.status;
@@ -755,12 +957,11 @@ class FlatDirectory {
 }
 
 exports.BlobUploader = BlobUploader;
-exports.Download = Download;
 exports.EthStorage = EthStorage;
 exports.FlatDirectory = FlatDirectory;
 exports.decodeBlob = decodeBlob;
 exports.decodeBlobs = decodeBlobs;
 exports.encodeBlobs = encodeBlobs;
 exports.getChainId = getChainId;
-exports.stringToHex = stringToHex$1;
+exports.stringToHex = stringToHex;
 //# sourceMappingURL=index.cjs.js.map
