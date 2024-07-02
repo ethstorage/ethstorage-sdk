@@ -21,7 +21,7 @@ async function readChunk(ethStorageRpc, ethStorageAddress, hexName, index) {
     return ethers.getBytes(result[0]);
 }
 
-export async function DownloadFile(ethStorageRpc, ethStorageAddress, fileName) {
+export async function Download(ethStorageRpc, ethStorageAddress, fileName) {
     const hexName = stringToHex(fileName);
 
     const provider = new ethers.JsonRpcProvider(ethStorageRpc);

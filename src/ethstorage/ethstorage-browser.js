@@ -4,8 +4,10 @@ export class EthStorage extends BaseEthStorage{
     getFileInfo(file) {
         return {
             isFile: true,
+            isDirectory: false,
             name: file.name,
-            size: file.size
+            size: file.size,
+            path: file
         };
     }
 
