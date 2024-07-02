@@ -21,29 +21,27 @@ export class EthStorage {
     #blobUploader;
 
     static async create(config) {
-        const {rpc, ethStorageRpc, privateKey} = config;
-        const chainId = await getChainId(rpc);
-        const ethStorageAddress = ETHSTORAGE_MAPPING[chainId];
-        if (!ethStorageAddress) {
-            throw new Error("EthStorage: Network not supported yet.");
-        }
-
-        return new EthStorage({
-            rpc,
-            ethStorageRpc,
-            privateKey,
-            ethStorageAddress
-        });
+        const {rpc} = config;
+        const ethStorage = new EthStorage(config);
+        await ethStorage.init(rpc);
+        return ethStorage;
     }
 
     constructor(config) {
-        const {rpc, ethStorageRpc, privateKey, ethStorageAddress} = config;
+        const {rpc, ethStorageRpc, privateKey} = config;
         this.#ethStorageRpc = ethStorageRpc;
-        this.#contractAddr = ethStorageAddress;
 
         const provider = new ethers.JsonRpcProvider(rpc);
         this.#wallet = new ethers.Wallet(privateKey, provider);
         this.#blobUploader = new BlobUploader(rpc, privateKey);
+    }
+
+    async init(rpc) {
+        const chainId = await getChainId(rpc);
+        this.#contractAddr = ETHSTORAGE_MAPPING[chainId];
+        if (!this.#contractAddr) {
+            throw new Error("EthStorage: Network not supported yet.");
+        }
     }
 
     async estimateCost(key, data) {
@@ -89,16 +87,21 @@ export class EthStorage {
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         const hexKey = ethers.keccak256(stringToHex(key));
-        const storageCost = await contract.upfrontPayment();
-        const tx = await contract.putBlob.populateTransaction(hexKey, 0, data.length, {
-            value: storageCost,
-        });
+        try {
+            const storageCost = await contract.upfrontPayment();
+            const tx = await contract.putBlob.populateTransaction(hexKey, 0, data.length, {
+                value: storageCost,
+            });
 
-        const blobs = encodeBlobs(data);
-        let txRes = await this.#blobUploader.sendTx(tx, blobs);
-        console.log(`EthStorage: Tx hash is ${txRes.hash}`)
-        txRes = await txRes.wait();
-        return txRes.status;
+            const blobs = encodeBlobs(data);
+            let txRes = await this.#blobUploader.sendTx(tx, blobs);
+            console.log(`EthStorage: Tx hash is ${txRes.hash}`)
+            txRes = await txRes.wait();
+            return txRes.status;
+        } catch (e) {
+            console.error(`EthStorage: Write blob failed!`, e.message);
+        }
+        return false;
     }
 
     async read(key) {
@@ -129,15 +132,20 @@ export class EthStorage {
         }
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
-        const storageCost = await contract.upfrontPayment();
-        const tx = await contract.putBlobs.populateTransaction(number, {
-            value: storageCost * BigInt(number),
-        });
+        try {
+            const storageCost = await contract.upfrontPayment();
+            const tx = await contract.putBlobs.populateTransaction(number, {
+                value: storageCost * BigInt(number),
+            });
 
-        const blobs = encodeBlobs(data);
-        let txRes = await this.#blobUploader.sendTx(tx, [blobs[0]]);
-        console.log(`EthStorage: Tx hash is ${txRes.hash}`)
-        txRes = await txRes.wait();
-        return txRes.status;
+            const blobs = encodeBlobs(data);
+            let txRes = await this.#blobUploader.sendTx(tx, [blobs[0]]);
+            console.log(`EthStorage: Tx hash is ${txRes.hash}`)
+            txRes = await txRes.wait();
+            return txRes.status;
+        } catch (e) {
+            console.error(`EthStorage: Put blobs failed!`, e.message);
+        }
+        return false;
     }
 }

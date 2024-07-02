@@ -1,5 +1,4 @@
-export * from './utils';
+export * as utils from './utils';
+export * from './param';
 export { EthStorage } from './ethstorage';
 export { FlatDirectory } from './flatdirectory';
-
-export { BlobUploader } from './utils/uploader.js';
