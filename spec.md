@@ -286,7 +286,7 @@ await flatDirectory.upload(key, data, {
 
 **Example**
 ```javascript
-flatDirectory.download("example.txt", {
+flatDirectory.downloadSync("example.txt", {
     onProgress: function (progress, totalCount, chunk) {
         console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
     },
@@ -311,7 +311,7 @@ flatDirectory.download("example.txt", {
 
 **Example**
 ```javascript
-const data = await flatDirectory.downloadSync("example.txt");
+const data = await flatDirectory.download("example.txt");
 ```
 
 
