@@ -29,8 +29,8 @@ Create EthStorage SDK.
 ```js
 const {EthStorage} = require("ethstorage-sdk")
 
-const rpc = "http://142.132.154.16:8545";
-const ethStorageRpc = "http://65.108.230.142:9545";
+const rpc = "https://1rpc.io/sepolia";
+const ethStorageRpc = "http://65.109.115.36:9540";
 const privateKey = "0xabcd...";
 
 const ethStorage = await EthStorage.create({
@@ -78,7 +78,7 @@ const data = await ethStorage.read(key);
 Batch upload blob data.
 
 ```js
-const count = 300;
+const count = 6;
 const data = Buffer.from("test data");
 await ethStorage.putBlobs(count, data);
 ```
@@ -94,8 +94,8 @@ Create FlatDirectory SDK.
 ```js
 const {FlatDirectory} = require("ethstorage-sdk")
 
-const rpc = "http://142.132.154.16:8545";
-const ethStorageRpc = "http://65.108.230.142:9545";
+const rpc = "https://1rpc.io/sepolia";
+const ethStorageRpc = "http://65.109.115.36:9540";
 const privateKey = "0xabcd...";
 
 const flatDirectory = await FlatDirectory.create({
