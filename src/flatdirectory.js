@@ -101,21 +101,6 @@ export class FlatDirectory {
         return false;
     }
 
-    async refund() {
-        this.checkAddress();
-
-        const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
-        try {
-            const tx = await fileContract.refund();
-            console.log(`FlatDirectory: Tx hash is ${tx.hash}`);
-            const txReceipt = await tx.wait();
-            return txReceipt.status;
-        } catch (e) {
-            console.error(`FlatDirectory: Refund failed!`, e.message);
-        }
-        return false;
-    }
-
     async remove(key) {
         this.checkAddress();
 
