@@ -304,13 +304,19 @@ class BlobUploader {
     #wallet;
     #mutex;
 
+    static async create(rpc, pk) {
+        const uploader = new BlobUploader(rpc, pk);
+        await uploader.init();
+        return uploader;
+    }
+
     constructor(rpc, pk) {
         this.#provider = new ethers.ethers.JsonRpcProvider(rpc);
         this.#wallet = new ethers.ethers.Wallet(pk, this.#provider);
         this.#mutex = new Mutex();
     }
 
-    async #getKzg() {
+    async init() {
         if (!this.#kzg) {
             this.#kzg = await kzgWasm.loadKZG();
         }
@@ -351,7 +357,7 @@ class BlobUploader {
         }
 
         // blobs
-        const kzg = await this.#getKzg();
+        const kzg = this.#kzg;
         const ethersBlobs = [];
         const versionedHashes = [];
         for (let i = 0; i < blobs.length; i++) {
@@ -385,8 +391,8 @@ class BlobUploader {
         }
     }
 
-    async getBlobHash(blob) {
-        const kzg = await this.#getKzg();
+    getBlobHash(blob) {
+        const kzg = this.#kzg;
         const commit = kzg.blobToKzgCommitment(blob);
         const localHash = commitmentsToVersionedHashes(commit);
         const hash = new Uint8Array(32);
@@ -479,6 +485,8 @@ class EthStorage {
         if (!this.#contractAddr) {
             throw new Error("EthStorage: Network not supported yet.");
         }
+
+        await this.#blobUploader.init();
     }
 
     async estimateCost(key, data) {
@@ -498,7 +506,7 @@ class EthStorage {
         ]);
 
         const blobs = encodeBlobs(data);
-        const blobHash = await this.#blobUploader.getBlobHash(blobs[0]);
+        const blobHash = this.#blobUploader.getBlobHash(blobs[0]);
         const gasLimit = await contract.putBlob.estimateGas(hexKey, 0, data.length, {
             value: storageCost,
             blobVersionedHashes: [blobHash]
@@ -630,6 +638,7 @@ class FlatDirectory {
     }
 
     async init(rpc, address) {
+        await this.#blobUploader.init();
         this.#chainId = await getChainId(rpc);
         // checkout support blob
         if (address) {
@@ -802,7 +811,7 @@ class FlatDirectory {
                 chunkIdArr.push(j);
                 chunkSizeArr.push(blobDataSize);
 
-                blobHashArr.push(await this.#blobUploader.getBlobHash(blobs[j]));
+                blobHashArr.push(this.#blobUploader.getBlobHash(blobs[j]));
                 blobHashRequestArr.push(fileContract.getChunkHash(hexName, j));
             }
 
@@ -886,7 +895,7 @@ class FlatDirectory {
                 } else {
                     chunkSizeArr.push(blobDataSize);
                 }
-                blobHashArr.push(await this.#blobUploader.getBlobHash(blobs[j]));
+                blobHashArr.push(this.#blobUploader.getBlobHash(blobs[j]));
                 blobHashRequestArr.push(fileContract.getChunkHash(hexName, j));
             }
 

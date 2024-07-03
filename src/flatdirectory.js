@@ -50,6 +50,7 @@ export class FlatDirectory {
     }
 
     async init(rpc, address) {
+        await this.#blobUploader.init();
         this.#chainId = await getChainId(rpc);
         // checkout support blob
         if (address) {
@@ -222,7 +223,7 @@ export class FlatDirectory {
                 chunkIdArr.push(j);
                 chunkSizeArr.push(blobDataSize);
 
-                blobHashArr.push(await this.#blobUploader.getBlobHash(blobs[j]));
+                blobHashArr.push(this.#blobUploader.getBlobHash(blobs[j]));
                 blobHashRequestArr.push(fileContract.getChunkHash(hexName, j));
             }
 
@@ -306,7 +307,7 @@ export class FlatDirectory {
                 } else {
                     chunkSizeArr.push(blobDataSize);
                 }
-                blobHashArr.push(await this.#blobUploader.getBlobHash(blobs[j]));
+                blobHashArr.push(this.#blobUploader.getBlobHash(blobs[j]));
                 blobHashRequestArr.push(fileContract.getChunkHash(hexName, j));
             }
 

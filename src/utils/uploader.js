@@ -37,13 +37,19 @@ export class BlobUploader {
     #wallet;
     #mutex;
 
+    static async create(rpc, pk) {
+        const uploader = new BlobUploader(rpc, pk);
+        await uploader.init();
+        return uploader;
+    }
+
     constructor(rpc, pk) {
         this.#provider = new ethers.JsonRpcProvider(rpc);
         this.#wallet = new ethers.Wallet(pk, this.#provider);
         this.#mutex = new Mutex();
     }
 
-    async #getKzg() {
+    async init() {
         if (!this.#kzg) {
             this.#kzg = await loadKZG();
         }
@@ -84,7 +90,7 @@ export class BlobUploader {
         }
 
         // blobs
-        const kzg = await this.#getKzg();
+        const kzg = this.#kzg;
         const ethersBlobs = [];
         const versionedHashes = [];
         for (let i = 0; i < blobs.length; i++) {
@@ -118,8 +124,8 @@ export class BlobUploader {
         }
     }
 
-    async getBlobHash(blob) {
-        const kzg = await this.#getKzg();
+    getBlobHash(blob) {
+        const kzg = this.#kzg;
         const commit = kzg.blobToKzgCommitment(blob);
         const localHash = commitmentsToVersionedHashes(commit);
         const hash = new Uint8Array(32);
