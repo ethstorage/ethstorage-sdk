@@ -289,9 +289,9 @@ export class FlatDirectory {
         }
 
         // send
-        let totalUploadCount = 0;
+        let totalUploadChunks = 0;
         let totalUploadSize = 0;
-        let totalCost = 0n;
+        let totalStorageCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
             const blobArr = [];
             const chunkIdArr = [];
@@ -343,18 +343,14 @@ export class FlatDirectory {
             }
             // success
             cb.onProgress(chunkIdArr, blobLength);
-            totalCost += cost * BigInt(blobArr.length);
-            totalUploadCount += blobArr.length;
+            totalStorageCost += cost * BigInt(blobArr.length);
+            totalUploadChunks += blobArr.length;
             for (let i = 0; i < chunkSizeArr.length; i++) {
                 totalUploadSize += chunkSizeArr[i];
             }
         }
 
-        cb.onSuccess({
-            totalUploadCount,
-            totalUploadSize,
-            totalCost,
-        });
+        cb.onSuccess(totalUploadChunks, totalUploadSize, totalStorageCost);
     }
 
     async #clearOldFile(key, chunkLength, oldChunkLength) {
