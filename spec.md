@@ -210,7 +210,7 @@ const flatDirectory = await FlatDirectory.create(config);
 
 **Example**
 ```javascript
-const address = await ethStorage.deploy();
+const address = await flatDirectory.deploy();
 ```
 
 
@@ -232,7 +232,7 @@ const address = await ethStorage.deploy();
 ```javascript
 const key = "example1.txt";
 const data = Buffer.from("large data to upload");
-const cost = await ethStorage.estimateCost(key, data);
+const cost = await flatDirectory.estimateCost(key, data);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
@@ -256,7 +256,7 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 const key = "example1.txt";
 const data = Buffer.from("large data to upload");
 
-await ethStorage.upload(key, data, {
+await flatDirectory.upload(key, data, {
     onProgress: function(progress, totalCount) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
@@ -286,7 +286,7 @@ await ethStorage.upload(key, data, {
 
 **Example**
 ```javascript
-ethStorage.download("example.txt", {
+flatDirectory.download("example.txt", {
     onProgress: function (progress, totalCount, chunk) {
         console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
     },
@@ -311,7 +311,7 @@ ethStorage.download("example.txt", {
 
 **Example**
 ```javascript
-const data = await ethStorage.downloadSync("example.txt");
+const data = await flatDirectory.downloadSync("example.txt");
 ```
 
 
@@ -329,7 +329,7 @@ const data = await ethStorage.downloadSync("example.txt");
 **Example**
 ```javascript
 const defaultFile = "index.html";
-const status = await ethStorage.setDefault(defaultFile);
+const status = await flatDirectory.setDefault(defaultFile);
 ```
 
 <p id="Version"></p>

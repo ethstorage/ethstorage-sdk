@@ -1,5 +1,14 @@
 # ethstorage-sdk
-Tool for uploading and downloading data for EthStorage network, utilizing the [EIP-5018](https://eips.ethereum.org/EIPS/eip-5018) standard for data.
+
+This SDK aims to standardize the interaction between applications and the EthStorage network to achieve reliable and
+efficient data management functionality.
+
+This SDK includes two classes: `EthStorage` and `FlatDirectory`.
+The `EthStorage` class provides asynchronous read and write operations for key-value pairs of a specified size.
+The `FlatDirectory` class is a higher-level data management tool that provides methods for uploading and downloading
+data of arbitrary size.
+
+Click here to view [spec](https://github.com/ethstorage/ethstorage-sdk/sepc.md).
 
 ## Installation
 
@@ -11,80 +20,178 @@ $ npm install ethstorage-sdk
 
 ## Example
 
-### Constructor
+### EthStorage
 
-Init SDK.
+#### create
+
+Create EthStorage SDK.
+
 ```js
-const { EthStorage } = require("ethstorage-sdk")
+const {EthStorage} = require("ethstorage-sdk")
 
-const rpc = "https://rpc.sepolia.org";
-const privateKey =  "0xabcd...";
+const rpc = "http://142.132.154.16:8545";
+const ethStorageRpc = "http://65.108.230.142:9545";
+const privateKey = "0xabcd...";
 
-const ethStorage = new EthStorage(rpc, privateKey);
+const ethStorage = await EthStorage.create({
+    rpc: rpc,
+    ethStorageRpc: ethStorageRpc,
+    privateKey: privateKey,
+});
 ```
 
-### Deploy
 
-Deploy the implementation contract [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/FlatDirectory.sol) for EIP-5018 standard.
+#### estimateCost
+
+Estimate gas costs before uploading.
+
 ```js
-// EthStorage Contract is the contract address where EthStorage is deployed on Layer 1.
-const ethStorageContract = "0x804C520d3c084C805E37A35E90057Ac32831F96f";
+const key = "example1.txt";
+const data = Buffer.from("large data to upload");
 
-await ethStorage.deploy(ethStorageContract);
+const cost = await ethStorage.estimateCost(key, data);
+console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
-Sepolia network can invoke the following methods:
+#### write
+
+Write blob data to EthStorage network.
+
 ```js
-await ethStorage.deploySepolia();
+const key = "test.txt";
+const data = Buffer.from("test data");
+await ethStorage.write(key, data);
 ```
 
-If FlatDirectory has already been deployed, you can set it.
-```js
-const rpc = "https://rpc.sepolia.org";
-const privateKey =  "0xabcd...";
-const flatDirectory = "0xdcba...";
 
-const ethStorage = new EthStorage(rpc, privateKey, flatDirectory);
+#### read
+
+Read written data from the EthStorage network.
+
+```js
+const key = "test.txt";
+const data = await ethStorage.read(key);
 ```
 
-### Upload
-Upload files to FlatDirectory.
+#### putBlobs
 
-You can set the file or folder path, and if it is a browser environment, you can also set the file object.
+Batch upload blob data.
+
 ```js
-const fileOrPath = "/users/dist/test.txt";
-
-await ethStorage.upload(fileOrPath);
+const count = 300;
+const data = Buffer.from("test data");
+await ethStorage.putBlobs(count, data);
 ```
 
-If you want to upload data, use 'uploadData'
+
+
+### FlatDirectory
+
+#### create
+
+Create FlatDirectory SDK.
+
 ```js
-const fileName = "test.txt";
+const {FlatDirectory} = require("ethstorage-sdk")
+
+const rpc = "http://142.132.154.16:8545";
+const ethStorageRpc = "http://65.108.230.142:9545";
+const privateKey = "0xabcd...";
+
+const flatDirectory = await FlatDirectory.create({
+    rpc: rpc,
+    ethStorageRpc: ethStorageRpc,
+    privateKey: privateKey,
+});
+```
+
+If FlatDirectory has been deployed, it can be set through the 'address' field.
+
+```js
+const address = "0x987..."; // FlatDirectory address
+const flatDirectory = await FlatDirectory.create({
+    rpc: rpc,
+    ethStorageRpc: ethStorageRpc,
+    privateKey: privateKey,
+    address: address,
+});
+```
+
+#### deploy
+
+Deploy the implementation
+contract [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/FlatDirectory.sol)
+for [EIP-5018](https://eips.ethereum.org/EIPS/eip-5018) standard.
+
+```js
+const contracAddress = await flatDirectory.deploy();
+console.log(`FlatDirectory address is ${contracAddress}.`);
+```
+
+#### estimateCost
+
+Estimate gas costs before uploading.
+
+```js
+const key = "example1.txt";
+const data = Buffer.from("large data to upload");
+
+const cost = await flatDirectory.estimateCost(key, data);
+console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
+```
+
+#### upload
+
+Upload data to FlatDirectory.
+
+```js
+const key = "test.txt";
 const filePath = "/users/dist/test.txt";
 const data = fs.readFileSync(filePath);
 
-await ethStorage.uploadData(fileName, data);
+await flatDirectory.upload(key, data);
 ```
 
-### Download
+If you want to listener the upload results, you can pass in the callback function.
+
+```js
+await flatDirectory.upload(key, data, {
+    onProgress: function (progress, count) {
+        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+    },
+    onFail: function (err) {
+        console.log(err);
+    },
+    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
+    }
+});
+```
+
+#### download
+
 Download data from the EthStorage network.
-```js
-// Since the data is downloaded from ethstorage, the provided RPC should be an ethstorage RPC.
-const ethStorageRpc = "https://ethstorage.rpc.io";
-const fileName = "test.txt";
 
-const data = await ethStorage.download(fileName, ethStorageRpc);
+```js
+const key = "test.txt";
+const data = await flatDirectory.download(key);
 ```
 
-or
+#### downloadSync
+
+If you want to listener the download progress, you can pass in the callback function.
 
 ```js
-// Since the data is downloaded from ethstorage, the provided RPC should be an ethstorage RPC.
-const { Download } = require("ethstorage-sdk")
-
-const flatDirectory = "0xdcba...";
-const ethStorageRpc = "https://ethstorage.rpc.io";
-const fileName = "test.txt";
-
-const data = await Download(ethStorageRpc, flatDirectory, fileName);
+const key = "test.txt";
+flatDirectory.download(key, {
+    onProgress: function (progress, totalCount, chunk) {
+        console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
+    },
+    onFail: function (error) {
+        console.error("Error download data:", error);
+    },
+    onSuccess: function (data) {
+        console.log("Download success.", data);
+    }
+});
 ```
