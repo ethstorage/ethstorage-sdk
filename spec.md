@@ -6,14 +6,16 @@
 - [1. Introduction](#Introduction)
 - [2. Class Overview](#Class_Overview)
 - [3. EthStorage Class](#EthStorage)
-    - Constructor
+    - Static Methods
+        - create
     - Methods
         - estimateCost
         - read
         - write
         - putBlobs
 - [4. FlatDirectory Class](#FlatDirectory)
-    - Constructor
+    - Static Methods
+        - create
     - Methods
         - estimateCost
         - upload
@@ -45,7 +47,7 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 
 | Method Name  | Description                                                    |
 |--------------|----------------------------------------------------------------|
-| constructor  | Create an instance of EthStorage                               |
+| create       | Create an instance of EthStorage                               |
 | estimateCost | Estimate the cost of uploading data(gas cost and storage cost) |
 | write        | Asynchronously write data                                      |
 | read         | Asynchronously read data                                       |
@@ -55,7 +57,7 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 
 | Method Name  | Description                                                    |
 |--------------|----------------------------------------------------------------|
-| constructor  | Create an instance of FlatDirectory                            |
+| create       | Create an instance of FlatDirectory                            |
 | deploy       | Deploy a FlatDirectory contract                                |
 | estimateCost | Estimate the cost of uploading data(gas cost and storage cost) |
 | upload       | Asynchronously upload data of arbitrary size                   |
@@ -70,7 +72,8 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 
 ## 3. EthStorage Class
 
-### Constructor
+### Static Methods
+#### create
 
 **Description**: Create an instance of `EthStorage`.
 
@@ -88,7 +91,7 @@ const config = {
    privateKey: "your_private_key"
 };
 
-const ethStorage = new EthStorage(config);
+const ethStorage = await EthStorage.create(config);
 ```
 
 
@@ -172,7 +175,8 @@ const status = await ethStorage.putBlobs(number, blobData);
 
 ## 4. FlatDirectory Class
 
-### Constructor
+### Static Methods
+#### create
 
 **Description**: Create an instance of `FlatDirectory`.
 
@@ -192,7 +196,7 @@ const config = {
    address: "flat_directory_address"
 };
 
-const flatDirectory = new FlatDirectory(config);
+const flatDirectory = await FlatDirectory.create(config);
 ```
 
 
@@ -206,7 +210,7 @@ const flatDirectory = new FlatDirectory(config);
 
 **Example**
 ```javascript
-const address = await ethStorage.deploy();
+const address = await flatDirectory.deploy();
 ```
 
 
@@ -228,7 +232,7 @@ const address = await ethStorage.deploy();
 ```javascript
 const key = "example1.txt";
 const data = Buffer.from("large data to upload");
-const cost = await ethStorage.estimateCost(key, data);
+const cost = await flatDirectory.estimateCost(key, data);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
@@ -245,22 +249,22 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 - `callbacks` (object): An object containing callback functions:
   - `onProgress` (function): Callback function that receives `(progress, totalCount)`.
   - `onFail` (function): Callback function that receives `(error)`.
-  - `onSuccess` (function): Indicates that the upload was successful.
+  - `onSuccess` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
 
 **Example**
 ```javascript
 const key = "example1.txt";
 const data = Buffer.from("large data to upload");
 
-await ethStorage.upload(key, data, {
+await flatDirectory.upload(key, data, {
     onProgress: function(progress, totalCount) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
     onFail: function(error) {
         console.error("Error uploading data:", error);
     },
-    onSuccess: function() {
-        console.log("Data uploaded success.");
+    onSuccess: function(totalUploadChunks, totalUploadSize, totalStorageCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
 });
 ```
@@ -278,11 +282,11 @@ await ethStorage.upload(key, data, {
 - `callbacks` (object): An object containing callback functions:
   - `onProgress` (function): Callback function that receives `(progress, totalCount, chunk)`.
   - `onFail` (function): Callback function that receives `(error)`.
-  - `onSuccess` (function): Indicates that the upload was successful.
+  - `onSuccess` (function): Callback function that receives `(data)`.
 
 **Example**
 ```javascript
-ethStorage.downloadSync("example.txt", {
+flatDirectory.downloadSync("example.txt", {
     onProgress: function (progress, totalCount, chunk) {
         console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
     },
@@ -307,7 +311,7 @@ ethStorage.downloadSync("example.txt", {
 
 **Example**
 ```javascript
-const data = await ethStorage.download("example.txt");
+const data = await flatDirectory.download("example.txt");
 ```
 
 
@@ -325,7 +329,7 @@ const data = await ethStorage.download("example.txt");
 **Example**
 ```javascript
 const defaultFile = "index.html";
-const status = await ethStorage.setDefault(defaultFile);
+const status = await flatDirectory.setDefault(defaultFile);
 ```
 
 <p id="Version"></p>

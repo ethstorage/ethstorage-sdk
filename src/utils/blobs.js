@@ -2,13 +2,12 @@ import {ethers} from "ethers";
 
 const BlobTxBytesPerFieldElement         = 32;      // Size in bytes of a field element
 const BlobTxFieldElementsPerBlob         = 4096;
-export const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
-export const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
+const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
 
-export function EncodeBlobs(data) {
+export function encodeBlobs(data) {
     const len = data.length;
     if (len === 0) {
-        throw Error('invalid blob data')
+        throw Error('Blobs: invalid blob data')
     }
 
     let blobIndex = 0;
@@ -31,9 +30,9 @@ export function EncodeBlobs(data) {
     return blobs;
 }
 
-export function DecodeBlob(blob) {
+export function decodeBlob(blob) {
     if (!blob) {
-        throw Error('invalid blob data')
+        throw Error('Blobs: invalid blob data')
     }
 
     blob = ethers.getBytes(blob);
@@ -59,15 +58,15 @@ export function DecodeBlob(blob) {
     return data.slice(0, i + 1);
 }
 
-export function DecodeBlobs(blobs) {
+export function decodeBlobs(blobs) {
     if (!blobs) {
-        throw Error('invalid blobs')
+        throw Error('Blobs: invalid blobs')
     }
 
     blobs = ethers.getBytes(blobs);
     const len = blobs.length;
     if (len === 0) {
-        throw Error('invalid blobs')
+        throw Error('Blobs: invalid blobs')
     }
 
     let buf = [];
