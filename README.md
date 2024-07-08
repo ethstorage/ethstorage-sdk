@@ -140,6 +140,26 @@ const cost = await flatDirectory.estimateCost(key, data);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
+#### estimateFileCost
+
+Estimate gas costs before uploading.
+
+Browser
+```javascript
+// <input id='fileToUpload' />
+const file = document.getElementById('fileToUpload').files[0];
+const cost = await flatDirectory.estimateFileCost("example1.txt", file);
+console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
+```
+
+Node
+```javascript
+const {NodeFile} = require("ethstorage-sdk/file");
+const file = new NodeFile("/usr/download/test.jpg");
+const cost = await flatDirectory.estimateFileCost("example1.txt", file);
+console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
+```
+
 #### upload
 
 Upload data to FlatDirectory.
@@ -167,6 +187,45 @@ await flatDirectory.upload(key, data, {
     }
 });
 ```
+
+#### uploadFile
+
+Upload file object to FlatDirectory.
+
+Browser
+```javascript
+// <input id='fileToUpload' />
+const file = document.getElementById('fileToUpload').files[0];
+await flatDirectory.uploadFile(key, file, {
+    onProgress: function (progress, count) {
+        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+    },
+    onFail: function (err) {
+        console.log(err);
+    },
+    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
+    }
+});
+```
+
+Node
+```javascript
+const {NodeFile} = require("ethstorage-sdk/file");
+const file = new NodeFile("/usr/download/test.jpg");
+await flatDirectory.uploadFile(key, file, {
+    onProgress: function (progress, count) {
+        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+    },
+    onFail: function (err) {
+        console.log(err);
+    },
+    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
+    }
+});
+```
+
 
 #### download
 

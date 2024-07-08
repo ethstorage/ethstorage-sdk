@@ -3,9 +3,12 @@ import resolve from '@rollup/plugin-node-resolve';
 
 export default [
     {
-        input: "./src/index.js",
+        input: {
+            'index.cjs': './src/index.js',
+            'file.cjs': './src/node/file.js',
+        },
         output: {
-            file: 'dist/index.cjs.js', format: 'cjs', sourcemap: true
+            dir: 'dist', format: 'cjs', sourcemap: true
         },
         plugins: [commonjs(), resolve()],
         external: ["ethers", "kzg-wasm"]
