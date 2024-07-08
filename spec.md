@@ -228,7 +228,7 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 
 #### estimateFileCost
 
-**Description**: Estimate the cost of uploading data.
+**Description**: Estimate the cost of uploading file.
 
 **Parameters**
 - `key` (string): The key of the data.
@@ -305,19 +305,7 @@ Browser
 ```javascript
 // <input id='fileToUpload' />
 const file = document.getElementById('fileToUpload').files[0];
-```
-
-Node
-```javascript
-const {NodeFile} = require("ethstorage-sdk/file");
-const file = new NodeFile("/usr/download/test.jpg");
-```
-
-Upload
-```javascript
-const key = "example1.txt";
-
-await flatDirectory.uploadFile(key, file, {
+await flatDirectory.uploadFile("example1.txt", file, {
     onProgress: function (progress, totalCount) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
@@ -329,6 +317,24 @@ await flatDirectory.uploadFile(key, file, {
     }
 });
 ```
+
+Node
+```javascript
+const {NodeFile} = require("ethstorage-sdk/file");
+const file = new NodeFile("/usr/download/test.jpg");
+await flatDirectory.uploadFile("example1.txt", file, {
+    onProgress: function (progress, totalCount) {
+        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+    },
+    onFail: function (error) {
+        console.error("Error uploading data:", error);
+    },
+    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
+    }
+});
+```
+
 
 #### downloadSync
 
