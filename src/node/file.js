@@ -6,6 +6,7 @@ export class NodeFile {
         this.filePath = filePath;
         this.type = type;
 
+        assertArgument(fs.existsSync(filePath), "invalid file path", "file", filePath);
         const stat = fs.statSync(filePath);
         this.start = Math.min(start, stat.size - 1);
         this.end = end == null ? stat.size : Math.min(end, stat.size);

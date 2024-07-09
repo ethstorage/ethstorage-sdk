@@ -345,7 +345,7 @@ await flatDirectory.uploadFile("example1.txt", file, {
 - `callbacks` (object): An object containing callback functions:
     - `onProgress` (function): Callback function that receives `(progress, totalCount, chunk)`.
     - `onFail` (function): Callback function that receives `(error)`.
-    - `onSuccess` (function): Indicates that the upload was successful.
+    - `onDownload` (function): Indicates that the upload was successful.
 
 **Example**
 ```javascript
@@ -356,7 +356,7 @@ flatDirectory.downloadSync("example.txt", {
     onFail: function (error) {
         console.error("Error download data:", error);
     },
-    onSuccess: function () {
+    onDownload: function () {
         console.log("Download success.");
     }
 });

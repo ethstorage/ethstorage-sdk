@@ -23,6 +23,8 @@ const defaultCallback = {
     },
     onSuccess: () => {
     },
+    onDownload: () => {
+    }
 }
 
 export class FlatDirectory {
@@ -161,7 +163,7 @@ export class FlatDirectory {
                     const chunk = ethers.getBytes(result[0]);
                     cb.onProgress(i, blobCount, Buffer.from(chunk));
                 }
-                cb.onSuccess();
+                cb.onDownload();
             });
         } catch (err) {
             cb.onFail(err)

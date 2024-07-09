@@ -242,15 +242,15 @@ If you want to listener the download progress, you can pass in the callback func
 
 ```js
 const key = "test.txt";
-flatDirectory.download(key, {
+flatDirectory.downloadSync(key, {
     onProgress: function (progress, totalCount, chunk) {
         console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);
     },
-    onSuccess: function (data) {
-        console.log("Download success.", data);
+    onDownload: function () {
+        console.log("Download success.");
     }
 });
 ```
