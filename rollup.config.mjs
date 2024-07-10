@@ -3,26 +3,31 @@ import resolve from '@rollup/plugin-node-resolve';
 
 export default [
     {
-        input: {
-            'index.cjs': './src/index.js',
-            'file.cjs': './src/node/file.js',
-        },
-        output: {
-            dir: 'dist', format: 'cjs', sourcemap: true
-        },
+        input: 'src/index.js',
+        output: [
+            {
+                file: 'dist/index.cjs.js',
+                format: 'cjs',
+                sourcemap: true
+            },
+            {
+                file: 'dist/index.esm.js',
+                format: 'esm',
+                sourcemap: true
+            }
+        ],
         plugins: [commonjs(), resolve()],
         external: ["ethers", "kzg-wasm"]
     },
     {
-        input: "./src/index.js",
+        input: 'src/node/file.js',
         output: {
-            file: "./dist/index.esm.js", format: "esm", sourcemap: true
+            file: 'dist/file.cjs.js',
+            format: 'cjs',
+            sourcemap: true
         },
-        plugins: [
-            commonjs(),
-            resolve()
-        ],
-        external: ["ethers", "kzg-wasm"]
-    }
+        plugins: [commonjs(), resolve()],
+        external: ["ethers"]
+    },
 ];
 
