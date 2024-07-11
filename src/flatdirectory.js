@@ -355,15 +355,12 @@ export class FlatDirectory {
                 try {
                     const isChange = await this.#checkChange(fileContract, blobHashArr, blobHashRequestArr);
                     if (!isChange) {
-                        console.log(`FlatDirectory: The ${chunkIdArr} chunks of file ${key} have not changed.`);
                         cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength);
                         continue;
                     }
                 } catch (e) {
                     cb.onFail(e);
-                    const length = e.message.length;
-                    console.log(length > 500 ? (e.message.substring(0, 245) + " ... " + e.message.substring(length - 245, length)) : e.message);
-                    return;
+                    break;
                 }
             }
 
@@ -372,13 +369,11 @@ export class FlatDirectory {
                 const status = await this.#uploadBlob(fileContract, key, hexName, blobArr, chunkIdArr, chunkSizeArr, cost);
                 if (!status) {
                     cb.onFail(new Error("FlatDirectory: Sending transaction failed."));
-                    return; //  fail
+                    break;
                 }
             } catch (e) {
                 cb.onFail(e);
-                const length = e.message.length;
-                console.log(length > 500 ? (e.message.substring(0, 245) + " ... " + e.message.substring(length - 245, length)) : e.message);
-                return;
+                break;
             }
             // success
             cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength);
@@ -443,15 +438,12 @@ export class FlatDirectory {
                 try {
                     const isChange = await this.#checkChange(fileContract, blobHashArr, blobHashRequestArr);
                     if (!isChange) {
-                        console.log(`FlatDirectory: The ${chunkIdArr} chunks of file ${key} have not changed.`);
                         cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength);
                         continue;
                     }
                 } catch (e) {
                     cb.onFail(e);
-                    const length = e.message.length;
-                    console.log(length > 500 ? (e.message.substring(0, 245) + " ... " + e.message.substring(length - 245, length)) : e.message);
-                    return;
+                    break;
                 }
             }
 
@@ -460,14 +452,13 @@ export class FlatDirectory {
                 const status = await this.#uploadBlob(fileContract, key, hexName, blobArr, chunkIdArr, chunkSizeArr, cost);
                 if (!status) {
                     cb.onFail(new Error("FlatDirectory: Sending transaction failed."));
-                    return; //  fail
+                    break;
                 }
             } catch (e) {
                 cb.onFail(e);
-                const length = e.message.length;
-                console.log(length > 500 ? (e.message.substring(0, 245) + " ... " + e.message.substring(length - 245, length)) : e.message);
-                return;
+                break;
             }
+
             // success
             cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength);
             totalStorageCost += cost * BigInt(blobArr.length);
