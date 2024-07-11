@@ -355,7 +355,7 @@ export class FlatDirectory {
                 try {
                     const isChange = await this.#checkChange(fileContract, blobHashArr, blobHashRequestArr);
                     if (!isChange) {
-                        cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength);
+                        cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength, false);
                         continue;
                     }
                 } catch (e) {
@@ -376,7 +376,7 @@ export class FlatDirectory {
                 break;
             }
             // success
-            cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength);
+            cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength, true);
             totalStorageCost += cost * BigInt(blobArr.length);
             totalUploadChunks += blobArr.length;
             for (let i = 0; i < chunkSizeArr.length; i++) {
@@ -438,7 +438,7 @@ export class FlatDirectory {
                 try {
                     const isChange = await this.#checkChange(fileContract, blobHashArr, blobHashRequestArr);
                     if (!isChange) {
-                        cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength);
+                        cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength, false);
                         continue;
                     }
                 } catch (e) {
@@ -460,7 +460,7 @@ export class FlatDirectory {
             }
 
             // success
-            cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength);
+            cb.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength, true);
             totalStorageCost += cost * BigInt(blobArr.length);
             totalUploadChunks += blobArr.length;
             for (let i = 0; i < chunkSizeArr.length; i++) {

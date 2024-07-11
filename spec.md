@@ -266,7 +266,7 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 - `key` (string): The key of the data.
 - `data` (Buffer): The data to be uploaded.
 - `callbacks` (object): An object containing callback functions:
-    - `onProgress` (function): Callback function that receives `(progress, totalCount)`.
+    - `onProgress` (function): Callback function that receives `(progress, totalCount, isChange)`.
     - `onFail` (function): Callback function that receives `(error)`.
     - `onSuccess` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
 
@@ -276,7 +276,7 @@ const key = "example1.txt";
 const data = Buffer.from("large data to upload");
 
 await flatDirectory.upload(key, data, {
-    onProgress: function (progress, totalCount) {
+    onProgress: function (progress, totalCount, isChange) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
     onFail: function (error) {
@@ -296,7 +296,7 @@ await flatDirectory.upload(key, data, {
 - `key` (string): The key of the data.
 - `file` (File): The file object to be uploaded.
 - `callbacks` (object): An object containing callback functions:
-    - `onProgress` (function): Callback function that receives `(progress, totalCount)`.
+    - `onProgress` (function): Callback function that receives `(progress, totalCount, isChange)`.
     - `onFail` (function): Callback function that receives `(error)`.
     - `onSuccess` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
 
@@ -306,7 +306,7 @@ Browser
 // <input id='fileToUpload' />
 const file = document.getElementById('fileToUpload').files[0];
 await flatDirectory.uploadFile("example1.txt", file, {
-    onProgress: function (progress, totalCount) {
+    onProgress: function (progress, totalCount, isChange) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
     onFail: function (error) {
@@ -323,7 +323,7 @@ Node
 const {NodeFile} = require("ethstorage-sdk/file");
 const file = new NodeFile("/usr/download/test.jpg");
 await flatDirectory.uploadFile("example1.txt", file, {
-    onProgress: function (progress, totalCount) {
+    onProgress: function (progress, totalCount, isChange) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
     onFail: function (error) {

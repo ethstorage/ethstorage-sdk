@@ -176,7 +176,7 @@ If you want to listener the upload results, you can pass in the callback functio
 
 ```js
 await flatDirectory.upload(key, data, {
-    onProgress: function (progress, count) {
+    onProgress: function (progress, count, isChange) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
     onFail: function (err) {
@@ -197,7 +197,7 @@ Browser
 // <input id='fileToUpload' />
 const file = document.getElementById('fileToUpload').files[0];
 await flatDirectory.uploadFile(key, file, {
-    onProgress: function (progress, count) {
+    onProgress: function (progress, count, isChange) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
     onFail: function (err) {
@@ -214,7 +214,7 @@ Node
 const {NodeFile} = require("ethstorage-sdk/file");
 const file = new NodeFile("/usr/download/test.jpg");
 await flatDirectory.uploadFile(key, file, {
-    onProgress: function (progress, count) {
+    onProgress: function (progress, count, isChange) {
         console.log(`Uploaded ${progress} of ${totalCount} chunks`);
     },
     onFail: function (err) {
