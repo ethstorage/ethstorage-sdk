@@ -20,7 +20,7 @@
         - estimateFileCost
         - upload
         - uploadFile
-        - downloadSync
+        - fetchData
         - download
         - deploy
         - setDefault
@@ -64,7 +64,7 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 | estimateFileCost | Estimate the cost of uploading file(gas cost and storage cost) |
 | upload           | Asynchronously upload data of arbitrary size                   |
 | uploadFile       | Asynchronously upload file of arbitrary size                   |
-| downloadSync     | Synchronously download data                                    |
+| fetchData        | Asynchronous download and return data                          |
 | download         | Asynchronously download data                                   |
 | setDefault       | Set the default file for FlatDirectory                         |
 
@@ -268,7 +268,7 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 - `callbacks` (object): An object containing callback functions:
     - `onProgress` (function): Callback function that receives `(progress, totalCount, isChange)`.
     - `onFail` (function): Callback function that receives `(error)`.
-    - `onSuccess` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
+    - `onFinish` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
 
 **Example**
 ```javascript
@@ -282,7 +282,7 @@ await flatDirectory.upload(key, data, {
     onFail: function (error) {
         console.error("Error uploading data:", error);
     },
-    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
 });
@@ -298,7 +298,7 @@ await flatDirectory.upload(key, data, {
 - `callbacks` (object): An object containing callback functions:
     - `onProgress` (function): Callback function that receives `(progress, totalCount, isChange)`.
     - `onFail` (function): Callback function that receives `(error)`.
-    - `onSuccess` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
+    - `onFinish` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
 
 **Example**
 Browser
@@ -312,7 +312,7 @@ await flatDirectory.uploadFile("example1.txt", file, {
     onFail: function (error) {
         console.error("Error uploading data:", error);
     },
-    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
 });
@@ -329,40 +329,13 @@ await flatDirectory.uploadFile("example1.txt", file, {
     onFail: function (error) {
         console.error("Error uploading data:", error);
     },
-    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
 });
 ```
 
-
-#### downloadSync
-
-**Description**: Synchronously download data by key. Get the progress and data in the callback function.
-
-**Parameters**
-- `key` (string): The key for the data to be read.
-- `callbacks` (object): An object containing callback functions:
-    - `onProgress` (function): Callback function that receives `(progress, totalCount, chunk)`.
-    - `onFail` (function): Callback function that receives `(error)`.
-    - `onDownload` (function): Indicates that the upload was successful.
-
-**Example**
-```javascript
-flatDirectory.downloadSync("example.txt", {
-    onProgress: function (progress, totalCount, chunk) {
-        console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
-    },
-    onFail: function (error) {
-        console.error("Error download data:", error);
-    },
-    onDownload: function () {
-        console.log("Download success.");
-    }
-});
-```
-
-#### download
+#### fetchData
 
 **Description**: Asynchronously download data by key, returning a Promise that resolves to the result.
 
@@ -374,8 +347,37 @@ flatDirectory.downloadSync("example.txt", {
 
 **Example**
 ```javascript
-const data = await flatDirectory.download("example.txt");
+const data = await flatDirectory.fetchData("example.txt");
 ```
+
+
+
+#### download
+
+**Description**: Asynchronously download data by key. Get the progress and data in the callback function.
+
+**Parameters**
+- `key` (string): The key for the data to be read.
+- `callbacks` (object): An object containing callback functions:
+    - `onProgress` (function): Callback function that receives `(progress, totalCount, chunk)`.
+    - `onFail` (function): Callback function that receives `(error)`.
+    - `onFinish` (function): Indicates that the upload was finish.
+
+**Example**
+```javascript
+flatDirectory.download("example.txt", {
+    onProgress: function (progress, totalCount, chunk) {
+        console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
+    },
+    onFail: function (error) {
+        console.error("Error download data:", error);
+    },
+    onFinish: function () {
+        console.log("Download finish.");
+    }
+});
+```
+
 
 #### setDefault
 

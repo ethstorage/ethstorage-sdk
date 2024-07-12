@@ -1,13 +1,13 @@
 import {ethers} from "ethers";
 import {
     BLOB_DATA_SIZE,
-    MAX_BLOB_COUNT,
+    BLOB_SIZE,
     ETHSTORAGE_MAPPING,
     FlatDirectoryAbi,
     FlatDirectoryBytecode,
-    BLOB_SIZE,
+    MAX_BLOB_COUNT,
 } from './param';
-import {BlobUploader, encodeBlobs, getChainId, stringToHex, getFileChunk} from "./utils";
+import {BlobUploader, encodeBlobs, getChainId, getFileChunk, stringToHex} from "./utils";
 
 const REMOVE_FAIL = -1;
 const REMOVE_NORMAL = 0;
@@ -21,9 +21,7 @@ const defaultCallback = {
     },
     onFail: () => {
     },
-    onSuccess: () => {
-    },
-    onDownload: () => {
+    onFinish: () => {
     }
 }
 
@@ -118,7 +116,7 @@ export class FlatDirectory {
         return false;
     }
 
-    async download(key) {
+    async fetchData(key) {
         this.checkAddress();
         if (!this.#ethStorageRpc) {
             throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
@@ -141,7 +139,7 @@ export class FlatDirectory {
         return Buffer.from(buff);
     }
 
-    downloadSync(key, cb = defaultCallback) {
+    async download(key, cb = defaultCallback) {
         this.checkAddress();
         if (!this.#ethStorageRpc) {
             throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
@@ -151,23 +149,16 @@ export class FlatDirectory {
         const provider = new ethers.JsonRpcProvider(this.#ethStorageRpc);
         const contract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, provider);
         try {
-            contract.countChunks(hexName).then(async (blobCount) => {
-                for (let i = 0; i < blobCount; i++) {
-                    let result;
-                    try {
-                        result = await contract.readChunk(hexName, i);
-                    } catch (e) {
-                        cb.onFail(e);
-                        return;
-                    }
-                    const chunk = ethers.getBytes(result[0]);
-                    cb.onProgress(i, blobCount, Buffer.from(chunk));
-                }
-                cb.onDownload();
-            });
+            const blobCount = await contract.countChunks(hexName);
+            for (let i = 0; i < blobCount; i++) {
+                const result = await contract.readChunk(hexName, i);
+                const chunk = ethers.getBytes(result[0]);
+                cb.onProgress(i, blobCount, Buffer.from(chunk));
+            }
         } catch (err) {
             cb.onFail(err)
         }
+        cb.onFinish();
     }
 
     async estimateCost(key, data) {
@@ -302,9 +293,14 @@ export class FlatDirectory {
 
     // ******upload data******* /
     async upload(key, data, cb = defaultCallback) {
-        const err = await this.#checkUploadStatus(key);
+        let totalUploadChunks = 0;
+        let totalUploadSize = 0;
+        let totalStorageCost = 0n;
+
+        const err = await this.#checkUploadStatus(key, true);
         if (err) {
             cb.onFail(err);
+            cb.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
             return;
         }
 
@@ -324,13 +320,11 @@ export class FlatDirectory {
         const clearState = await this.#clearOldFile(hexName, blobLength, oldChunkLength);
         if (clearState === REMOVE_FAIL) {
             cb.onFail(new Error(`FlatDirectory: Failed to delete old data!`));
+            cb.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
             return;
         }
 
         // send
-        let totalUploadChunks = 0;
-        let totalUploadSize = 0;
-        let totalStorageCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
             const blobArr = [];
             const chunkIdArr = [];
@@ -388,9 +382,14 @@ export class FlatDirectory {
     }
 
     async uploadFile(key, file, cb = defaultCallback) {
-        const err = await this.#checkUploadStatus(key);
+        let totalUploadChunks = 0;
+        let totalUploadSize = 0;
+        let totalStorageCost = 0n;
+
+        const err = await this.#checkUploadStatus(key, true);
         if(err) {
             cb.onFail(err);
+            cb.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
             return;
         }
 
@@ -408,13 +407,11 @@ export class FlatDirectory {
         const clearState = await this.#clearOldFile(hexName, blobLength, oldChunkLength);
         if (clearState === REMOVE_FAIL) {
             cb.onFail(new Error(`FlatDirectory: Failed to delete old data!`));
+            cb.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
             return;
         }
 
         // send
-        let totalUploadChunks = 0;
-        let totalUploadSize = 0;
-        let totalStorageCost = 0n;
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
             const content = await getFileChunk(file, fileSize, i * blobDataSize, (i + MAX_BLOB_COUNT) * blobDataSize);
             const blobArr = encodeBlobs(content);
@@ -468,7 +465,7 @@ export class FlatDirectory {
             }
         }
 
-        cb.onSuccess(totalUploadChunks, totalUploadSize, totalStorageCost);
+        cb.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
     }
 
     async #clearOldFile(key, chunkLength, oldChunkLength) {

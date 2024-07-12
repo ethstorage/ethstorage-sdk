@@ -182,7 +182,7 @@ await flatDirectory.upload(key, data, {
     onFail: function (err) {
         console.log(err);
     },
-    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
 });
@@ -203,7 +203,7 @@ await flatDirectory.uploadFile(key, file, {
     onFail: function (err) {
         console.log(err);
     },
-    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
 });
@@ -220,29 +220,29 @@ await flatDirectory.uploadFile(key, file, {
     onFail: function (err) {
         console.log(err);
     },
-    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
 });
 ```
 
-
-#### download
+#### fetchData
 
 Download data from the EthStorage network.
 
 ```js
 const key = "test.txt";
-const data = await flatDirectory.download(key);
+const data = await flatDirectory.fetchData(key);
 ```
 
-#### downloadSync
+
+#### download
 
 If you want to listener the download progress, you can pass in the callback function.
 
 ```js
 const key = "test.txt";
-flatDirectory.downloadSync(key, {
+await flatDirectory.download(key, {
     onProgress: function (progress, totalCount, chunk) {
         console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
     },
