@@ -266,7 +266,7 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 - `key` (string): The key of the data.
 - `data` (Buffer): The data to be uploaded.
 - `callbacks` (object): An object containing callback functions:
-    - `onProgress` (function): Callback function that receives `(progress, totalCount, isChange)`.
+    - `onProgress` (function): Callback function that receives `(progress, count, isChange)`.
     - `onFail` (function): Callback function that receives `(error)`.
     - `onFinish` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
 
@@ -276,8 +276,8 @@ const key = "example1.txt";
 const data = Buffer.from("large data to upload");
 
 await flatDirectory.upload(key, data, {
-    onProgress: function (progress, totalCount, isChange) {
-        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+    onProgress: function (progress, count, isChange) {
+        console.log(`Uploaded ${progress} of ${count} chunks`);
     },
     onFail: function (error) {
         console.error("Error uploading data:", error);
@@ -296,7 +296,7 @@ await flatDirectory.upload(key, data, {
 - `key` (string): The key of the data.
 - `file` (File): The file object to be uploaded.
 - `callbacks` (object): An object containing callback functions:
-    - `onProgress` (function): Callback function that receives `(progress, totalCount, isChange)`.
+    - `onProgress` (function): Callback function that receives `(progress, count, isChange)`.
     - `onFail` (function): Callback function that receives `(error)`.
     - `onFinish` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
 
@@ -306,8 +306,8 @@ Browser
 // <input id='fileToUpload' />
 const file = document.getElementById('fileToUpload').files[0];
 await flatDirectory.uploadFile("example1.txt", file, {
-    onProgress: function (progress, totalCount, isChange) {
-        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+    onProgress: function (progress, count, isChange) {
+        console.log(`Uploaded ${progress} of ${count} chunks`);
     },
     onFail: function (error) {
         console.error("Error uploading data:", error);
@@ -323,8 +323,8 @@ Node
 const {NodeFile} = require("ethstorage-sdk/file");
 const file = new NodeFile("/usr/download/test.jpg");
 await flatDirectory.uploadFile("example1.txt", file, {
-    onProgress: function (progress, totalCount, isChange) {
-        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+    onProgress: function (progress, count, isChange) {
+        console.log(`Uploaded ${progress} of ${count} chunks`);
     },
     onFail: function (error) {
         console.error("Error uploading data:", error);
@@ -359,15 +359,15 @@ const data = await flatDirectory.fetchData("example.txt");
 **Parameters**
 - `key` (string): The key for the data to be read.
 - `callbacks` (object): An object containing callback functions:
-    - `onProgress` (function): Callback function that receives `(progress, totalCount, chunk)`.
+    - `onProgress` (function): Callback function that receives `(progress, count, chunk)`.
     - `onFail` (function): Callback function that receives `(error)`.
     - `onFinish` (function): Indicates that the upload was finish.
 
 **Example**
 ```javascript
 flatDirectory.download("example.txt", {
-    onProgress: function (progress, totalCount, chunk) {
-        console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
+    onProgress: function (progress, count, chunk) {
+        console.log(`Download ${progress} of ${count} chunks, this chunk is ${chunk.toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);

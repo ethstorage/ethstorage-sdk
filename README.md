@@ -177,7 +177,7 @@ If you want to listener the upload results, you can pass in the callback functio
 ```js
 await flatDirectory.upload(key, data, {
     onProgress: function (progress, count, isChange) {
-        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+        console.log(`Uploaded ${progress} of ${count} chunks`);
     },
     onFail: function (err) {
         console.log(err);
@@ -198,7 +198,7 @@ Browser
 const file = document.getElementById('fileToUpload').files[0];
 await flatDirectory.uploadFile(key, file, {
     onProgress: function (progress, count, isChange) {
-        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+        console.log(`Uploaded ${progress} of ${count} chunks`);
     },
     onFail: function (err) {
         console.log(err);
@@ -215,7 +215,7 @@ const {NodeFile} = require("ethstorage-sdk/file");
 const file = new NodeFile("/usr/download/test.jpg");
 await flatDirectory.uploadFile(key, file, {
     onProgress: function (progress, count, isChange) {
-        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+        console.log(`Uploaded ${progress} of ${count} chunks`);
     },
     onFail: function (err) {
         console.log(err);
@@ -243,13 +243,13 @@ If you want to listener the download progress, you can pass in the callback func
 ```js
 const key = "test.txt";
 await flatDirectory.download(key, {
-    onProgress: function (progress, totalCount, chunk) {
-        console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
+    onProgress: function (progress, count, chunk) {
+        console.log(`Download ${progress} of ${count} chunks, this chunk is ${chunk.toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);
     },
-    onDownload: function () {
+    onFinish: function () {
         console.log("Download success.");
     }
 });
