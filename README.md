@@ -226,15 +226,6 @@ await flatDirectory.uploadFile(key, file, {
 });
 ```
 
-#### fetchData
-
-Download data from the EthStorage network.
-
-```js
-const key = "test.txt";
-const data = await flatDirectory.fetchData(key);
-```
-
 
 #### download
 

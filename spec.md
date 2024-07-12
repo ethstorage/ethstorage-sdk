@@ -20,7 +20,6 @@
         - estimateFileCost
         - upload
         - uploadFile
-        - fetchData
         - download
         - deploy
         - setDefault
@@ -64,7 +63,6 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 | estimateFileCost | Estimate the cost of uploading file(gas cost and storage cost) |
 | upload           | Asynchronously upload data of arbitrary size                   |
 | uploadFile       | Asynchronously upload file of arbitrary size                   |
-| fetchData        | Asynchronous download and return data                          |
 | download         | Asynchronously download data                                   |
 | setDefault       | Set the default file for FlatDirectory                         |
 
@@ -334,23 +332,6 @@ await flatDirectory.uploadFile("example1.txt", file, {
     }
 });
 ```
-
-#### fetchData
-
-**Description**: Asynchronously download data by key, returning a Promise that resolves to the result.
-
-**Parameters**
-- `key` (string): The key for the data to be read.
-
-**Returns**
-- `data` (Promise<Buffer>): A Promise that resolves to the downloaded data.
-
-**Example**
-```javascript
-const data = await flatDirectory.fetchData("example.txt");
-```
-
-
 
 #### download
 

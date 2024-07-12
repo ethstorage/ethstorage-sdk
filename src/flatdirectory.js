@@ -116,29 +116,6 @@ export class FlatDirectory {
         return false;
     }
 
-    async fetchData(key) {
-        this.checkAddress();
-        if (!this.#ethStorageRpc) {
-            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
-        }
-
-        let buff = [];
-        const hexName = stringToHex(key);
-        const provider = new ethers.JsonRpcProvider(this.#ethStorageRpc);
-        const contract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, provider);
-        try {
-            const blobCount = await contract.countChunks(hexName);
-            for (let i = 0; i < blobCount; i++) {
-                const result = await contract.readChunk(hexName, i);
-                const chunk = ethers.getBytes(result[0]);
-                buff = [...buff, ...chunk];
-            }
-        } catch (e) {
-            console.error(`FlatDirectory: Download failed!`, e.message);
-        }
-        return Buffer.from(buff);
-    }
-
     async download(key, cb = defaultCallback) {
         this.checkAddress();
         if (!this.#ethStorageRpc) {

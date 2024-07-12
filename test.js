@@ -58,49 +58,46 @@ async function FlatDirectoryTest() {
     // await fd.deploy();
 
     // data
-    // let cost = await fd.estimateCost("key", Buffer.from("123456"));
-    // console.log(cost);
-    //
-    // await fd.upload("key", Buffer.from("123456"), {
-    //     onProgress: (progress, count) => {
-    //         console.log(progress, count);
-    //     },
-    //     onFail: (err) => {
-    //         console.log(err);
-    //     },
-    //     onSuccess: (info) => {
-    //         console.log(info);
-    //     }
-    // });
-    //
-    // cost = await fd.estimateCost("key", Buffer.from("123456"));
-    // console.log(cost);
-    //
-    // // file
-    // const file = new NodeFile(filePath);
-    // cost = await fd.estimateFileCost("file", file);
-    // console.log(cost);
-    //
-    // await fd.uploadFile("file", file, {
-    //     onProgress: (progress, count) => {
-    //         console.log(progress, count);
-    //     },
-    //     onFail: (err) => {
-    //         console.log(err);
-    //     },
-    //     onSuccess: (info) => {
-    //         console.log(info);
-    //     }
-    // });
-    //
-    // cost = await fd.estimateFileCost("file", file);
-    // console.log(cost);
+    let cost = await fd.estimateCost("key", Buffer.from("123456"));
+    console.log(cost);
+
+    await fd.upload("key", Buffer.from("123456"), {
+        onProgress: (progress, count) => {
+            console.log(progress, count);
+        },
+        onFail: (err) => {
+            console.log(err);
+        },
+        onSuccess: (info) => {
+            console.log(info);
+        }
+    });
+
+    cost = await fd.estimateCost("key", Buffer.from("123456"));
+    console.log(cost);
+
+    // file
+    const file = new NodeFile(filePath);
+    cost = await fd.estimateFileCost("file", file);
+    console.log(cost);
+
+    await fd.uploadFile("file", file, {
+        onProgress: (progress, count) => {
+            console.log(progress, count);
+        },
+        onFail: (err) => {
+            console.log(err);
+        },
+        onSuccess: (info) => {
+            console.log(info);
+        }
+    });
+
+    cost = await fd.estimateFileCost("file", file);
+    console.log(cost);
 
 
     // download
-    const value = await fd.fetchData("key");
-    console.log(value.toString());
-
     await fd.download("file", {
         onProgress: (progress, count, data) => {
             console.log(progress, count, data.length);
