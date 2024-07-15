@@ -8,3 +8,9 @@ export async function getChainId(rpc) {
     return Number(network.chainId);
 }
 
+export async function getFileChunk(file, fileSize, start, end) {
+    end = end > fileSize ? fileSize : end;
+    const slice = file.slice(start, end);
+    const data = await slice.arrayBuffer();
+    return Buffer.from(data);
+}

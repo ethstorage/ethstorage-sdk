@@ -4,6 +4,15 @@
   "description": "eip-4844 blobs upload sdk",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs.js",
+      "import": "./dist/index.esm.js"
+    },
+    "./file": {
+      "require": "./dist/file.cjs.js"
+    }
+  },
   "scripts": {
     "build": "rollup -c"
   },

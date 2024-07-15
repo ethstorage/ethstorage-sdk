@@ -76,7 +76,7 @@ export function decodeBlobs(blobs) {
             max = len;
         }
         const blob = blobs.subarray(i, max);
-        const blobBuf = DecodeBlob(blob);
+        const blobBuf = decodeBlob(blob);
         buf = [...buf, ...blobBuf];
     }
     return new Buffer(buf);

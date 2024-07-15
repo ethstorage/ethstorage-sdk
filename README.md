@@ -140,6 +140,26 @@ const cost = await flatDirectory.estimateCost(key, data);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
+#### estimateFileCost
+
+Estimate gas costs before uploading.
+
+Browser
+```javascript
+// <input id='fileToUpload' />
+const file = document.getElementById('fileToUpload').files[0];
+const cost = await flatDirectory.estimateFileCost("example1.txt", file);
+console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
+```
+
+Node
+```javascript
+const {NodeFile} = require("ethstorage-sdk/file");
+const file = new NodeFile("/usr/download/test.jpg");
+const cost = await flatDirectory.estimateFileCost("example1.txt", file);
+console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
+```
+
 #### upload
 
 Upload data to FlatDirectory.
@@ -156,42 +176,72 @@ If you want to listener the upload results, you can pass in the callback functio
 
 ```js
 await flatDirectory.upload(key, data, {
-    onProgress: function (progress, count) {
-        console.log(`Uploaded ${progress} of ${totalCount} chunks`);
+    onProgress: function (progress, count, isChange) {
+        console.log(`Uploaded ${progress} of ${count} chunks`);
     },
     onFail: function (err) {
         console.log(err);
     },
-    onSuccess: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
 });
 ```
 
-#### download
+#### uploadFile
 
-Download data from the EthStorage network.
+Upload file object to FlatDirectory.
 
-```js
-const key = "test.txt";
-const data = await flatDirectory.download(key);
+Browser
+```javascript
+// <input id='fileToUpload' />
+const file = document.getElementById('fileToUpload').files[0];
+await flatDirectory.uploadFile(key, file, {
+    onProgress: function (progress, count, isChange) {
+        console.log(`Uploaded ${progress} of ${count} chunks`);
+    },
+    onFail: function (err) {
+        console.log(err);
+    },
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
+    }
+});
 ```
 
-#### downloadSync
+Node
+```javascript
+const {NodeFile} = require("ethstorage-sdk/file");
+const file = new NodeFile("/usr/download/test.jpg");
+await flatDirectory.uploadFile(key, file, {
+    onProgress: function (progress, count, isChange) {
+        console.log(`Uploaded ${progress} of ${count} chunks`);
+    },
+    onFail: function (err) {
+        console.log(err);
+    },
+    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
+    }
+});
+```
+
+
+#### download
 
 If you want to listener the download progress, you can pass in the callback function.
 
 ```js
 const key = "test.txt";
-flatDirectory.download(key, {
-    onProgress: function (progress, totalCount, chunk) {
-        console.log(`Download ${progress} of ${totalCount} chunks, this chunk is ${chunk.toString()}`);
+await flatDirectory.download(key, {
+    onProgress: function (progress, count, chunk) {
+        console.log(`Download ${progress} of ${count} chunks, this chunk is ${chunk.toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);
     },
-    onSuccess: function (data) {
-        console.log("Download success.", data);
+    onFinish: function () {
+        console.log("Download success.");
     }
 });
 ```
