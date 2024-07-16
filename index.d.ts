@@ -1,5 +1,5 @@
 declare module 'ethstorage-sdk' {
-    import { ethers } from 'ethers/lib.esm';
+    import { ethers } from 'ethers';
   
     // Constants
     export const BLOB_DATA_SIZE: number;
