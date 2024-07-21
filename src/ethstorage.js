@@ -28,7 +28,7 @@ export class EthStorage {
     }
 
     constructor(config) {
-        const {rpc, ethStorageRpc, privateKey, contractAddr} = config;
+        const {rpc, ethStorageRpc, privateKey} = config;
         this.#ethStorageRpc = ethStorageRpc;
 
         const provider = new ethers.JsonRpcProvider(rpc);
@@ -38,7 +38,7 @@ export class EthStorage {
 
     async init(rpc, contractAddr) {
         const chainId = await getChainId(rpc);
-        if (!contractAddr) {
+        if (contractAddr != null) {
             this.#contractAddr = contractAddr;
         } else {
             this.#contractAddr = ETHSTORAGE_MAPPING[chainId];
