@@ -40,6 +40,22 @@ const ethStorage = await EthStorage.create({
 });
 ```
 
+If you want to use your own contract, you can specify your contract address when create EthStorage.
+```js
+const {EthStorage} = require("ethstorage-sdk")
+
+const rpc = "https://1rpc.io/sepolia";
+const ethStorageRpc = "http://65.109.115.36:9540";
+const privateKey = "0xabcd...";
+const contractAddr = "0xabcd...";
+
+const ethStorage = await EthStorage.create({
+    rpc: rpc,
+    ethStorageRpc: ethStorageRpc,
+    privateKey: privateKey,
+    contractAddr: contractAddr,
+});
+```
 
 #### estimateCost
 

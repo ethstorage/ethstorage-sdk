@@ -37,10 +37,10 @@ export class EthStorage {
     }
 
     async init(rpc, contractAddr) {
-        const chainId = await getChainId(rpc);
         if (contractAddr != null) {
             this.#contractAddr = contractAddr;
         } else {
+            const chainId = await getChainId(rpc);
             this.#contractAddr = ETHSTORAGE_MAPPING[chainId];
         }
         if (!this.#contractAddr) {
