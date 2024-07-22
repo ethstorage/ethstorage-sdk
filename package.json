@@ -4,10 +4,12 @@
   "description": "eip-4844 blobs upload sdk",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
+  "types": "types/index.d.ts",
   "exports": {
     ".": {
       "require": "./dist/index.cjs.js",
-      "import": "./dist/index.esm.js"
+      "import": "./dist/index.esm.js",
+      "types": "./types/index.d.ts"
     },
     "./file": {
       "require": "./dist/file.cjs.js"
@@ -44,6 +46,5 @@
     "@rollup/plugin-node-resolve": "^15.2.3",
     "rollup": "^4.14.1",
     "rollup-plugin-terser": "^7.0.2"
-  },
-  "types": "index.d.ts"
+  }
 }
