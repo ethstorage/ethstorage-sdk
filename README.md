@@ -47,7 +47,7 @@ const {EthStorage} = require("ethstorage-sdk")
 const rpc = "https://1rpc.io/sepolia";
 const ethStorageRpc = "http://65.109.115.36:9540";
 const privateKey = "0xabcd...";
-const contractAddr = "0xabcd...";
+const address = "0xabcd..."; // EthStorage contract address
 
 const ethStorage = await EthStorage.create({
     rpc: rpc,
