@@ -1,5 +1,6 @@
 declare module 'ethstorage-sdk' {
     import { ethers } from 'ethers';
+    import { NodeFile } from 'ethstorage-sdk/file';
 
     // Constants
     export const BLOB_DATA_SIZE: number;
@@ -46,10 +47,10 @@ declare module 'ethstorage-sdk' {
       static create(config: SDKConfig): Promise<EthStorage>;
       constructor(config: SDKConfig);
       init(rpc: string, address?: string): Promise<void>;
-      estimateCost(key: string, data: Buffer): Promise<CostEstimate>;
-      write(key: string, data: Buffer): Promise<boolean>;
+      estimateCost(key: string, data: Buffer | Uint8Array): Promise<CostEstimate>;
+      write(key: string, data: Buffer | Uint8Array): Promise<boolean>;
       read(key: string): Promise<Uint8Array>;
-      putBlobs(number: number, data: Buffer): Promise<boolean>;
+      putBlobs(number: number, data: Buffer | Uint8Array): Promise<boolean>;
     }
 
     export class FlatDirectory {
@@ -61,9 +62,9 @@ declare module 'ethstorage-sdk' {
       remove(key: string): Promise<boolean>;
       download(key: string, cb: Partial<DownloadCallback>): void;
       estimateCost(key: string, data: Buffer | Uint8Array): Promise<CostEstimate>;
-      estimateFileCost(key: string, file: File): Promise<CostEstimate>;
+      estimateFileCost(key: string, file: File | NodeFile): Promise<CostEstimate>;
       upload(key: string, data: Buffer | Uint8Array, cb?: Partial<UploadCallback>): Promise<void>;
-      uploadFile(key: string, file: File, cb?: Partial<UploadCallback>): Promise<void>;
+      uploadFile(key: string, file: File | NodeFile, cb?: Partial<UploadCallback>): Promise<void>;
     }
 
     // Utils
@@ -105,4 +106,21 @@ declare module 'ethstorage-sdk' {
     };
 
     export default ethstorage;
+}
+
+declare module 'ethstorage-sdk/file' {
+    // Classes
+    export class NodeFile {
+        constructor(filePath: string, start?: number, end?: number, type?: string);
+        slice(start: number, end: number): NodeFile;
+        arrayBuffer(): Promise<Buffer>;
+        text(): Promise<string>;
+        // stream(): ReadStream;
+    }
+
+    const nodefile: {
+        NodeFile: typeof NodeFile;
+    };
+
+    export default nodefile;
 }

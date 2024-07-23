@@ -47,9 +47,10 @@ export class EthStorage {
     }
 
     async estimateCost(key, data) {
-        if (!data || !Buffer.isBuffer(data)) {
+        if (!data) {
             throw new Error(`EthStorage: Invalid data.`);
         }
+        data = Buffer.from(data);
         if (data.length < 0 || data.length > BLOB_DATA_SIZE) {
             throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${BLOB_DATA_SIZE}.`);
         }
@@ -80,9 +81,10 @@ export class EthStorage {
     }
 
     async write(key, data) {
-        if (!data || !Buffer.isBuffer(data)) {
+        if (!data) {
             throw new Error(`EthStorage: Invalid data.`);
         }
+        data = Buffer.from(data);
         if (data.length < 0 || data.length > BLOB_DATA_SIZE) {
             throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${BLOB_DATA_SIZE}.`);
         }
@@ -129,9 +131,10 @@ export class EthStorage {
     }
 
     async putBlobs(number, data) {
-        if (!data || !Buffer.isBuffer(data)) {
+        if (!data) {
             throw new Error(`EthStorage: Invalid data.`);
         }
+        data = Buffer.from(data);
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         try {
