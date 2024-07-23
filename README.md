@@ -53,7 +53,7 @@ const ethStorage = await EthStorage.create({
     rpc: rpc,
     ethStorageRpc: ethStorageRpc,
     privateKey: privateKey,
-    contractAddr: contractAddr,
+    address: address,
 });
 ```
 

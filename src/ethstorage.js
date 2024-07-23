@@ -21,9 +21,9 @@ export class EthStorage {
     #blobUploader;
 
     static async create(config) {
-        const {rpc, contractAddr} = config;
+        const {rpc, address} = config;
         const ethStorage = new EthStorage(config);
-        await ethStorage.init(rpc, contractAddr);
+        await ethStorage.init(rpc, address);
         return ethStorage;
     }
 
@@ -36,9 +36,9 @@ export class EthStorage {
         this.#blobUploader = new BlobUploader(rpc, privateKey);
     }
 
-    async init(rpc, contractAddr) {
-        if (contractAddr != null) {
-            this.#contractAddr = contractAddr;
+    async init(rpc, address) {
+        if (address != null) {
+            this.#contractAddr = address;
         } else {
             const chainId = await getChainId(rpc);
             this.#contractAddr = ETHSTORAGE_MAPPING[chainId];
