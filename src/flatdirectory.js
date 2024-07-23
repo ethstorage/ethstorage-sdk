@@ -481,7 +481,7 @@ export class FlatDirectory {
         });
         // send
         const txResponse = await this.#blobUploader.sendTxLock(tx, blobArr);
-        console.log(`FlatDirectory: The ${chunkIdArr} chunks of file ${key} hash is ${txResponse.hash}.`);
+        console.log(`FlatDirectory: The ${chunkIdArr} chunks hash is ${txResponse.hash}`, key);
         const txReceipt = await txResponse.wait();
         return txReceipt && txReceipt.status;
     }

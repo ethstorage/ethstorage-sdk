@@ -12,7 +12,8 @@
       "types": "./types/index.d.ts"
     },
     "./file": {
-      "require": "./dist/file.cjs.js"
+      "require": "./dist/file.cjs.js",
+      "types": "./types/file.d.ts"
     }
   },
   "scripts": {
