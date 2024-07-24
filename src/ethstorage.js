@@ -21,9 +21,9 @@ export class EthStorage {
     #blobUploader;
 
     static async create(config) {
-        const {rpc} = config;
+        const {rpc, address} = config;
         const ethStorage = new EthStorage(config);
-        await ethStorage.init(rpc);
+        await ethStorage.init(rpc, address);
         return ethStorage;
     }
 
@@ -36,9 +36,13 @@ export class EthStorage {
         this.#blobUploader = new BlobUploader(rpc, privateKey);
     }
 
-    async init(rpc) {
-        const chainId = await getChainId(rpc);
-        this.#contractAddr = ETHSTORAGE_MAPPING[chainId];
+    async init(rpc, address) {
+        if (address != null) {
+            this.#contractAddr = address;
+        } else {
+            const chainId = await getChainId(rpc);
+            this.#contractAddr = ETHSTORAGE_MAPPING[chainId];
+        }
         if (!this.#contractAddr) {
             throw new Error("EthStorage: Network not supported yet.");
         }
