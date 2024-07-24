@@ -81,13 +81,15 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
     - `rpc` (string): RPC for any evm network.
     - `ethStorageRpc` (string): The EthStorage network rpc corresponding to this evm network, the data is obtained from the EthStorage network.
     - `privateKey` (string): Wallet private key.
+    - `address` (string, optional): your Ethstorage contract address if you want to use your own one, if you want to use the default contract address, ignore this.
 
 **Example**
 ```javascript
 const config = {
     rpc: "your_rpc",
     ethStorageRpc: "ethstorage_rpc",
-    privateKey: "your_private_key"
+    privateKey: "your_private_key",
+    address: "your_contract_address"
 };
 
 const ethStorage = await EthStorage.create(config);
@@ -381,3 +383,4 @@ const status = await flatDirectory.setDefault(defaultFile);
 ## 5. Version History
 
 - v1.0.1: Initial release with basic storage and data management functionalities.
+
