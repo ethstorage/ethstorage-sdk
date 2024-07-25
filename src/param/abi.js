@@ -1,6 +1,6 @@
 
 export const EthStorageAbi = [
-  'function putBlobs(uint256 num) public payable',
+  'function putBlobs(bytes32[] memory _keys, uint256[] memory _blobIdxs, uint256[] memory _lengths)',
   'function putBlob(bytes32 _key, uint256 _blobIdx, uint256 _length) public payable',
   'function get(bytes32 _key, uint8 _decodeType, uint256 _off, uint256 _len) public view returns (bytes memory)',
   'function size(bytes32 _key) public view returns (uint256)',

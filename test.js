@@ -7,7 +7,7 @@ const dotenv = require("dotenv")
 dotenv.config()
 const privateKey = process.env.pk;
 
-const filePath = '/Users/lmp/Downloads/dist/img123.jpeg';
+const filePath = '/Users/lmp/Downloads/dist/img122.jpeg';
 const name = filePath.substring(filePath.lastIndexOf("/") + 1);
 
 const saveFile = (data) => {
@@ -19,8 +19,8 @@ const saveFile = (data) => {
 
 async function EthStorageTest() {
     const es = await EthStorage.create({
-        rpc: 'http://142.132.154.16:8545',
-        ethStorageRpc: 'http://65.108.230.142:9545',
+        rpc: 'http://65.109.20.29:8545',
+        ethStorageRpc: 'http://65.109.115.36:9540',
         privateKey
     })
 
@@ -38,14 +38,10 @@ async function EthStorageTest() {
     console.log(p)
 
     // put blobs
-    // const es = await EthStorage.create({
-    //     rpc: 'http://88.99.30.186:8545',
-    //     privateKey
-    // })
-    // const status = await es.putBlobs(3, content);
-    // console.log(status);
+    status = await es.putBlobs(content);
+    console.log(status);
 }
-// EthStorageTest();
+EthStorageTest();
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({
@@ -68,7 +64,7 @@ async function FlatDirectoryTest() {
         onFail: (err) => {
             console.log(err);
         },
-        onSuccess: (info) => {
+        onFinish: (info) => {
             console.log(info);
         }
     });
@@ -88,7 +84,7 @@ async function FlatDirectoryTest() {
         onFail: (err) => {
             console.log(err);
         },
-        onSuccess: (info) => {
+        onFinish: (info) => {
             console.log(info);
         }
     });
@@ -110,4 +106,4 @@ async function FlatDirectoryTest() {
         }
     })
 }
-FlatDirectoryTest();
+// FlatDirectoryTest();

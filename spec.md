@@ -151,8 +151,7 @@ const data = await ethStorage.read("example.txt");
 **Description**: Batch upload blob data to the EthStorage network.
 
 **Parameters**
-- `number` (number): Number of blobs.
-- `data` (Buffer): Blob content to be written.
+- `data` (Buffer): Blob content to be written. The size not exceed 6 times the blob size.
 
 **Returns**
 - `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
@@ -160,7 +159,7 @@ const data = await ethStorage.read("example.txt");
 **Example**
 ```javascript
 const blobData = Buffer.from("some data");
-const status = await ethStorage.putBlobs(number, blobData);
+const status = await ethStorage.putBlobs(blobData);
 ```
 
 <p id="FlatDirectory"></p>

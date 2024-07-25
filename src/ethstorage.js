@@ -134,21 +134,41 @@ export class EthStorage {
         return ethers.getBytes(data);
     }
 
-    async putBlobs(number, data) {
+    async putBlobs(data) {
         if (!data) {
             throw new Error(`EthStorage: Invalid data.`);
         }
         data = Buffer.from(data);
+        if (data.length < 0 || data.length > BLOB_DATA_SIZE) {
+            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${6 * BLOB_DATA_SIZE}.`);
+        }
+
+        const blobs = encodeBlobs(data);
+        const blobLength = blobs.length;
+        const blobDataSize = BLOB_DATA_SIZE;
+
+        const keys = [];
+        const ids = [];
+        const lengths = [];
+        for (let i = 0; i < blobLength; i ++) {
+            const key = ethers.keccak256(stringToHex(Date.now() + "_" + i  + "_" +this.#wallet.address));
+            keys.push(key);
+            ids.push(i);
+            if (i === blobLength - 1) {
+                lengths.push(data.length - blobDataSize * (blobLength - 1));
+            } else {
+                lengths.push(blobDataSize);
+            }
+        }
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         try {
             const storageCost = await contract.upfrontPayment();
-            const tx = await contract.putBlobs.populateTransaction(number, {
-                value: storageCost * BigInt(number),
+            const tx = await contract.putBlobs.populateTransaction(keys, ids, lengths, {
+                value: storageCost * BigInt(blobLength),
             });
 
-            const blobs = encodeBlobs(data);
-            let txRes = await this.#blobUploader.sendTx(tx, [blobs[0]]);
+            let txRes = await this.#blobUploader.sendTx(tx, blobs);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`)
             txRes = await txRes.wait();
             return txRes.status;
