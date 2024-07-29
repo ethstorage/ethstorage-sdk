@@ -152,16 +152,16 @@ const data = await ethStorage.read("example.txt");
 
 **Parameters**
 - `keys` (string[]): Array of strings representing the keys for the blobs.
-- `data` (Buffer[]): Array of Buffers containing the blob content to be written. Each Buffer's size must not exceed the corresponding blob size.
+- `dataBlobs` (Buffer[]): Array of Buffers containing the blob content to be written. Each Buffer's size must not exceed the corresponding blob size.
 
 **Returns**
 - `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
 
 **Example**
 ```javascript
-const keys = ["key1"];
-const data = [Buffer.from("some data")];
-const status = await ethStorage.putBlobs(keys, data);
+const keys = ["key1", "key2", "key3"];
+const dataBlobs = [Buffer.from("test data 1"), Buffer.from("test data 2"),  Buffer.from("test data 3")];
+const status = await ethStorage.putBlobs(keys, dataBlobs);
 ```
 
 <p id="FlatDirectory"></p>

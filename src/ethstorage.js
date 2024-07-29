@@ -135,11 +135,11 @@ export class EthStorage {
         return ethers.getBytes(data);
     }
 
-    async putBlobs(keys, data) {
-        if (!keys || !data) {
+    async putBlobs(keys, dataBlobs) {
+        if (!keys || !dataBlobs) {
             throw new Error(`EthStorage: Invalid parameter.`);
         }
-        if (keys.length !== data.length) {
+        if (keys.length !== dataBlobs.length) {
             throw new Error(`EthStorage: The number of keys and data does not match.`);
         }
         if (keys.length > BLOB_COUNT_LIMIT) {
@@ -154,7 +154,7 @@ export class EthStorage {
         const idArr = [];
         const lengthArr = [];
         for (let i = 0; i < blobLength; i++) {
-            const d = Buffer.from(data[i]);
+            const d = Buffer.from(dataBlobs[i]);
             if (d.length < 0 || d.length > blobDataSize) {
                 throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${blobDataSize}.`);
             }
