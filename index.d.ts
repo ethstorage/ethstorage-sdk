@@ -50,7 +50,7 @@ declare module 'ethstorage-sdk' {
       estimateCost(key: string, data: Buffer | Uint8Array): Promise<CostEstimate>;
       write(key: string, data: Buffer | Uint8Array): Promise<boolean>;
       read(key: string): Promise<Uint8Array>;
-      putBlobs(number: number, data: Buffer | Uint8Array): Promise<boolean>;
+      putBlobs(keys: string[], data: Buffer[] | Uint8Array[]): Promise<boolean>;
     }
 
     export class FlatDirectory {

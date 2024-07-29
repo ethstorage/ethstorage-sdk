@@ -10,7 +10,8 @@ import {
     BLOB_DATA_SIZE,
     BLOB_SIZE,
     PaddingPer31Bytes,
-    EthStorageAbi
+    EthStorageAbi,
+    BLOB_COUNT_LIMIT
 } from "./param";
 
 export class EthStorage {
@@ -134,42 +135,45 @@ export class EthStorage {
         return ethers.getBytes(data);
     }
 
-    async putBlobs(data) {
-        if (!data) {
-            throw new Error(`EthStorage: Invalid data.`);
+    async putBlobs(keys, data) {
+        if (!keys || !data) {
+            throw new Error(`EthStorage: Invalid parameter.`);
         }
-        data = Buffer.from(data);
-        if (data.length < 0 || data.length > BLOB_DATA_SIZE) {
-            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${6 * BLOB_DATA_SIZE}.`);
+        if (keys.length !== data.length) {
+            throw new Error(`EthStorage: The number of keys and data does not match.`);
+        }
+        if (keys.length > BLOB_COUNT_LIMIT) {
+            throw new Error(`EthStorage: The count exceeds the maximum blob limit.`);
         }
 
-        const blobs = encodeBlobs(data);
-        const blobLength = blobs.length;
+        const blobLength = keys.length;
         const blobDataSize = BLOB_DATA_SIZE;
 
-        const keys = [];
-        const ids = [];
-        const lengths = [];
-        for (let i = 0; i < blobLength; i ++) {
-            const key = ethers.keccak256(stringToHex(Date.now() + "_" + i  + "_" +this.#wallet.address));
-            keys.push(key);
-            ids.push(i);
-            if (i === blobLength - 1) {
-                lengths.push(data.length - blobDataSize * (blobLength - 1));
-            } else {
-                lengths.push(blobDataSize);
+        const blobArr = [];
+        const keyArr = [];
+        const idArr = [];
+        const lengthArr = [];
+        for (let i = 0; i < blobLength; i++) {
+            const d = Buffer.from(data[i]);
+            if (d.length < 0 || d.length > blobDataSize) {
+                throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${blobDataSize}.`);
             }
+            const blob = encodeBlobs(d);
+            blobArr.push(blob[0]);
+            keyArr.push(ethers.keccak256(stringToHex(keys[i])));
+            idArr.push(i);
+            lengthArr.push(d.length);
         }
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         try {
             const storageCost = await contract.upfrontPayment();
-            const tx = await contract.putBlobs.populateTransaction(keys, ids, lengths, {
+            const tx = await contract.putBlobs.populateTransaction(keyArr, idArr, lengthArr, {
                 value: storageCost * BigInt(blobLength),
             });
 
-            let txRes = await this.#blobUploader.sendTx(tx, blobs);
-            console.log(`EthStorage: Tx hash is ${txRes.hash}`)
+            let txRes = await this.#blobUploader.sendTx(tx, blobArr);
+            console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             txRes = await txRes.wait();
             return txRes.status;
         } catch (e) {
