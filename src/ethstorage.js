@@ -135,7 +135,7 @@ export class EthStorage {
         return ethers.getBytes(data);
     }
 
-    async putBlobs(keys, dataBlobs) {
+    async writeBlobs(keys, dataBlobs) {
         if (!keys || !dataBlobs) {
             throw new Error(`EthStorage: Invalid parameter.`);
         }

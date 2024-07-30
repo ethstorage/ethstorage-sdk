@@ -40,7 +40,7 @@ async function EthStorageTest() {
     // put blobs
     const keys = ["key1", "key2"];
     const blobData = [Buffer.from("some data1"), Buffer.from("some data2")];
-    status = await es.putBlobs(keys, blobData);
+    status = await es.writeBlobs(keys, blobData);
     console.log(status);
 }
 EthStorageTest();
