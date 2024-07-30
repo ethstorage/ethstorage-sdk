@@ -138,7 +138,7 @@ export class FlatDirectory {
         cb.onFinish();
     }
 
-    async estimateCost(key, data) {
+    async estimateCost(key, data, gasIncPct = 0) {
         await this.#checkUploadStatus(key);
 
         const content = Buffer.from(data);
@@ -193,8 +193,10 @@ export class FlatDirectory {
                     blobVersionedHashes: blobHashArr
                 });
             }
-            const gasCost = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * gasLimit;
-            const blobGasCost = maxFeePerBlobGas * BigInt(BLOB_SIZE);
+            const gasPrice = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * BigInt(100 + gasIncPct) / BigInt(100);
+            const gasCost = gasPrice * gasLimit;
+            const blobGasPrice = maxFeePerBlobGas * BigInt(100 + gasIncPct) / BigInt(100);
+            const blobGasCost = blobGasPrice * BigInt(BLOB_SIZE);
             totalGasCost += gasCost + blobGasCost;
         }
 
@@ -204,7 +206,7 @@ export class FlatDirectory {
         }
     }
 
-    async estimateFileCost(key, file) {
+    async estimateFileCost(key, file, gasIncPct = 0) {
         await this.#checkUploadStatus(key);
 
         const fileSize = file.size;
@@ -257,8 +259,10 @@ export class FlatDirectory {
                     blobVersionedHashes: blobHashArr
                 });
             }
-            const gasCost = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * gasLimit;
-            const blobGasCost = maxFeePerBlobGas * BigInt(BLOB_SIZE);
+            const gasPrice = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * BigInt(100 + gasIncPct) / BigInt(100);
+            const gasCost = gasPrice * gasLimit;
+            const blobGasPrice = maxFeePerBlobGas * BigInt(100 + gasIncPct) / BigInt(100);
+            const blobGasCost = blobGasPrice * BigInt(BLOB_SIZE);
             totalGasCost += gasCost + blobGasCost;
         }
 
@@ -269,7 +273,7 @@ export class FlatDirectory {
     }
 
     // ******upload data******* /
-    async upload(key, data, cb = defaultCallback) {
+    async upload(key, data, cb = defaultCallback, gasIncPct = 0) {
         let totalUploadChunks = 0;
         let totalUploadSize = 0;
         let totalStorageCost = 0n;
@@ -337,7 +341,7 @@ export class FlatDirectory {
 
             // upload
             try {
-                const status = await this.#uploadBlob(fileContract, key, hexName, blobArr, chunkIdArr, chunkSizeArr, cost);
+                const status = await this.#uploadBlob(fileContract, key, hexName, blobArr, chunkIdArr, chunkSizeArr, cost, gasIncPct);
                 if (!status) {
                     cb.onFail(new Error("FlatDirectory: Sending transaction failed."));
                     break;
@@ -355,10 +359,10 @@ export class FlatDirectory {
             }
         }
 
-        cb.onSuccess(totalUploadChunks, totalUploadSize, totalStorageCost);
+        cb.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
     }
 
-    async uploadFile(key, file, cb = defaultCallback) {
+    async uploadFile(key, file, cb = defaultCallback, gasIncPct = 0) {
         let totalUploadChunks = 0;
         let totalUploadSize = 0;
         let totalStorageCost = 0n;
@@ -423,7 +427,7 @@ export class FlatDirectory {
 
             // upload
             try {
-                const status = await this.#uploadBlob(fileContract, key, hexName, blobArr, chunkIdArr, chunkSizeArr, cost);
+                const status = await this.#uploadBlob(fileContract, key, hexName, blobArr, chunkIdArr, chunkSizeArr, cost, gasIncPct);
                 if (!status) {
                     cb.onFail(new Error("FlatDirectory: Sending transaction failed."));
                     break;
@@ -473,12 +477,22 @@ export class FlatDirectory {
         return hasChange;
     }
 
-    async #uploadBlob(fileContract, key, hexName, blobArr, chunkIdArr, chunkSizeArr, cost) {
+    async #uploadBlob(fileContract, key, hexName, blobArr, chunkIdArr, chunkSizeArr, cost, gasIncPct) {
         // create tx
         const value = cost * BigInt(blobArr.length);
         const tx = await fileContract.writeChunks.populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
             value: value,
         });
+        // Increase % if user requests it
+        if (gasIncPct > 0) {
+            // Fetch the current gas price and increase it
+            const feeData = await this.#blobUploader.getGasPrice();
+            tx.maxFeePerGas = feeData.maxFeePerGas * BigInt(100 + gasIncPct) / BigInt(100);
+            tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * BigInt(100 + gasIncPct) / BigInt(100);
+            // blob gas
+            const blobGas = await this.#blobUploader.getBlobGasPrice();
+            tx.maxFeePerBlobGas = blobGas * BigInt(100 + gasIncPct) / BigInt(100);
+        }
         // send
         const txResponse = await this.#blobUploader.sendTxLock(tx, blobArr);
         console.log(`FlatDirectory: The ${chunkIdArr} chunks hash is ${txResponse.hash}`, key);

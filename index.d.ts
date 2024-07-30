@@ -61,10 +61,10 @@ declare module 'ethstorage-sdk' {
       setDefault(filename: string): Promise<boolean>;
       remove(key: string): Promise<boolean>;
       download(key: string, cb: Partial<DownloadCallback>): void;
-      estimateCost(key: string, data: Buffer | Uint8Array): Promise<CostEstimate>;
-      estimateFileCost(key: string, file: File | NodeFile): Promise<CostEstimate>;
-      upload(key: string, data: Buffer | Uint8Array, cb?: Partial<UploadCallback>): Promise<void>;
-      uploadFile(key: string, file: File | NodeFile, cb?: Partial<UploadCallback>): Promise<void>;
+      estimateCost(key: string, data: Buffer | Uint8Array, gasIncPct?: number): Promise<CostEstimate>;
+      estimateFileCost(key: string, file: File | NodeFile, gasIncPct?: number): Promise<CostEstimate>;
+      upload(key: string, data: Buffer | Uint8Array, cb?: Partial<UploadCallback>, gasIncPct?: number): Promise<void>;
+      uploadFile(key: string, file: File | NodeFile, cb?: Partial<UploadCallback>, gasIncPct?: number): Promise<void>;
     }
 
     // Utils

@@ -50,16 +50,16 @@ async function FlatDirectoryTest() {
         rpc: 'http://142.132.154.16:8545',
         ethStorageRpc: 'http://65.108.230.142:9545',
         privateKey,
-        address: "0x91F57C2d88C55B7a2Dd6DC76ddae3891b8003CE8"
+        // address: "0x91F57C2d88C55B7a2Dd6DC76ddae3891b8003CE8"
     })
 
-    // await fd.deploy();
+    await fd.deploy();
 
     // data
-    let cost = await fd.estimateCost("key", Buffer.from("123456"));
+    let cost = await fd.estimateCost("key", Buffer.from("12345678"), 10);
     console.log(cost);
 
-    await fd.upload("key", Buffer.from("123456"), {
+    await fd.upload("key", Buffer.from("12345678"), {
         onProgress: (progress, count) => {
             console.log(progress, count);
         },
@@ -69,14 +69,14 @@ async function FlatDirectoryTest() {
         onFinish: (info) => {
             console.log(info);
         }
-    });
+    }, 10);
 
-    cost = await fd.estimateCost("key", Buffer.from("123456"));
+    cost = await fd.estimateCost("key", Buffer.from("12345678"));
     console.log(cost);
 
     // file
     const file = new NodeFile(filePath);
-    cost = await fd.estimateFileCost("file", file);
+    cost = await fd.estimateFileCost("newFile", file, 20);
     console.log(cost);
 
     await fd.uploadFile("file", file, {
@@ -89,11 +89,13 @@ async function FlatDirectoryTest() {
         onFinish: (info) => {
             console.log(info);
         }
-    });
+    }, 20);
 
     cost = await fd.estimateFileCost("file", file);
     console.log(cost);
 
+    cost = await fd.estimateFileCost("file", file, 50);
+    console.log(cost);
 
     // download
     await fd.download("file", {
@@ -108,4 +110,4 @@ async function FlatDirectoryTest() {
         }
     })
 }
-// FlatDirectoryTest();
+FlatDirectoryTest();
