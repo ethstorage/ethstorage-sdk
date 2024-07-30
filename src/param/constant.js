@@ -21,5 +21,5 @@ export const RawData = 0;
 export const PaddingPer31Bytes = 1;
 
 
-
+export const BLOB_COUNT_LIMIT = 6;
 export const MAX_BLOB_COUNT = 3;

@@ -89,14 +89,14 @@ const key = "test.txt";
 const data = await ethStorage.read(key);
 ```
 
-#### putBlobs
+#### writeBlobs
 
 Batch upload blob data.
 
 ```js
-const count = 6;
-const data = Buffer.from("test data");
-await ethStorage.putBlobs(count, data);
+const keys = ["key1", "key2"];
+const dataBlobs = [Buffer.from("some data"), Buffer.from("test data")];
+const status = await ethStorage.writeBlobs(keys, dataBlobs);
 ```
 
 

@@ -10,7 +10,8 @@ import {
     BLOB_DATA_SIZE,
     BLOB_SIZE,
     PaddingPer31Bytes,
-    EthStorageAbi
+    EthStorageAbi,
+    BLOB_COUNT_LIMIT
 } from "./param";
 
 export class EthStorage {
@@ -134,22 +135,45 @@ export class EthStorage {
         return ethers.getBytes(data);
     }
 
-    async putBlobs(number, data) {
-        if (!data) {
-            throw new Error(`EthStorage: Invalid data.`);
+    async writeBlobs(keys, dataBlobs) {
+        if (!keys || !dataBlobs) {
+            throw new Error(`EthStorage: Invalid parameter.`);
         }
-        data = Buffer.from(data);
+        if (keys.length !== dataBlobs.length) {
+            throw new Error(`EthStorage: The number of keys and data does not match.`);
+        }
+        if (keys.length > BLOB_COUNT_LIMIT) {
+            throw new Error(`EthStorage: The count exceeds the maximum blob limit.`);
+        }
+
+        const blobLength = keys.length;
+        const blobDataSize = BLOB_DATA_SIZE;
+
+        const blobArr = [];
+        const keyArr = [];
+        const idArr = [];
+        const lengthArr = [];
+        for (let i = 0; i < blobLength; i++) {
+            const d = Buffer.from(dataBlobs[i]);
+            if (d.length < 0 || d.length > blobDataSize) {
+                throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${blobDataSize}.`);
+            }
+            const blob = encodeBlobs(d);
+            blobArr.push(blob[0]);
+            keyArr.push(ethers.keccak256(stringToHex(keys[i])));
+            idArr.push(i);
+            lengthArr.push(d.length);
+        }
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         try {
             const storageCost = await contract.upfrontPayment();
-            const tx = await contract.putBlobs.populateTransaction(number, {
-                value: storageCost * BigInt(number),
+            const tx = await contract.putBlobs.populateTransaction(keyArr, idArr, lengthArr, {
+                value: storageCost * BigInt(blobLength),
             });
 
-            const blobs = encodeBlobs(data);
-            let txRes = await this.#blobUploader.sendTx(tx, [blobs[0]]);
-            console.log(`EthStorage: Tx hash is ${txRes.hash}`)
+            let txRes = await this.#blobUploader.sendTx(tx, blobArr);
+            console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             txRes = await txRes.wait();
             return txRes.status;
         } catch (e) {

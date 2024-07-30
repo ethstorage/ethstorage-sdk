@@ -11,7 +11,7 @@
         - estimateCost
         - read
         - write
-        - putBlobs
+        - writeBlobs
 - [4. FlatDirectory Class](#FlatDirectory)
     - Static Methods
         - create
@@ -51,7 +51,7 @@ The `FlatDirectory` class is a higher-level data management tool that provides m
 | estimateCost | Estimate the cost of uploading data(gas cost and storage cost) |
 | write        | Asynchronously write data                                      |
 | read         | Asynchronously read data                                       |
-| putBlobs     | Batch upload blob data to the EthStorage network               |
+| writeBlobs   | Batch upload blob data to the EthStorage network               |
 
 ### FlatDirectory Class
 
@@ -147,20 +147,21 @@ const status = await ethStorage.write("dataKey", Buffer.from("some data"));
 const data = await ethStorage.read("example.txt");
 ```
 
-#### putBlobs
+#### writeBlobs
 **Description**: Batch upload blob data to the EthStorage network.
 
 **Parameters**
-- `number` (number): Number of blobs.
-- `data` (Buffer): Blob content to be written.
+- `keys` (string[]): Array of strings representing the keys for the blobs.
+- `dataBlobs` (Buffer[]): Array of Buffers containing the blob content to be written. Each Buffer's size must not exceed the corresponding blob size.
 
 **Returns**
 - `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
 
 **Example**
 ```javascript
-const blobData = Buffer.from("some data");
-const status = await ethStorage.putBlobs(number, blobData);
+const keys = ["key1", "key2", "key3"];
+const dataBlobs = [Buffer.from("test data 1"), Buffer.from("test data 2"),  Buffer.from("test data 3")];
+const status = await ethStorage.writeBlobs(keys, dataBlobs);
 ```
 
 <p id="FlatDirectory"></p>
