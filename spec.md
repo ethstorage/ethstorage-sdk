@@ -213,6 +213,9 @@ const address = await flatDirectory.deploy();
 **Parameters**
 - `key` (string): The key of the data.
 - `data` (Buffer): The data to be uploaded.
+- `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default gas. 
+  For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120 gwei.
+
 
 **Returns**
 - `cost` (Promise<object>): A Promise that resolves to an object containing:
@@ -223,6 +226,7 @@ const address = await flatDirectory.deploy();
 ```javascript
 const key = "example1.txt";
 const data = Buffer.from("large data to upload");
+const gasIncPct = 20; // add 20%
 const cost = await flatDirectory.estimateCost(key, data);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
@@ -234,6 +238,8 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 **Parameters**
 - `key` (string): The key of the data.
 - `file` (File): The file object to upload.
+- `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default gas.
+  For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120 gwei.
 
 **Returns**
 - `cost` (Promise<object>): A Promise that resolves to an object containing:
@@ -270,11 +276,14 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
     - `onProgress` (function): Callback function that receives `(progress, count, isChange)`.
     - `onFail` (function): Callback function that receives `(error)`.
     - `onFinish` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
+- `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default gas.
+  For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120 gwei.
 
 **Example**
 ```javascript
 const key = "example1.txt";
 const data = Buffer.from("large data to upload");
+const gasIncPct = 30; // add 30%
 
 await flatDirectory.upload(key, data, {
     onProgress: function (progress, count, isChange) {
@@ -286,7 +295,7 @@ await flatDirectory.upload(key, data, {
     onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
-});
+}, gasIncPct);
 ```
 
 #### uploadFile
@@ -300,6 +309,8 @@ await flatDirectory.upload(key, data, {
     - `onProgress` (function): Callback function that receives `(progress, count, isChange)`.
     - `onFail` (function): Callback function that receives `(error)`.
     - `onFinish` (function): Callback function that receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
+- `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default gas.
+  For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120 gwei.
 
 **Example**
 Browser
@@ -383,5 +394,5 @@ const status = await flatDirectory.setDefault(defaultFile);
 
 ## 5. Version History
 
-- v1.0.1: Initial release with basic storage and data management functionalities.
+- v1.0.2: Initial release with basic storage and data management functionalities.
 
