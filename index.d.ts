@@ -32,7 +32,7 @@ declare module 'ethstorage-sdk' {
         key: string,
         type: number,
         gasIncPct?: number,
-        cb?: Partial<UploadCallback>,
+        callback?: Partial<UploadCallback>,
 
         data?: Buffer | Uint8Array,
         file?: File | NodeFile,

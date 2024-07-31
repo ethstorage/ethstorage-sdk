@@ -43,7 +43,7 @@ async function EthStorageTest() {
     status = await es.writeBlobs(keys, blobData);
     console.log(status);
 }
-EthStorageTest();
+// EthStorageTest();
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({
@@ -55,50 +55,80 @@ async function FlatDirectoryTest() {
 
     await fd.deploy();
 
-    // data
-    let cost = await fd.estimateCost("key", Buffer.from("12345678"), 10);
-    console.log(cost);
-
-    await fd.upload("key", Buffer.from("12345678"), {
-        onProgress: (progress, count) => {
-            console.log(progress, count);
+    const uploadCallback = {
+        onProgress: (progress, count, isChange) => {
+            console.log(progress, count, isChange);
         },
         onFail: (err) => {
             console.log(err);
         },
-        onFinish: (info) => {
-            console.log(info);
+        onFinish: (totalUploadChunks, totalUploadSize, totalStorageCost) => {
+            console.log(totalUploadChunks, totalUploadSize, totalStorageCost);
         }
-    }, 10);
+    };
 
-    cost = await fd.estimateCost("key", Buffer.from("12345678"));
+    // calldata
+    // data
+    let request = {
+        type: 1,
+        key: "data",
+        data: Buffer.from("12345678"),
+        gasIncPct: 10,
+        callback: uploadCallback
+    }
+    let cost = await fd.estimateCost(request);
+    console.log(cost);
+    await fd.upload(request);
+    cost = await fd.estimateCost(request);
     console.log(cost);
 
     // file
     const file = new NodeFile(filePath);
-    cost = await fd.estimateFileCost("newFile", file, 20);
+    request = {
+        type: 1,
+        key: "file",
+        file: file,
+        gasIncPct: 10,
+        callback: uploadCallback
+    }
+    cost = await fd.estimateCost(request);
+    console.log(cost);
+    await fd.upload(request);
+    cost = await fd.estimateCost(request);
     console.log(cost);
 
-    await fd.uploadFile("file", file, {
-        onProgress: (progress, count) => {
-            console.log(progress, count);
-        },
-        onFail: (err) => {
-            console.log(err);
-        },
-        onFinish: (info) => {
-            console.log(info);
-        }
-    }, 20);
 
-    cost = await fd.estimateFileCost("file", file);
+    // blob
+    // data
+    request = {
+        type: 2,
+        key: "blobData",
+        data: Buffer.from("12345678"),
+        gasIncPct: 5,
+        callback: uploadCallback
+    }
+    cost = await fd.estimateCost(request);
+    console.log(cost);
+    await fd.upload(request);
+    cost = await fd.estimateCost(request);
     console.log(cost);
 
-    cost = await fd.estimateFileCost("file", file, 50);
+    // file
+    request = {
+        type: 2,
+        key: "blobFile",
+        file: file,
+        gasIncPct: 5,
+        callback: uploadCallback
+    }
+    cost = await fd.estimateCost(request);
+    console.log(cost);
+    await fd.upload(request);
+    cost = await fd.estimateCost(request);
     console.log(cost);
 
     // download
-    await fd.download("file", {
+    await fd.download("data", {
         onProgress: (progress, count, data) => {
             console.log(progress, count, data.length);
         },
@@ -108,6 +138,17 @@ async function FlatDirectoryTest() {
         onFinish: () => {
             console.log('download finish');
         }
-    })
+    });
+    await fd.download("blobFile", {
+        onProgress: (progress, count, data) => {
+            console.log(progress, count, data.length);
+        },
+        onFail: (err) => {
+            console.log(err)
+        },
+        onFinish: () => {
+            console.log('download finish');
+        }
+    });
 }
 FlatDirectoryTest();
