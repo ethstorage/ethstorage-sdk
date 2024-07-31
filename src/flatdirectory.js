@@ -421,7 +421,8 @@ export class FlatDirectory {
             for (let j = 0; j < blobArr.length; j++) {
                 chunkIdArr.push(i + j);
                 if (i + j === blobLength - 1) {
-                    chunkSizeArr.push(file.size - DEFAULT_BLOB_DATA_SIZE * (blobLength - 1));
+                    const size = file !== undefined ? file.size : Buffer.from(data).length;
+                    chunkSizeArr.push(size - DEFAULT_BLOB_DATA_SIZE * (blobLength - 1));
                 } else {
                     chunkSizeArr.push(DEFAULT_BLOB_DATA_SIZE);
                 }
