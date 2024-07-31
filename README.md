@@ -127,14 +127,10 @@ console.log(`FlatDirectory address is ${contracAddress}.`);
 
 ### upload
 
-Upload data to the FlatDirectory.
+Upload `data/file` to the FlatDirectory.
 
 ```js
-const key = "test.txt";
-const filePath = "/users/dist/test.txt";
-const data = fs.readFileSync(filePath);
-
-await flatDirectory.upload(key, data, {
+const callback = {
     onProgress: function (progress, count, isChange) {
         console.log(`Uploaded ${progress} of ${count} chunks`);
     },
@@ -144,45 +140,45 @@ await flatDirectory.upload(key, data, {
     onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
         console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
     }
-});
+};
+
+const request = {
+    key: "test.txt",
+    data: Buffer.from("big data"),
+    type: 2, // blob
+    callback: callback
+}
+await flatDirectory.upload(request);
 ```
 
-### uploadFile
-
-Upload a file to the FlatDirectory.
+If you want to use `file`, it can be divided into browser and Node.js.
 
 Browser
 ```javascript
 // <input id='fileToUpload' />
 const file = document.getElementById('fileToUpload').files[0];
-await flatDirectory.uploadFile(key, file, {
-    onProgress: function (progress, count, isChange) {
-        console.log(`Uploaded ${progress} of ${count} chunks`);
-    },
-    onFail: function (err) {
-        console.log(err);
-    },
-    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
-    }
-});
+
+const request = {
+    key: "test.txt",
+    file: file,
+    type: 1, // calldata
+    callback: callback
+}
+await flatDirectory.upload(request);
 ```
 
 Node.js
 ```javascript
 const {NodeFile} = require("ethstorage-sdk/file");
 const file = new NodeFile("/usr/download/test.jpg");
-await flatDirectory.uploadFile(key, file, {
-    onProgress: function (progress, count, isChange) {
-        console.log(`Uploaded ${progress} of ${count} chunks`);
-    },
-    onFail: function (err) {
-        console.log(err);
-    },
-    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
-    }
-});
+
+const request = {
+    key: "test.txt",
+    file: file,
+    type: 2, // blob
+    callback: callback
+}
+await flatDirectory.upload(request);
 ```
 
 ### download
@@ -209,22 +205,29 @@ await flatDirectory.download(key, {
 Estimate gas costs before uploading.
 
 ```js
-const key = "example1.txt";
-const data = Buffer.from("large data to upload");
+const request = {
+    key: "example1.txt",
+    data: Buffer.from("large data to upload"),
+    type: 2
+}
 
-const cost = await flatDirectory.estimateCost(key, data);
+const cost = await flatDirectory.estimateCost(request);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
-### estimateFileCost
-
-Estimate gas costs before uploading.
+If you want to use `file`, it can be divided into browser and Node.js.
 
 Browser
 ```javascript
 // <input id='fileToUpload' />
 const file = document.getElementById('fileToUpload').files[0];
-const cost = await flatDirectory.estimateFileCost("example1.txt", file);
+
+const request = {
+    key: "example1.txt",
+    file: file,
+    type: 1 // calldata
+}
+const cost = await flatDirectory.estimateCost(request);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
@@ -232,6 +235,11 @@ Node.js
 ```javascript
 const {NodeFile} = require("ethstorage-sdk/file");
 const file = new NodeFile("/usr/download/test.jpg");
-const cost = await flatDirectory.estimateFileCost("example1.txt", file);
-console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
+
+const request = {
+    key: "example1.txt",
+    file: file,
+    type: 2 // blob
+}
+const cost = await flatDirectory.estimateCost(request);
 ```
