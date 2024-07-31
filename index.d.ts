@@ -8,6 +8,9 @@ declare module 'ethstorage-sdk' {
     export const MAX_BLOB_COUNT: number;
     export const PaddingPer31Bytes: number;
     export const RawData: number;
+    export const BLOB_COUNT_LIMIT: number;
+    export const UPLOAD_TYPE_CALLDATA: number;
+    export const UPLOAD_TYPE_BLOB: number;
 
     export const ETHSTORAGE_MAPPING: {
       [chainId: number]: string;
@@ -23,6 +26,16 @@ declare module 'ethstorage-sdk' {
       ethStorageRpc: string;
       privateKey: string;
       address?: string;
+    }
+
+    export interface UploadRequest {
+        key: string,
+        type: number,
+        gasIncPct?: number,
+        cb?: Partial<UploadCallback>,
+
+        data?: Buffer | Uint8Array,
+        file?: File | NodeFile,
     }
 
     export interface CostEstimate {
@@ -61,10 +74,8 @@ declare module 'ethstorage-sdk' {
       setDefault(filename: string): Promise<boolean>;
       remove(key: string): Promise<boolean>;
       download(key: string, cb: Partial<DownloadCallback>): void;
-      estimateCost(key: string, data: Buffer | Uint8Array, gasIncPct?: number): Promise<CostEstimate>;
-      estimateFileCost(key: string, file: File | NodeFile, gasIncPct?: number): Promise<CostEstimate>;
-      upload(key: string, data: Buffer | Uint8Array, cb?: Partial<UploadCallback>, gasIncPct?: number): Promise<void>;
-      uploadFile(key: string, file: File | NodeFile, cb?: Partial<UploadCallback>, gasIncPct?: number): Promise<void>;
+      estimateCost(request: UploadRequest): Promise<CostEstimate>;
+      upload(request: UploadRequest): Promise<void>;
     }
 
     // Utils

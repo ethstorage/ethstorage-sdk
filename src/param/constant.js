@@ -16,6 +16,8 @@ const BlobTxFieldElementsPerBlob         = 4096;
 export const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
 export const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
 
+export const DEFAULT_BLOB_DATA_SIZE = BLOB_DATA_SIZE;
+
 // DecodeType
 export const RawData = 0;
 export const PaddingPer31Bytes = 1;
@@ -23,3 +25,6 @@ export const PaddingPer31Bytes = 1;
 
 export const BLOB_COUNT_LIMIT = 6;
 export const MAX_BLOB_COUNT = 3;
+
+export const UPLOAD_TYPE_CALLDATA = 1;
+export const UPLOAD_TYPE_BLOB = 2;
