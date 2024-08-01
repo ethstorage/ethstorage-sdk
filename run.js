@@ -37,7 +37,7 @@ async function main() {
     setTimeout(() => {
         console.log('Timeout: Breaking the loop');
         shouldContinue = false;
-    }, 20000);
+    }, 24 * 3600 * 1000);
 
     let batchIndex = 36
 
