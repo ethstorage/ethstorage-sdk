@@ -145,7 +145,7 @@ const callback = {
 const request = {
     key: "test.txt",
     content: Buffer.from("big data"),
-    type: 2,
+    type: 2, // 1 for calldata and 2 for blob
     callback: callback
 }
 await flatDirectory.upload(request);
@@ -208,7 +208,7 @@ Estimate gas costs before uploading.
 const request = {
     key: "example1.txt",
     content: Buffer.from("large data to upload"),
-    type: 2
+    type: 2 // 1 for calldata and 2 for blob
 }
 
 const cost = await flatDirectory.estimateCost(request);
