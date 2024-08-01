@@ -38,7 +38,7 @@ declare module 'ethstorage-sdk' {
     }
 
     export interface UploadRequest extends EstimateGasRequest {
-        callback?: Partial<UploadCallback>,
+        callback: Partial<UploadCallback>,
     }
 
     export interface CostEstimate {
