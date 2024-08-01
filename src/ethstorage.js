@@ -177,7 +177,7 @@ export class EthStorage {
             txRes = await txRes.wait();
             return txRes.status;
         } catch (e) {
-            console.error(`EthStorage: Put blobs failed!`, e.message);
+            console.error(`EthStorage: Put blobs failed!`, e.message.substring(e.message.length - 100));
         }
         return false;
     }
