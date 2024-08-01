@@ -19,8 +19,7 @@ async function upload(es, batchIndex) {
         data[i] = Buffer.concat([d, fill(31 * 4096 - d.length)]);
         // console.log(keys[i], "=>", data[i].toString().slice(0, 18) + "...");
     })
-
-    console.log("batch", batchIndex, "=>", await es.writeBlobs(keys, data), new Date())
+    return await es.writeBlobs(keys, data);
 }
 
 async function main() {
@@ -31,14 +30,24 @@ async function main() {
         privateKey
     })
 
-    console.log('start uploading at', new Date());
+    console.log(new Date(), 'start uploading');
 
-    let batchIndex = 30
-    setInterval(() => {
-        upload(es, batchIndex);
-        console.log('uploading batch', batchIndex, 'at', new Date());
+    let shouldContinue = true;
+
+    setTimeout(() => {
+        console.log('Timeout: Breaking the loop');
+        shouldContinue = false;
+    }, 20000);
+
+    let batchIndex = 36
+
+    while (shouldContinue) {
+        console.log(new Date(), 'uploading batch', batchIndex);
+        const s = await upload(es, batchIndex)
+        console.log(new Date(), 'uploading batch', batchIndex, s ? 'successfully' : 'failed');
         batchIndex++;
-    }, 2000);
+    }
+    console.log(new Date(), 'done uploading.');    
 }
 
 main().catch((error) => {
