@@ -107,7 +107,7 @@ const ethStorage = await EthStorage.create(config);
   transferred by a blob.
 
 **Returns**
-- `cost` (Promise<object>): A Promise that resolves to an object containing:
+- `cost` (`Promise<object>`): A Promise that resolves to an object containing:
     - `gasCost` (BigInt): The estimated gas cost.
     - `storageCost` (BigInt): The estimated storage cost.
 
@@ -228,7 +228,7 @@ const address = await flatDirectory.deploy();
       gwei.
 
 **Returns**
-- `cost` (Promise<object>): A Promise that resolves to an object containing:
+- `cost` (`Promise<object>`): A Promise that resolves to an object containing:
     - `gasCost` (BigInt): The estimated gas cost.
     - `storageCost` (BigInt): The estimated storage cost.
 
