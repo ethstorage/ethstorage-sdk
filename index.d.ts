@@ -23,7 +23,7 @@ declare module 'ethstorage-sdk' {
     // Interfaces
     export interface SDKConfig {
       rpc: string;
-      ethStorageRpc: string;
+      ethStorageRpc?: string;
       privateKey: string;
       address?: string;
     }
