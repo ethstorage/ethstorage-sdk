@@ -145,7 +145,7 @@ const callback = {
 const request = {
     key: "test.txt",
     content: Buffer.from("big data"),
-    type: 2, // blob
+    type: 2,
     callback: callback
 }
 await flatDirectory.upload(request);
@@ -161,7 +161,7 @@ const file = document.getElementById('fileToUpload').files[0];
 const request = {
     key: "test.txt",
     content: file,
-    type: 1, // calldata
+    type: 2,
     callback: callback
 }
 await flatDirectory.upload(request);
@@ -175,7 +175,7 @@ const file = new NodeFile("/usr/download/test.jpg");
 const request = {
     key: "test.txt",
     content: file,
-    type: 2, // blob
+    type: 2,
     callback: callback
 }
 await flatDirectory.upload(request);
@@ -225,7 +225,7 @@ const file = document.getElementById('fileToUpload').files[0];
 const request = {
     key: "example1.txt",
     content: file,
-    type: 2 // calldata
+    type: 2
 }
 const cost = await flatDirectory.estimateCost(request);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
@@ -239,7 +239,7 @@ const file = new NodeFile("/usr/download/test.jpg");
 const request = {
     key: "example1.txt",
     content: file,
-    type: 1 // blob
+    type: 2
 }
 const cost = await flatDirectory.estimateCost(request);
 ```
