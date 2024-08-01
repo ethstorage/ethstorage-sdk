@@ -221,8 +221,7 @@ const address = await flatDirectory.deploy();
 - `request` (object): Configuration the upload object containing necessary settings.
     - `key` (string): The key of the data.
     - `type` (number): File upload mode, 1 for calldata, 2 for blob
-    - `file` (File, optional): The file to be uploaded. Choose either this or the `data` field.
-    - `data` (Buffer, optional): The data to be uploaded. Choose either this or the `file` field.
+    - `content` (Buffer|File, optional): The content to be uploaded, which can be either a Buffer or a File.
     - `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default
       gas. For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120
       gwei.
@@ -238,7 +237,7 @@ const request = {
     key: "example1.txt",
     gasIncPct: 20, // add 20%
     type: 2,
-    data: Buffer.from("large data to upload")
+    content: Buffer.from("large data to upload")
 }
 const cost = await flatDirectory.estimateCost(request);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
@@ -253,7 +252,7 @@ const file = document.getElementById('fileToUpload').files[0];
 
 const request = {
     key: "example1.txt",
-    file: file,
+    content: file,
     type: 1
 }
 const cost = await flatDirectory.estimateCost(request);
@@ -267,7 +266,7 @@ const file = new NodeFile("/usr/download/test.jpg");
 
 const request = {
     key: "example1.txt",
-    file: file,
+    content: file,
     type: 2
 }
 const cost = await flatDirectory.estimateCost(request);
@@ -282,11 +281,9 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 - `request` (object): Configuration the upload object containing necessary settings.
     - `key` (string): The key of the data.
     - `type` (number): File upload mode, 1 for calldata, 2 for blob
-    - `file` (File, optional): The file to be uploaded. Choose either this or the `data` field.
-    - `data` (Buffer, optional): The data to be uploaded. Choose either this or the `file` field.
+    - `content` (Buffer|File, optional): The content to be uploaded, which can be either a Buffer or a File.
     - `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default
-      gas.
-      For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120
+      gas. For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120
       gwei.
     - `callback` (object): An object containing callback functions:
         - `onProgress` (function): Callback function that receives `(progress, count, isChange)`.
@@ -310,14 +307,14 @@ const cb = {
 const request = {
     key: "example1.txt",
     gasIncPct: 30, // add 40%
-    data: Buffer.from("large data to upload"),
+    content: Buffer.from("large data to upload"),
     type: 2,
     callback: cb
 }
 await flatDirectory.upload(request);
 ```
 
-If you want to use `file`, it can be divided into browser and Node.js.
+Use `file`.
 
 Browser
 ```javascript
@@ -327,7 +324,7 @@ const file = document.getElementById('fileToUpload').files[0];
 const request = {
     key: "example1.txt",
     gasIncPct: 30, // add 40%
-    file: file,
+    content: file,
     type: 1,
     callback: cb
 }
@@ -342,7 +339,7 @@ const file = new NodeFile("/usr/download/test.jpg");
 const request = {
     key: "example1.txt",
     gasIncPct: 30, // add 40%
-    file: file,
+    content: file,
     type: 2,
     callback: cb
 }

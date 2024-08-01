@@ -127,7 +127,7 @@ console.log(`FlatDirectory address is ${contracAddress}.`);
 
 ### upload
 
-Upload `data/file` to the FlatDirectory.
+Upload `buffer | file` to the FlatDirectory.
 
 ```js
 const callback = {
@@ -144,7 +144,7 @@ const callback = {
 
 const request = {
     key: "test.txt",
-    data: Buffer.from("big data"),
+    content: Buffer.from("big data"),
     type: 2, // blob
     callback: callback
 }
@@ -160,7 +160,7 @@ const file = document.getElementById('fileToUpload').files[0];
 
 const request = {
     key: "test.txt",
-    file: file,
+    content: file,
     type: 1, // calldata
     callback: callback
 }
@@ -174,7 +174,7 @@ const file = new NodeFile("/usr/download/test.jpg");
 
 const request = {
     key: "test.txt",
-    file: file,
+    content: file,
     type: 2, // blob
     callback: callback
 }
@@ -207,7 +207,7 @@ Estimate gas costs before uploading.
 ```js
 const request = {
     key: "example1.txt",
-    data: Buffer.from("large data to upload"),
+    content: Buffer.from("large data to upload"),
     type: 2
 }
 
@@ -215,7 +215,7 @@ const cost = await flatDirectory.estimateCost(request);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
-If you want to use `file`, it can be divided into browser and Node.js.
+Use `file`.
 
 Browser
 ```javascript
@@ -224,8 +224,8 @@ const file = document.getElementById('fileToUpload').files[0];
 
 const request = {
     key: "example1.txt",
-    file: file,
-    type: 1 // calldata
+    content: file,
+    type: 2 // calldata
 }
 const cost = await flatDirectory.estimateCost(request);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
@@ -238,8 +238,8 @@ const file = new NodeFile("/usr/download/test.jpg");
 
 const request = {
     key: "example1.txt",
-    file: file,
-    type: 2 // blob
+    content: file,
+    type: 1 // blob
 }
 const cost = await flatDirectory.estimateCost(request);
 ```
