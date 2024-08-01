@@ -28,14 +28,17 @@ declare module 'ethstorage-sdk' {
       address?: string;
     }
 
-    export interface UploadRequest {
+    export interface EstimateGasRequest {
         key: string,
         type: number,
         gasIncPct?: number,
-        callback?: Partial<UploadCallback>,
 
         data?: Buffer | Uint8Array,
         file?: File | NodeFile,
+    }
+
+    export interface UploadRequest extends EstimateGasRequest {
+        callback?: Partial<UploadCallback>,
     }
 
     export interface CostEstimate {
@@ -74,7 +77,7 @@ declare module 'ethstorage-sdk' {
       setDefault(filename: string): Promise<boolean>;
       remove(key: string): Promise<boolean>;
       download(key: string, cb: Partial<DownloadCallback>): void;
-      estimateCost(request: UploadRequest): Promise<CostEstimate>;
+      estimateCost(request: EstimateGasRequest): Promise<CostEstimate>;
       upload(request: UploadRequest): Promise<void>;
     }
 
