@@ -20,6 +20,11 @@ declare module 'ethstorage-sdk' {
     export const FlatDirectoryAbi: string[];
     export const FlatDirectoryBytecode: string;
 
+    // Types
+    export type BufferLike = Buffer | Uint8Array;
+    export type FileLike = File | NodeFile;
+    export type ContentLike = BufferLike | FileLike;
+
     // Interfaces
     export interface SDKConfig {
       rpc: string;
@@ -30,11 +35,9 @@ declare module 'ethstorage-sdk' {
 
     export interface EstimateGasRequest {
         key: string,
+        content: ContentLike,
         type: number,
         gasIncPct?: number,
-
-        data?: Buffer | Uint8Array,
-        file?: File | NodeFile,
     }
 
     export interface UploadRequest extends EstimateGasRequest {
@@ -101,6 +104,10 @@ declare module 'ethstorage-sdk' {
       export function encodeBlobs(data: Buffer): Uint8Array[];
       export function decodeBlob(blob: string | Uint8Array): Uint8Array;
       export function decodeBlobs(blobs: string | Uint8Array): Buffer;
+
+      export function getFileChunk(file: FileLike, fileSize: number, start: number, end: number);
+      export function isBuffer(content: BufferLike);
+      export function isFile(content: FileLike);
     }
 
     // Default export

@@ -14,3 +14,14 @@ export async function getFileChunk(file, fileSize, start, end) {
     const data = await slice.arrayBuffer();
     return Buffer.from(data);
 }
+
+export function isBuffer(content) {
+    return (content instanceof Uint8Array) || (content instanceof Buffer);
+}
+
+export function isFile(content) {
+    const isNodeFile = content && typeof content === 'object' &&
+        typeof content.isNodeJs === 'boolean' &&
+        content.isNodeJs;
+    return (content instanceof File) || isNodeFile;
+}

@@ -9,7 +9,12 @@ import {
     UPLOAD_TYPE_BLOB,
     UPLOAD_TYPE_CALLDATA,
 } from './param';
-import {BlobUploader, encodeBlobs, getChainId, getFileChunk, stringToHex} from "./utils";
+import {
+    BlobUploader, encodeBlobs,
+    getChainId, getFileChunk,
+    isBuffer, isFile,
+    stringToHex
+} from "./utils";
 
 const REMOVE_FAIL = -1;
 const REMOVE_NORMAL = 0;
@@ -155,17 +160,12 @@ export class FlatDirectory {
     }
 
     async upload(request) {
-        const {key, data, file, callback, type} = request;
+        const {key, callback, type} = request;
         if (!callback) {
             throw new Error(`FlatDirectory: Invalid callback object!`);
         }
         if (!key) {
             callback.onFail(new Error(`FlatDirectory: Invalid key!`));
-            callback.onFinish(0, 0, 0);
-            return;
-        }
-        if (!file && !data) {
-            callback.onFail(new Error(`FlatDirectory: Invalid upload content!`));
             callback.onFinish(0, 0, 0);
             return;
         }
@@ -188,12 +188,11 @@ export class FlatDirectory {
             throw new Error(`FlatDirectory: The contract does not support blob upload!`);
         }
 
-        const {key, data, file, gasIncPct} = request;
+        const {key, content, gasIncPct} = request;
         let blobLength = 0;
-        if (file) {
-            blobLength = Math.ceil(file.size / DEFAULT_BLOB_DATA_SIZE);
-        } else if (data) {
-            const content = Buffer.from(data);
+        if (isFile(content)) {
+            blobLength = Math.ceil(content.size / DEFAULT_BLOB_DATA_SIZE);
+        } else if (isBuffer(content)) {
             blobLength = Math.ceil(content.length / DEFAULT_BLOB_DATA_SIZE);
         } else {
             throw new Error(`FlatDirectory: Invalid upload content!`);
@@ -218,10 +217,9 @@ export class FlatDirectory {
 
         // send
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-            const content = file !== undefined
-                ? await getFileChunk(file, file.size, i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE)
-                : Buffer.from(data).subarray(i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE);
-            const blobArr = encodeBlobs(content);
+            const data = isBuffer(content) ? Buffer.from(content).subarray(i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE) :
+                await getFileChunk(content, content.size, i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE);
+            const blobArr = encodeBlobs(data);
             const chunkIdArr = [];
             const chunkSizeArr = [];
             const blobHashArr = [];
@@ -273,27 +271,26 @@ export class FlatDirectory {
     }
 
     async #estimateCostByCallData(request) {
-        const {key, data, file, gasIncPct} = request;
+        const {key, content, gasIncPct} = request;
 
         let chunkDataSize = 0;
         let chunkLength = 1;
-        if (file) {
-            chunkDataSize = file.size;
+        if (isFile(content)) {
+            chunkDataSize = content.size;
             if (GALILEO_CHAIN_ID === this.#chainId) {
-                if (file.size > 475 * 1024) {
+                if (content.size > 475 * 1024) {
                     // Data need to be sliced if file > 475K
                     chunkDataSize = 475 * 1024;
-                    chunkLength = Math.ceil(file.size / (475 * 1024));
+                    chunkLength = Math.ceil(content.size / (475 * 1024));
                 }
             } else {
-                if (file.size > 24 * 1024 - 326) {
+                if (content.size > 24 * 1024 - 326) {
                     // Data need to be sliced if file > 24K
                     chunkDataSize = 24 * 1024 - 326;
-                    chunkLength = Math.ceil(file.size / (24 * 1024 - 326));
+                    chunkLength = Math.ceil(content.size / (24 * 1024 - 326));
                 }
             }
-        } else if (data) {
-            const content = Buffer.from(data);
+        } else if (isBuffer(content)) {
             chunkDataSize = content.length;
             if (GALILEO_CHAIN_ID === this.#chainId) {
                 if (content.length > 475 * 1024) {
@@ -328,9 +325,8 @@ export class FlatDirectory {
         let totalGasCost = 0n;
         let gasLimit = 0;
         for (let i = 0; i < chunkLength; i++) {
-            const chunk = file !== undefined
-                ? await getFileChunk(file, file.size, i * chunkDataSize, (i + 1) * chunkDataSize)
-                : Buffer.from(data).subarray(i * chunkDataSize, (i + 1) * chunkDataSize);
+            const chunk = isBuffer(content) ? Buffer.from(content).subarray(i * chunkDataSize, (i + 1) * chunkDataSize) :
+                await getFileChunk(content, content.size, i * chunkDataSize, (i + 1) * chunkDataSize);
 
             // check is change
             if (i < oldChunkLength) {
@@ -373,7 +369,7 @@ export class FlatDirectory {
         let totalUploadSize = 0;
         let totalStorageCost = 0n;
 
-        const {key, callback, gasIncPct, data, file} = request;
+        const {key, content, callback, gasIncPct} = request;
         if (!this.#isSupportBlob) {
             callback.onFail(new Error(`FlatDirectory: The contract does not support blob upload!`));
             callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
@@ -390,11 +386,14 @@ export class FlatDirectory {
         }
 
         let blobLength;
-        if (file) {
-            blobLength = Math.ceil(file.size / DEFAULT_BLOB_DATA_SIZE);
-        } else {
-            const content = Buffer.from(data);
+        if (isFile(content)) {
+            blobLength = Math.ceil(content.size / DEFAULT_BLOB_DATA_SIZE);
+        } else if (isBuffer(content)) {
             blobLength = Math.ceil(content.length / DEFAULT_BLOB_DATA_SIZE);
+        } else {
+            callback.onFail(new Error(`FlatDirectory: Invalid upload content!`));
+            callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
+            return;
         }
         // check old data
         const [cost, oldBlobLength] = await Promise.all([
@@ -410,10 +409,9 @@ export class FlatDirectory {
 
         // send
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-            const content = file !== undefined
-                ? await getFileChunk(file, file.size, i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE)
-                : Buffer.from(data).subarray(i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE);
-            const blobArr = encodeBlobs(content);
+            const data = isBuffer(content) ? Buffer.from(content).subarray(i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE) :
+                await getFileChunk(content, content.size, i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE);
+            const blobArr = encodeBlobs(data);
             const chunkIdArr = [];
             const chunkSizeArr = [];
             const blobHashArr = [];
@@ -421,7 +419,7 @@ export class FlatDirectory {
             for (let j = 0; j < blobArr.length; j++) {
                 chunkIdArr.push(i + j);
                 if (i + j === blobLength - 1) {
-                    const size = file !== undefined ? file.size : Buffer.from(data).length;
+                    const size = isBuffer(content) ? content.length : content.size;
                     chunkSizeArr.push(size - DEFAULT_BLOB_DATA_SIZE * (blobLength - 1));
                 } else {
                     chunkSizeArr.push(DEFAULT_BLOB_DATA_SIZE);
@@ -473,7 +471,7 @@ export class FlatDirectory {
         let totalUploadSize = 0;
         let totalStorageCost = 0n;
 
-        const {key, callback, gasIncPct, data, file} = request;
+        const {key, content, callback, gasIncPct} = request;
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         const fileMod = await fileContract.getStorageMode(hexName);
@@ -485,23 +483,22 @@ export class FlatDirectory {
 
         let chunkDataSize;
         let chunkLength = 1;
-        if (file) {
-            chunkDataSize = file.size;
+        if (isFile(content)) {
+            chunkDataSize = content.size;
             if (GALILEO_CHAIN_ID === this.#chainId) {
-                if (file.size > 475 * 1024) {
+                if (content.size > 475 * 1024) {
                     // Data need to be sliced if file > 475K
                     chunkDataSize = 475 * 1024;
-                    chunkLength = Math.ceil(file.size / (475 * 1024));
+                    chunkLength = Math.ceil(content.size / (475 * 1024));
                 }
             } else {
-                if (file.size > 24 * 1024 - 326) {
+                if (content.size > 24 * 1024 - 326) {
                     // Data need to be sliced if file > 24K
                     chunkDataSize = 24 * 1024 - 326;
-                    chunkLength = Math.ceil(file.size / (24 * 1024 - 326));
+                    chunkLength = Math.ceil(content.size / (24 * 1024 - 326));
                 }
             }
-        } else {
-            const content = Buffer.from(data);
+        } else if (isBuffer(content)) {
             chunkDataSize = content.length;
             if (GALILEO_CHAIN_ID === this.#chainId) {
                 if (content.length > 475 * 1024) {
@@ -516,6 +513,10 @@ export class FlatDirectory {
                     chunkLength = Math.ceil(content.length / (24 * 1024 - 326));
                 }
             }
+        } else {
+            callback.onFail(new Error(`FlatDirectory: Invalid upload content!`));
+            callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
+            return;
         }
 
         // check old data
@@ -528,10 +529,8 @@ export class FlatDirectory {
         }
 
         for (let i = 0; i < chunkLength; i++) {
-            const chunk = file !== undefined
-                ? await getFileChunk(file, file.size, i * chunkDataSize, (i + 1) * chunkDataSize)
-                : Buffer.from(data).subarray(i * chunkDataSize, (i + 1) * chunkDataSize);
-
+            const chunk = isBuffer(content) ? Buffer.from(content).subarray(i * chunkDataSize, (i + 1) * chunkDataSize) :
+                await getFileChunk(content, content.size, i * chunkDataSize, (i + 1) * chunkDataSize);
             // check is change
             if (clearState === REMOVE_NORMAL) {
                 const localHash = ethers.keccak256(chunk);

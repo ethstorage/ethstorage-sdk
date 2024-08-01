@@ -72,7 +72,7 @@ async function FlatDirectoryTest() {
     let request = {
         type: 1,
         key: "data",
-        data: Buffer.from("12345678"),
+        content: Buffer.from("12345678"),
         gasIncPct: 10,
         callback: uploadCallback
     }
@@ -87,7 +87,7 @@ async function FlatDirectoryTest() {
     request = {
         type: 1,
         key: "file",
-        file: file,
+        content: file,
         gasIncPct: 10,
         callback: uploadCallback
     }
@@ -103,7 +103,7 @@ async function FlatDirectoryTest() {
     request = {
         type: 2,
         key: "blobData",
-        data: Buffer.from("12345678"),
+        content: Buffer.from("12345678"),
         gasIncPct: 5,
         callback: uploadCallback
     }
@@ -117,7 +117,7 @@ async function FlatDirectoryTest() {
     request = {
         type: 2,
         key: "blobFile",
-        file: file,
+        content: file,
         gasIncPct: 5,
         callback: uploadCallback
     }
