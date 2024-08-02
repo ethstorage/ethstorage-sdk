@@ -58,10 +58,12 @@ async function main() {
     }, 24 * 3600 * 1000);
 
     while (shouldContinue) {
-        let esa = esWithAddrs[batchIndex % esWithAddrs.length]
-        const s = await upload(esa.es, batchIndex)
-        console.log(new Date(), 'uploading batch', batchIndex, s ? 'successfully' : 'failed', 'by', esa.addr);
-        batchIndex++;
+        for (let i = 0; i < esWithAddrs.length; i++) {
+            let esa = esWithAddrs[i]
+            const s = await upload(esa.es, batchIndex)
+            console.log(new Date(), 'uploading batch', batchIndex, s ? 'successfully' : 'failed', 'by', esa.addr);
+            batchIndex++;
+        }
     }
     console.log(new Date(), 'done uploading.');
 }
