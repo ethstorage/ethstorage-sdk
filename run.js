@@ -59,14 +59,16 @@ async function main() {
     while (shouldContinue) {
         await Promise.all(
             esWithAddrs.map(
-                async ({ es, addr }) => {
-                    await new Promise(resolve => setTimeout(resolve, Math.random() * esWithAddrs.length * 1000));
-                    console.log(new Date(), 'uploading batch', batchIndex, 'by', addr);
-                    const s = await upload(es, batchIndex)
-                    console.log(new Date(), 'uploading batch', batchIndex, 'by', addr, s ? 'successfully' : 'failed');
-                    batchIndex++;
+                async ({ es, addr }, index) => {
+                    const currentBatchIndex = batchIndex + index;
+                    await new Promise(resolve => setTimeout(resolve, index * 1000));
+                    console.log(new Date(), 'uploading batch', currentBatchIndex, 'by', addr);
+                    const s = await upload(es, currentBatchIndex);
+                    console.log(new Date(), 'uploading batch', currentBatchIndex, 'by', addr, s ? 'successfully' : 'failed');
                 })
         );
+        batchIndex += esWithAddrs.length;
+        await new Promise(resolve => setTimeout(resolve, 2000));
     }
     console.log(new Date(), 'done uploading.');
 }
