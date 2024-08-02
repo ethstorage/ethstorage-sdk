@@ -58,11 +58,14 @@ async function main() {
     }, 24 * 3600 * 1000);
 
     while (shouldContinue) {
-        await Promise.all(esWithAddrs.map(async (esa) => {
-            const s = await upload(esa.es, batchIndex)
-            console.log(new Date(), 'uploading batch', batchIndex, s ? 'successfully' : 'failed', 'by', esa.addr);
-            batchIndex++;
-        }));
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        Promise.all(esWithAddrs.map(
+            async ({ es, addr }) => {
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 2000));
+                const s = await upload(es, batchIndex)
+                console.log(new Date(), 'uploading batch', batchIndex, s ? 'successfully' : 'failed', 'by', addr);
+                batchIndex++;
+            }));
     }
     console.log(new Date(), 'done uploading.');
 }
