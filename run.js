@@ -2,7 +2,6 @@
 const { EthStorage } = require("./dist/index.cjs.js");
 const crypto = require('crypto');
 const ethers = require('ethers');
-const { formatEther } = require("ethers/utils");
 const dotenv = require("dotenv");
 
 dotenv.config()
@@ -20,7 +19,9 @@ async function upload(es, batchIndex) {
     data.forEach((d, i) => {
         data[i] = Buffer.concat([d, fill(31 * 4096 - d.length)]);
     })
-    return await es.writeBlobs(keys, data);
+    // return await es.writeBlobs(keys, data);
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    return true;
 }
 
 async function main() {
@@ -58,14 +59,16 @@ async function main() {
     }, 24 * 3600 * 1000);
 
     while (shouldContinue) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        Promise.all(esWithAddrs.map(
-            async ({ es, addr }) => {
-                await new Promise(resolve => setTimeout(resolve, Math.random() * 2000));
-                const s = await upload(es, batchIndex)
-                console.log(new Date(), 'uploading batch', batchIndex, s ? 'successfully' : 'failed', 'by', addr);
-                batchIndex++;
-            }));
+        await Promise.all(
+            esWithAddrs.map(
+                async ({ es, addr }) => {
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * esWithAddrs.length * 1000));
+                    console.log(new Date(), 'uploading batch', batchIndex, 'by', addr);
+                    const s = await upload(es, batchIndex)
+                    console.log(new Date(), 'uploading batch', batchIndex, 'by', addr, s ? 'successfully' : 'failed');
+                    batchIndex++;
+                })
+        );
     }
     console.log(new Date(), 'done uploading.');
 }
