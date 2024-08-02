@@ -1,9 +1,11 @@
 
 const { EthStorage } = require("./dist/index.cjs.js");
 const crypto = require('crypto');
-const dotenv = require("dotenv")
+const ethers = require('ethers');
+const { formatEther } = require("ethers/utils");
+const dotenv = require("dotenv");
+
 dotenv.config()
-const privateKey = process.env.pk;
 
 
 function fill(length) {
@@ -17,18 +19,34 @@ async function upload(es, batchIndex) {
 
     data.forEach((d, i) => {
         data[i] = Buffer.concat([d, fill(31 * 4096 - d.length)]);
-        // console.log(keys[i], "=>", data[i].toString().slice(0, 18) + "...");
     })
     return await es.writeBlobs(keys, data);
 }
 
 async function main() {
 
-    const es = await EthStorage.create({
-        rpc: 'http://65.109.20.29:8545',
-        ethStorageRpc: 'http://65.109.115.36:9540',
-        privateKey
-    })
+    let batchIndex = 0
+    const args = process.argv.slice(2);
+    if (args.length > 0) {
+        batchIndex = parseInt(args[0]);
+    }
+    console.log("batchIndex", batchIndex)
+
+
+    const value = process.env.pk;
+    const pks = value.split(',');
+    const esWithAddrs = []
+
+    for (let i = 0; i < pks.length; i++) {
+        const es = await EthStorage.create({
+            rpc: 'http://65.109.20.29:8545',
+            ethStorageRpc: 'http://65.109.115.36:9540',
+            privateKey: pks[i]
+        })
+
+        let wallet = new ethers.Wallet(pks[i]);
+        esWithAddrs.push({ es: es, addr: wallet.address })
+    }
 
     console.log(new Date(), 'start uploading');
 
@@ -39,15 +57,13 @@ async function main() {
         shouldContinue = false;
     }, 24 * 3600 * 1000);
 
-    let batchIndex = 36
-
     while (shouldContinue) {
-        console.log(new Date(), 'uploading batch', batchIndex);
-        const s = await upload(es, batchIndex)
-        console.log(new Date(), 'uploading batch', batchIndex, s ? 'successfully' : 'failed');
+        let esa = esWithAddrs[batchIndex % esWithAddrs.length]
+        const s = await upload(esa.es, batchIndex)
+        console.log(new Date(), 'uploading batch', batchIndex, s ? 'successfully' : 'failed', 'by', esa.addr);
         batchIndex++;
     }
-    console.log(new Date(), 'done uploading.');    
+    console.log(new Date(), 'done uploading.');
 }
 
 main().catch((error) => {
