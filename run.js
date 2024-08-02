@@ -19,9 +19,7 @@ async function upload(es, batchIndex) {
     data.forEach((d, i) => {
         data[i] = Buffer.concat([d, fill(31 * 4096 - d.length)]);
     })
-    // return await es.writeBlobs(keys, data);
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    return true;
+    return await es.writeBlobs(keys, data);
 }
 
 async function main() {
