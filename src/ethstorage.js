@@ -7,8 +7,8 @@ import {
 } from "./utils";
 import {
     ETHSTORAGE_MAPPING,
-    BLOB_DATA_SIZE,
     BLOB_SIZE,
+    DEFAULT_BLOB_DATA_SIZE,
     PaddingPer31Bytes,
     EthStorageAbi,
     BLOB_COUNT_LIMIT
@@ -56,8 +56,8 @@ export class EthStorage {
             throw new Error(`EthStorage: Invalid data.`);
         }
         data = Buffer.from(data);
-        if (data.length < 0 || data.length > BLOB_DATA_SIZE) {
-            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${BLOB_DATA_SIZE}.`);
+        if (data.length < 0 || data.length > DEFAULT_BLOB_DATA_SIZE) {
+            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
         }
 
         const hexKey = ethers.keccak256(stringToHex(key));
@@ -90,8 +90,8 @@ export class EthStorage {
             throw new Error(`EthStorage: Invalid data.`);
         }
         data = Buffer.from(data);
-        if (data.length < 0 || data.length > BLOB_DATA_SIZE) {
-            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${BLOB_DATA_SIZE}.`);
+        if (data.length < 0 || data.length > DEFAULT_BLOB_DATA_SIZE) {
+            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
         }
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
@@ -147,16 +147,14 @@ export class EthStorage {
         }
 
         const blobLength = keys.length;
-        const blobDataSize = BLOB_DATA_SIZE;
-
         const blobArr = [];
         const keyArr = [];
         const idArr = [];
         const lengthArr = [];
         for (let i = 0; i < blobLength; i++) {
             const d = Buffer.from(dataBlobs[i]);
-            if (d.length < 0 || d.length > blobDataSize) {
-                throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${blobDataSize}.`);
+            if (d.length < 0 || d.length > DEFAULT_BLOB_DATA_SIZE) {
+                throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
             }
             const blob = encodeBlobs(d);
             blobArr.push(blob[0]);

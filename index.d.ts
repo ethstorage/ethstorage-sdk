@@ -8,6 +8,9 @@ declare module 'ethstorage-sdk' {
     export const MAX_BLOB_COUNT: number;
     export const PaddingPer31Bytes: number;
     export const RawData: number;
+    export const BLOB_COUNT_LIMIT: number;
+    export const UPLOAD_TYPE_CALLDATA: number;
+    export const UPLOAD_TYPE_BLOB: number;
 
     export const ETHSTORAGE_MAPPING: {
       [chainId: number]: string;
@@ -17,12 +20,28 @@ declare module 'ethstorage-sdk' {
     export const FlatDirectoryAbi: string[];
     export const FlatDirectoryBytecode: string;
 
+    // Types
+    export type BufferLike = Buffer | Uint8Array;
+    export type FileLike = File | NodeFile;
+    export type ContentLike = BufferLike | FileLike;
+
     // Interfaces
     export interface SDKConfig {
       rpc: string;
-      ethStorageRpc: string;
+      ethStorageRpc?: string;
       privateKey: string;
       address?: string;
+    }
+
+    export interface EstimateGasRequest {
+        key: string,
+        content: ContentLike,
+        type: number,
+        gasIncPct?: number,
+    }
+
+    export interface UploadRequest extends EstimateGasRequest {
+        callback: Partial<UploadCallback>,
     }
 
     export interface CostEstimate {
@@ -61,10 +80,8 @@ declare module 'ethstorage-sdk' {
       setDefault(filename: string): Promise<boolean>;
       remove(key: string): Promise<boolean>;
       download(key: string, cb: Partial<DownloadCallback>): void;
-      estimateCost(key: string, data: Buffer | Uint8Array, gasIncPct?: number): Promise<CostEstimate>;
-      estimateFileCost(key: string, file: File | NodeFile, gasIncPct?: number): Promise<CostEstimate>;
-      upload(key: string, data: Buffer | Uint8Array, cb?: Partial<UploadCallback>, gasIncPct?: number): Promise<void>;
-      uploadFile(key: string, file: File | NodeFile, cb?: Partial<UploadCallback>, gasIncPct?: number): Promise<void>;
+      estimateCost(request: EstimateGasRequest): Promise<CostEstimate>;
+      upload(request: UploadRequest): Promise<void>;
     }
 
     // Utils
@@ -87,6 +104,10 @@ declare module 'ethstorage-sdk' {
       export function encodeBlobs(data: Buffer): Uint8Array[];
       export function decodeBlob(blob: string | Uint8Array): Uint8Array;
       export function decodeBlobs(blobs: string | Uint8Array): Buffer;
+
+      export function getFileChunk(file: FileLike, fileSize: number, start: number, end: number);
+      export function isBuffer(content: BufferLike);
+      export function isFile(content: FileLike);
     }
 
     // Default export

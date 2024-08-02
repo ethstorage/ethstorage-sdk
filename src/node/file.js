@@ -3,6 +3,7 @@ import {assertArgument} from "ethers";
 
 export class NodeFile {
     constructor(filePath, start = 0, end = null, type = '') {
+        this.isNodeJs = true;
         this.filePath = filePath;
         this.type = type;
 
