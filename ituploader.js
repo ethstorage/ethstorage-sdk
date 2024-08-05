@@ -16,8 +16,6 @@ const contractABI = [
 const provider = new ethers.JsonRpcProvider(RPC);
 const contract = new Contract(contractAddr, contractABI, provider);
 const MAX_BLOB = 128n;
-// const filePath = './dist/index.esm.js.map';
-// const name = filePath.substring(filePath.lastIndexOf("/") + 1);
 
 async function UploadBlobsForIntegrationTest() {
 	// put blobs
