@@ -2,7 +2,6 @@ const {ethers, Contract} = require("ethers");
 const crypto = require('crypto');
 const {EthStorage} = require("./dist/index.cjs.js");
 const {NodeFile} = require("./dist/file.cjs.js");
-const fs = require('fs');
 
 const dotenv = require("dotenv")
 dotenv.config()
