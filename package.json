@@ -15,7 +15,8 @@
     }
   },
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "async-mutex": "^0.5.0",
