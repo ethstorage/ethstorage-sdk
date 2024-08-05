@@ -43,7 +43,7 @@ async function EthStorageTest() {
     status = await es.writeBlobs(keys, blobData);
     console.log(status);
 }
-// EthStorageTest();
+EthStorageTest();
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({

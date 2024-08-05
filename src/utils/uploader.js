@@ -80,9 +80,9 @@ export class BlobUploader {
         return null;
     }
 
-    async sendTx(tx, blobs) {
+    async #populateTransaction(tx, blobs) {
         if (!blobs) {
-            return await this.#wallet.sendTransaction(tx);
+            return tx;
         }
 
         if (tx.maxFeePerBlobGas == null) {
@@ -112,13 +112,30 @@ export class BlobUploader {
         tx.blobVersionedHashes = versionedHashes;
         tx.blobs = ethersBlobs;
         tx.kzg = kzg;
-        return await this.#wallet.sendTransaction(tx);
+        return tx;
+    }
+
+    async sendTx(tx, blobs) {
+        const txObj = await this.#populateTransaction(tx, blobs);
+        return await this.#wallet.sendTransaction(txObj);
+    }
+
+    async #sendTxLock(tx) {
+        tx.nonce = await this.getNonce();
+        return await this.#wallet.provider.broadcastTransaction(await this.#wallet.signTransaction(tx));
     }
 
     async sendTxLock(tx, blobs) {
+        const txObj = await this.#populateTransaction(tx, blobs);
+
+        // init
+        txObj.nonce = 0;
+        const pop = await this.#wallet.populateTransaction(tx);
+        delete pop.from;
+
         const release = await this.#mutex.acquire();
         try {
-            return await this.sendTx(tx, blobs);
+            return await this.#sendTxLock(ethers.Transaction.from(pop));
         } finally {
             release();
         }
