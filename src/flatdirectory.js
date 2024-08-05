@@ -616,7 +616,7 @@ export class FlatDirectory {
         }
         // send
         const txResponse = await this.#blobUploader.sendTxLock(tx, blobArr);
-        console.log(`FlatDirectory: The ${chunkIdArr} chunks hash is ${txResponse.hash}`, key);
+        console.log(`FlatDirectory: The ${chunkIdArr} chunks hash is ${txResponse.hash}`, "", key);
         const txReceipt = await txResponse.wait();
         return txReceipt && txReceipt.status;
     }
@@ -637,7 +637,7 @@ export class FlatDirectory {
 
         // send
         const txResponse = await this.#blobUploader.sendTxLock(tx);
-        console.log(`FlatDirectory: The ${chunkId} chunk hash is ${txResponse.hash}`, key);
+        console.log(`FlatDirectory: The ${chunkId} chunk hash is ${txResponse.hash}`, "", key);
         const txReceipt = await txResponse.wait();
         return txReceipt && txReceipt.status;
     }

@@ -57,7 +57,7 @@ export class BlobUploader {
     }
 
     async getNonce() {
-        return await this.#wallet.getNonce();
+        return await this.#wallet.getNonce("pending");
     }
 
     async getBlobGasPrice() {
@@ -80,7 +80,7 @@ export class BlobUploader {
         return null;
     }
 
-    async #populateTransaction(tx, blobs) {
+    async #populate(tx, blobs) {
         if (!blobs) {
             return tx;
         }
@@ -116,29 +116,29 @@ export class BlobUploader {
     }
 
     async sendTx(tx, blobs) {
-        const txObj = await this.#populateTransaction(tx, blobs);
+        const txObj = await this.#populate(tx, blobs);
         return await this.#wallet.sendTransaction(txObj);
     }
 
     async #sendTxLock(tx) {
-        tx.nonce = await this.getNonce();
-        return await this.#wallet.provider.broadcastTransaction(await this.#wallet.signTransaction(tx));
+        const release = await this.#mutex.acquire();
+        try {
+            tx.nonce = await this.getNonce();
+            return await this.#wallet.provider.broadcastTransaction(await this.#wallet.signTransaction(tx));
+        } finally {
+            release();
+        }
     }
 
     async sendTxLock(tx, blobs) {
-        const txObj = await this.#populateTransaction(tx, blobs);
+        const txObj = await this.#populate(tx, blobs);
 
         // init
         txObj.nonce = 0;
         const pop = await this.#wallet.populateTransaction(tx);
         delete pop.from;
-
-        const release = await this.#mutex.acquire();
-        try {
-            return await this.#sendTxLock(ethers.Transaction.from(pop));
-        } finally {
-            release();
-        }
+        tx = ethers.Transaction.from(pop);
+        return await this.#sendTxLock(tx);
     }
 
     getBlobHash(blob) {
