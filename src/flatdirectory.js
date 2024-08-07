@@ -16,6 +16,9 @@ import {
     stringToHex
 } from "./utils";
 
+const workerpool = require('workerpool');
+const pool = workerpool.pool(__dirname + '/worker.js');
+
 const REMOVE_FAIL = -1;
 const REMOVE_NORMAL = 0;
 const REMOVE_SUCCESS = 1;
@@ -132,7 +135,7 @@ export class FlatDirectory {
         const provider = new ethers.JsonRpcProvider(this.#ethStorageRpc);
         const contract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, provider);
         try {
-            const blobCount = await contract.countChunks(hexName);
+            const blobCount = await this.#countChunks(contract, hexName);
             for (let i = 0; i < blobCount; i++) {
                 const result = await contract.readChunk(hexName, i);
                 const chunk = ethers.getBytes(result[0]);
@@ -210,7 +213,7 @@ export class FlatDirectory {
         let gasLimit = 0;
         const [cost, oldChunkLength, maxFeePerBlobGas, gasFeeData] = await Promise.all([
             fileContract.upfrontPayment(),
-            fileContract.countChunks(hexName),
+            this.#countChunks(fileContract, hexName),
             this.#blobUploader.getBlobGasPrice(),
             this.#blobUploader.getGasPrice(),
         ]);
@@ -222,19 +225,17 @@ export class FlatDirectory {
             const blobArr = encodeBlobs(data);
             const chunkIdArr = [];
             const chunkSizeArr = [];
-            const blobHashArr = [];
             const blobHashRequestArr = [];
             for (let j = 0; j < blobArr.length; j++) {
                 chunkIdArr.push(i + j);
                 chunkSizeArr.push(DEFAULT_BLOB_DATA_SIZE);
 
-                blobHashArr.push(this.#blobUploader.getBlobHash(blobArr[j]));
                 blobHashRequestArr.push(fileContract.getChunkHash(hexName, i + j));
             }
 
             // check change
             if (chunkIdArr[0] < oldChunkLength) {
-                const isChange = await this.#checkChange(fileContract, blobHashArr, blobHashRequestArr);
+                const isChange = await this.#checkChange(blobArr, blobHashRequestArr);
                 if (!isChange) {
                     continue;
                 }
@@ -246,6 +247,7 @@ export class FlatDirectory {
             totalStorageCost += value;
             // gas cost
             if (gasLimit === 0) {
+                const blobHashArr = await this.#getBlobHashes(blobArr);
                 gasLimit = await fileContract.writeChunks.estimateGas(hexName, chunkIdArr, chunkSizeArr, {
                     value: value,
                     blobVersionedHashes: blobHashArr
@@ -317,7 +319,7 @@ export class FlatDirectory {
         }
 
         const [oldChunkLength, gasFeeData] = await Promise.all([
-            fileContract.countChunks(hexName),
+            this.#countChunks(fileContract, hexName),
             this.#blobUploader.getGasPrice(),
         ]);
 
@@ -398,7 +400,7 @@ export class FlatDirectory {
         // check old data
         const [cost, oldBlobLength] = await Promise.all([
             fileContract.upfrontPayment(),
-            fileContract.countChunks(hexName),
+            this.#countChunks(fileContract, hexName)
         ]);
         const clearState = await this.#clearOldFile(hexName, blobLength, oldBlobLength);
         if (clearState === REMOVE_FAIL) {
@@ -414,7 +416,6 @@ export class FlatDirectory {
             const blobArr = encodeBlobs(data);
             const chunkIdArr = [];
             const chunkSizeArr = [];
-            const blobHashArr = [];
             const blobHashRequestArr = [];
             for (let j = 0; j < blobArr.length; j++) {
                 chunkIdArr.push(i + j);
@@ -424,14 +425,13 @@ export class FlatDirectory {
                 } else {
                     chunkSizeArr.push(DEFAULT_BLOB_DATA_SIZE);
                 }
-                blobHashArr.push(this.#blobUploader.getBlobHash(blobArr[j]));
                 blobHashRequestArr.push(fileContract.getChunkHash(hexName, i + j));
             }
 
             // check change
             if (clearState === REMOVE_NORMAL) {
                 try {
-                    const isChange = await this.#checkChange(fileContract, blobHashArr, blobHashRequestArr);
+                    const isChange = await this.#checkChange(blobArr, blobHashRequestArr);
                     if (!isChange) {
                         callback.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength, false);
                         continue;
@@ -520,7 +520,7 @@ export class FlatDirectory {
         }
 
         // check old data
-        const oldChunkLength = await fileContract.countChunks(hexName);
+        const oldChunkLength = await this.#countChunks(fileContract, hexName);
         const clearState = await this.#clearOldFile(hexName, chunkLength, oldChunkLength);
         if (clearState === REMOVE_FAIL) {
             callback.onFail(new Error(`FlatDirectory: Failed to delete old data!`));
@@ -586,8 +586,9 @@ export class FlatDirectory {
         }
     }
 
-    async #checkChange(fileContract, blobHashArr, blobHashRequestArr) {
+    async #checkChange(blobArr, blobHashRequestArr) {
         let hasChange = false;
+        const blobHashArr = await this.#getBlobHashes(blobArr);
         const dataHashArr = await Promise.all(blobHashRequestArr);
         for (let i = 0; i < blobHashArr.length; i++) {
             if (blobHashArr[i] !== dataHashArr[i]) {
@@ -640,5 +641,16 @@ export class FlatDirectory {
         console.log(`FlatDirectory: The ${chunkId} chunk hash is ${txResponse.hash}`, key);
         const txReceipt = await txResponse.wait();
         return txReceipt && txReceipt.status;
+    }
+
+    async #countChunks(fileContract, hexName) {
+        const count = await fileContract.countChunks(hexName);
+        // Bigint to number
+        return Number(count);
+    }
+
+    async #getBlobHashes(blobArr) {
+        const promises = blobArr.map(blob => pool.exec('getBlobHash', [blob]));
+        return await Promise.all(promises);
     }
 }

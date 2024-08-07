@@ -17,7 +17,7 @@ export default [
             }
         ],
         plugins: [commonjs(), resolve()],
-        external: ["ethers", "kzg-wasm"]
+        external: ["ethers", "kzg-wasm", "workerpool"]
     },
     {
         input: 'src/node/file.js',
@@ -28,6 +28,20 @@ export default [
         },
         plugins: [commonjs(), resolve()],
         external: ["ethers"]
+    },
+    {
+        input: 'src/worker.js',
+        output: {
+            file: 'dist/worker.js',
+            format: 'umd',
+            globals: {
+                "workerpool": 'workerpool',
+                "ethers": 'ethers',
+                "kzg-wasm": "kzgWasm"
+            },
+        },
+        plugins: [commonjs(), resolve()],
+        external: ["ethers", "kzg-wasm", "workerpool"]
     },
 ];
 

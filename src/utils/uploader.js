@@ -1,6 +1,6 @@
 import {ethers} from "ethers";
-import {loadKZG} from 'kzg-wasm';
 import {Mutex} from 'async-mutex';
+import {initializeKzg} from './wasm';
 
 function computeVersionedHash(commitment, blobCommitmentVersion) {
     const computedVersionedHash = new Uint8Array(32);
@@ -51,7 +51,7 @@ export class BlobUploader {
 
     async init() {
         if (!this.#kzg) {
-            this.#kzg = await loadKZG();
+            this.#kzg = await initializeKzg();
         }
         return this.#kzg;
     }
