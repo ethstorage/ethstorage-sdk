@@ -16,9 +16,6 @@ import {
     stringToHex
 } from "./utils";
 
-const workerpool = require('workerpool');
-const pool = workerpool.pool(__dirname + '/worker.js');
-
 const REMOVE_FAIL = -1;
 const REMOVE_NORMAL = 0;
 const REMOVE_SUCCESS = 1;
@@ -650,7 +647,7 @@ export class FlatDirectory {
     }
 
     async #getBlobHashes(blobArr) {
-        const promises = blobArr.map(blob => pool.exec('getBlobHash', [blob]));
+        const promises = blobArr.map(blob => this.#blobUploader.getBlobHash(blob));
         return await Promise.all(promises);
     }
 }
