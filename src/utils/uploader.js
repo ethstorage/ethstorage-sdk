@@ -1,18 +1,7 @@
 import {ethers} from "ethers";
+import {loadKZG} from 'kzg-wasm';
 import {Mutex} from 'async-mutex';
-import {initializeKzg} from './wasm';
-
-function computeVersionedHash(commitment, blobCommitmentVersion) {
-    const computedVersionedHash = new Uint8Array(32);
-    computedVersionedHash.set([blobCommitmentVersion], 0);
-    const hash = ethers.getBytes(ethers.sha256(commitment));
-    computedVersionedHash.set(hash.subarray(1), 1);
-    return computedVersionedHash;
-}
-
-function commitmentsToVersionedHashes(commitment) {
-    return computeVersionedHash(commitment, 0x01);
-}
+import {getHash, commitmentsToVersionedHashes} from "./util";
 
 // blob gas price
 const MIN_BLOB_GASPRICE = 1n;
@@ -51,7 +40,7 @@ export class BlobUploader {
 
     async init() {
         if (!this.#kzg) {
-            this.#kzg = await initializeKzg();
+            this.#kzg = await loadKZG();
         }
         return this.#kzg;
     }
@@ -125,11 +114,6 @@ export class BlobUploader {
     }
 
     getBlobHash(blob) {
-        const kzg = this.#kzg;
-        const commit = kzg.blobToKzgCommitment(blob);
-        const localHash = commitmentsToVersionedHashes(commit);
-        const hash = new Uint8Array(32);
-        hash.set(localHash.subarray(0, 32 - 8));
-        return ethers.hexlify(hash);
+        return getHash(this.#kzg, blob);
     }
 }

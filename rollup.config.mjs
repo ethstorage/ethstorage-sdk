@@ -30,7 +30,7 @@ export default [
         external: ["ethers"]
     },
     {
-        input: 'src/worker.js',
+        input: 'src/worker/worker.js',
         output: {
             file: 'dist/worker.js',
             format: 'umd',
