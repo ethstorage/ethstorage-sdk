@@ -37,7 +37,7 @@ export default [
             sourcemap: true,
         },
         plugins: [commonjs(), resolve()],
-        external: ["ethers", "kzg-wasm", "workerpool"]
+        external: ["kzg-wasm", "workerpool"]
     },
 ];
 

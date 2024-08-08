@@ -1,6 +1,5 @@
 import workerpool from 'workerpool';
 import {loadKZG} from 'kzg-wasm';
-import {getHash} from "../utils";
 
 let kzgInstance = null;
 
