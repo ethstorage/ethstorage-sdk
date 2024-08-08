@@ -38,8 +38,7 @@ export function commitmentsToVersionedHashes(commitment) {
     return computeVersionedHash(commitment, 0x01);
 }
 
-export function getHash(kzg, blob) {
-    const commit = kzg.blobToKzgCommitment(blob);
+export function getHash(commit) {
     const localHash = commitmentsToVersionedHashes(commit);
     const hash = new Uint8Array(32);
     hash.set(localHash.subarray(0, 32 - 8));

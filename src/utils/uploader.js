@@ -69,7 +69,7 @@ export class BlobUploader {
         return null;
     }
 
-    async sendTx(tx, blobs) {
+    async sendTx(tx, blobs = null, commitments = null) {
         if (!blobs) {
             return await this.#wallet.sendTransaction(tx);
         }
@@ -84,7 +84,7 @@ export class BlobUploader {
         const versionedHashes = [];
         for (let i = 0; i < blobs.length; i++) {
             const blob = blobs[i];
-            const commitment = kzg.blobToKzgCommitment(blob);
+            const commitment = (commitments && commitments.length > i) ? commitments[i] : kzg.blobToKzgCommitment(blob);
             const proof = kzg.computeBlobKzgProof(blob, commitment);
             ethersBlobs.push({
                 data: blob,
@@ -104,16 +104,21 @@ export class BlobUploader {
         return await this.#wallet.sendTransaction(tx);
     }
 
-    async sendTxLock(tx, blobs) {
+    async sendTxLock(tx, blobs = null, commitments = null) {
         const release = await this.#mutex.acquire();
         try {
-            return await this.sendTx(tx, blobs);
+            return await this.sendTx(tx, blobs, commitments);
         } finally {
             release();
         }
     }
 
+    getCommitment(blob) {
+        return this.#kzg.blobToKzgCommitment(blob);
+    }
+
     getBlobHash(blob) {
-        return getHash(this.#kzg, blob);
+        const commit = this.getCommitment(blob);
+        return getHash(commit);
     }
 }

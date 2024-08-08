@@ -11,11 +11,11 @@ async function initializeKzg() {
     return kzgInstance;
 }
 
-async function getBlobHash(blob) {
+async function getCommitment(blob) {
     const kzg = await initializeKzg();
-    return getHash(kzg, blob);
+    return kzg.blobToKzgCommitment(blob);
 }
 
 workerpool.worker({
-    getBlobHash: getBlobHash,
+    getCommitment: getCommitment,
 });
