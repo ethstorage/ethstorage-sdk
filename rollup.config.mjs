@@ -8,23 +8,36 @@ export default [
             {
                 file: 'dist/index.cjs.js',
                 format: 'cjs',
+                sourcemap: true
             },
             {
                 file: 'dist/index.esm.js',
                 format: 'esm',
+                sourcemap: true
             }
         ],
         plugins: [commonjs(), resolve()],
-        external: ["ethers", "kzg-wasm"]
+        external: ["ethers", "kzg-wasm", "workerpool"]
     },
     {
         input: 'src/node/file.js',
         output: {
             file: 'dist/file.cjs.js',
             format: 'cjs',
+            sourcemap: true,
         },
         plugins: [commonjs(), resolve()],
         external: ["ethers"]
-    }
+    },
+    {
+        input: 'src/worker/worker.js',
+        output: {
+            file: 'dist/worker.cjs.js',
+            format: 'cjs',
+            sourcemap: true,
+        },
+        plugins: [commonjs(), resolve()],
+        external: ["ethers", "kzg-wasm", "workerpool"]
+    },
 ];
 

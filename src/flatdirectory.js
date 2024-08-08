@@ -16,6 +16,9 @@ import {
     stringToHex
 } from "./utils";
 
+import workerpool from 'workerpool';
+const pool = workerpool.pool(__dirname + '/worker.cjs.js');
+
 const REMOVE_FAIL = -1;
 const REMOVE_NORMAL = 0;
 const REMOVE_SUCCESS = 1;
@@ -647,7 +650,10 @@ export class FlatDirectory {
     }
 
     async #getBlobHashes(blobArr) {
-        const promises = blobArr.map(blob => this.#blobUploader.getBlobHash(blob));
+        const isNode = typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
+        const promises = isNode
+            ? blobArr.map(blob => pool.exec('getBlobHash', [blob]))
+            : blobArr.map(blob => this.#blobUploader.getBlobHash(blob));
         return await Promise.all(promises);
     }
 }
