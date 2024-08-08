@@ -1,18 +1,7 @@
 import {ethers} from "ethers";
 import {loadKZG} from 'kzg-wasm';
 import {Mutex} from 'async-mutex';
-
-function computeVersionedHash(commitment, blobCommitmentVersion) {
-    const computedVersionedHash = new Uint8Array(32);
-    computedVersionedHash.set([blobCommitmentVersion], 0);
-    const hash = ethers.getBytes(ethers.sha256(commitment));
-    computedVersionedHash.set(hash.subarray(1), 1);
-    return computedVersionedHash;
-}
-
-function commitmentsToVersionedHashes(commitment) {
-    return computeVersionedHash(commitment, 0x01);
-}
+import {getHash, commitmentsToVersionedHashes} from "./util";
 
 // blob gas price
 const MIN_BLOB_GASPRICE = 1n;
@@ -80,7 +69,7 @@ export class BlobUploader {
         return null;
     }
 
-    async sendTx(tx, blobs) {
+    async sendTx(tx, blobs = null, commitments = null) {
         if (!blobs) {
             return await this.#wallet.sendTransaction(tx);
         }
@@ -95,7 +84,7 @@ export class BlobUploader {
         const versionedHashes = [];
         for (let i = 0; i < blobs.length; i++) {
             const blob = blobs[i];
-            const commitment = kzg.blobToKzgCommitment(blob);
+            const commitment = (commitments && commitments.length > i) ? commitments[i] : kzg.blobToKzgCommitment(blob);
             const proof = kzg.computeBlobKzgProof(blob, commitment);
             ethersBlobs.push({
                 data: blob,
@@ -115,21 +104,21 @@ export class BlobUploader {
         return await this.#wallet.sendTransaction(tx);
     }
 
-    async sendTxLock(tx, blobs) {
+    async sendTxLock(tx, blobs = null, commitments = null) {
         const release = await this.#mutex.acquire();
         try {
-            return await this.sendTx(tx, blobs);
+            return await this.sendTx(tx, blobs, commitments);
         } finally {
             release();
         }
     }
 
+    getCommitment(blob) {
+        return this.#kzg.blobToKzgCommitment(blob);
+    }
+
     getBlobHash(blob) {
-        const kzg = this.#kzg;
-        const commit = kzg.blobToKzgCommitment(blob);
-        const localHash = commitmentsToVersionedHashes(commit);
-        const hash = new Uint8Array(32);
-        hash.set(localHash.subarray(0, 32 - 8));
-        return ethers.hexlify(hash);
+        const commit = this.getCommitment(blob);
+        return getHash(commit);
     }
 }
