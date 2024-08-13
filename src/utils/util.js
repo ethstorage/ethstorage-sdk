@@ -20,10 +20,17 @@ export function isBuffer(content) {
 }
 
 export function isFile(content) {
-    const isNodeFile = content && typeof content === 'object' &&
-        typeof content.isNodeJs === 'boolean' &&
-        content.isNodeJs;
-    return (content instanceof File) || isNodeFile;
+    if (isNodejs()) {
+        return content && typeof content === 'object' &&
+            typeof content.isNodeJs === 'boolean' &&
+            content.isNodeJs;
+    } else {
+        return content instanceof File;
+    }
+}
+
+export function isNodejs() {
+    return typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 }
 
 function computeVersionedHash(commitment, blobCommitmentVersion) {
