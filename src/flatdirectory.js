@@ -13,7 +13,7 @@ import {
     BlobUploader, encodeBlobs,
     getChainId, getFileChunk, getHash,
     isBuffer, isFile,
-    stringToHex
+    stringToHex, isNodejs
 } from "./utils";
 
 import workerpool from 'workerpool';
@@ -556,8 +556,7 @@ export class FlatDirectory {
     }
 
     async #getBlobCommitments(blobArr) {
-        const isNode = typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
-        const promises = isNode
+        const promises = isNodejs()
             ? blobArr.map(blob => pool.exec('getCommitment', [blob]))
             : blobArr.map(blob => this.#blobUploader.getCommitment(blob));
         return await Promise.all(promises);
