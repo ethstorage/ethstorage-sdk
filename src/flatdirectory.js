@@ -187,17 +187,14 @@ export class FlatDirectory {
 
     // private method
     async #estimateCostByBlob(request) {
+        const {key, content, gasIncPct = 0} = request;
+
         if (!this.#isSupportBlob) {
             throw new Error(`FlatDirectory: The contract does not support blob upload!`);
         }
 
-        const {key, content, gasIncPct} = request;
-        let blobLength = 0;
-        if (isFile(content)) {
-            blobLength = Math.ceil(content.size / DEFAULT_BLOB_DATA_SIZE);
-        } else if (isBuffer(content)) {
-            blobLength = Math.ceil(content.length / DEFAULT_BLOB_DATA_SIZE);
-        } else {
+        const blobLength = this.#getBlobLength(content);
+        if (blobLength === -1) {
             throw new Error(`FlatDirectory: Invalid upload content!`);
         }
 
@@ -220,18 +217,12 @@ export class FlatDirectory {
 
         // send
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-            const data = isBuffer(content) ? Buffer.from(content).subarray(i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE) :
-                await getFileChunk(content, content.size, i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE);
-            const blobArr = encodeBlobs(data);
-            const chunkIdArr = [];
-            const chunkSizeArr = [];
-            const blobHashRequestArr = [];
-            for (let j = 0; j < blobArr.length; j++) {
-                chunkIdArr.push(i + j);
-                chunkSizeArr.push(DEFAULT_BLOB_DATA_SIZE);
-
-                blobHashRequestArr.push(fileContract.getChunkHash(hexName, i + j));
-            }
+            const {
+                blobArr,
+                chunkIdArr,
+                chunkSizeArr,
+                blobHashRequestArr
+            } = await this.#getBlobInfo(fileContract, content, hexName, blobLength, i);
 
             let blobHashArr;
             // check change
@@ -255,17 +246,9 @@ export class FlatDirectory {
                     blobVersionedHashes: blobHashArr
                 });
             }
-            if (gasIncPct) {
-                const gasPrice = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * BigInt(100 + gasIncPct) / BigInt(100);
-                const gasCost = gasPrice * gasLimit;
-                const blobGasPrice = maxFeePerBlobGas * BigInt(100 + gasIncPct) / BigInt(100);
-                const blobGasCost = blobGasPrice * BigInt(BLOB_SIZE);
-                totalGasCost += gasCost + blobGasCost;
-            } else {
-                const gasCost = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * gasLimit;
-                const blobGasCost = maxFeePerBlobGas * BigInt(BLOB_SIZE);
-                totalGasCost += gasCost + blobGasCost;
-            }
+            const gasCost = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * BigInt(100 + gasIncPct) / BigInt(100) * gasLimit;
+            const blobGasCost = maxFeePerBlobGas * BigInt(100 + gasIncPct) / BigInt(100) * BigInt(BLOB_SIZE);
+            totalGasCost += gasCost + blobGasCost;
         }
 
         return {
@@ -275,41 +258,10 @@ export class FlatDirectory {
     }
 
     async #estimateCostByCallData(request) {
-        const {key, content, gasIncPct} = request;
+        const {key, content, gasIncPct = 0} = request;
 
-        let chunkDataSize = 0;
-        let chunkLength = 1;
-        if (isFile(content)) {
-            chunkDataSize = content.size;
-            if (GALILEO_CHAIN_ID === this.#chainId) {
-                if (content.size > 475 * 1024) {
-                    // Data need to be sliced if file > 475K
-                    chunkDataSize = 475 * 1024;
-                    chunkLength = Math.ceil(content.size / (475 * 1024));
-                }
-            } else {
-                if (content.size > 24 * 1024 - 326) {
-                    // Data need to be sliced if file > 24K
-                    chunkDataSize = 24 * 1024 - 326;
-                    chunkLength = Math.ceil(content.size / (24 * 1024 - 326));
-                }
-            }
-        } else if (isBuffer(content)) {
-            chunkDataSize = content.length;
-            if (GALILEO_CHAIN_ID === this.#chainId) {
-                if (content.length > 475 * 1024) {
-                    // Data need to be sliced if file > 475K
-                    chunkDataSize = 475 * 1024;
-                    chunkLength = Math.ceil(content.length / (475 * 1024));
-                }
-            } else {
-                if (content.length > 24 * 1024 - 326) {
-                    // Data need to be sliced if file > 24K
-                    chunkDataSize = 24 * 1024 - 326;
-                    chunkLength = Math.ceil(content.length / (24 * 1024 - 326));
-                }
-            }
-        } else {
+        const {chunkDataSize, chunkLength} = this.#getChunkLength(content);
+        if (chunkDataSize === -1) {
             throw new Error(`FlatDirectory: Invalid upload content!`);
         }
 
@@ -354,12 +306,8 @@ export class FlatDirectory {
                 });
             }
             totalStorageCost += cost;
-            if (gasIncPct) {
-                totalGasCost += (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas)
-                    * BigInt(100 + gasIncPct) / BigInt(100) * gasLimit;
-            } else {
-                totalGasCost += (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * gasLimit;
-            }
+            totalGasCost += (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas)
+                * BigInt(100 + gasIncPct) / BigInt(100) * gasLimit;
         }
 
         return {
@@ -380,6 +328,13 @@ export class FlatDirectory {
             return;
         }
 
+        const blobLength = this.#getBlobLength(content);
+        if (blobLength === -1) {
+            callback.onFail(new Error(`FlatDirectory: Invalid upload content!`));
+            callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
+            return;
+        }
+
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         const fileMod = await fileContract.getStorageMode(hexName);
@@ -389,16 +344,7 @@ export class FlatDirectory {
             return;
         }
 
-        let blobLength;
-        if (isFile(content)) {
-            blobLength = Math.ceil(content.size / DEFAULT_BLOB_DATA_SIZE);
-        } else if (isBuffer(content)) {
-            blobLength = Math.ceil(content.length / DEFAULT_BLOB_DATA_SIZE);
-        } else {
-            callback.onFail(new Error(`FlatDirectory: Invalid upload content!`));
-            callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
-            return;
-        }
+
         // check old data
         const [cost, oldBlobLength] = await Promise.all([
             fileContract.upfrontPayment(),
@@ -413,22 +359,12 @@ export class FlatDirectory {
 
         // send
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-            const data = isBuffer(content) ? Buffer.from(content).subarray(i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE) :
-                await getFileChunk(content, content.size, i * DEFAULT_BLOB_DATA_SIZE, (i + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE);
-            const blobArr = encodeBlobs(data);
-            const chunkIdArr = [];
-            const chunkSizeArr = [];
-            const blobHashRequestArr = [];
-            for (let j = 0; j < blobArr.length; j++) {
-                chunkIdArr.push(i + j);
-                if (i + j === blobLength - 1) {
-                    const size = isBuffer(content) ? content.length : content.size;
-                    chunkSizeArr.push(size - DEFAULT_BLOB_DATA_SIZE * (blobLength - 1));
-                } else {
-                    chunkSizeArr.push(DEFAULT_BLOB_DATA_SIZE);
-                }
-                blobHashRequestArr.push(fileContract.getChunkHash(hexName, i + j));
-            }
+            const {
+                blobArr,
+                chunkIdArr,
+                chunkSizeArr,
+                blobHashRequestArr
+            } = await this.#getBlobInfo(fileContract, content, hexName, blobLength, i);
             const blobCommitmentArr = await this.#getBlobCommitments(blobArr);
 
             // check change
@@ -476,49 +412,18 @@ export class FlatDirectory {
         let totalStorageCost = 0n;
 
         const {key, content, callback, gasIncPct} = request;
+        const {chunkDataSize, chunkLength} = this.#getChunkLength(content);
+        if (chunkDataSize === -1) {
+            callback.onFail(new Error(`FlatDirectory: Invalid upload content!`));
+            callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
+            return;
+        }
+
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         const fileMod = await fileContract.getStorageMode(hexName);
         if (fileMod !== BigInt(UPLOAD_TYPE_CALLDATA) && fileMod !== 0n) {
             callback.onFail(new Error(`FlatDirectory: This file does not support calldata upload!`));
-            callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
-            return;
-        }
-
-        let chunkDataSize;
-        let chunkLength = 1;
-        if (isFile(content)) {
-            chunkDataSize = content.size;
-            if (GALILEO_CHAIN_ID === this.#chainId) {
-                if (content.size > 475 * 1024) {
-                    // Data need to be sliced if file > 475K
-                    chunkDataSize = 475 * 1024;
-                    chunkLength = Math.ceil(content.size / (475 * 1024));
-                }
-            } else {
-                if (content.size > 24 * 1024 - 326) {
-                    // Data need to be sliced if file > 24K
-                    chunkDataSize = 24 * 1024 - 326;
-                    chunkLength = Math.ceil(content.size / (24 * 1024 - 326));
-                }
-            }
-        } else if (isBuffer(content)) {
-            chunkDataSize = content.length;
-            if (GALILEO_CHAIN_ID === this.#chainId) {
-                if (content.length > 475 * 1024) {
-                    // Data need to be sliced if file > 475K
-                    chunkDataSize = 475 * 1024;
-                    chunkLength = Math.ceil(content.length / (475 * 1024));
-                }
-            } else {
-                if (content.length > 24 * 1024 - 326) {
-                    // Data need to be sliced if file > 24K
-                    chunkDataSize = 24 * 1024 - 326;
-                    chunkLength = Math.ceil(content.length / (24 * 1024 - 326));
-                }
-            }
-        } else {
-            callback.onFail(new Error(`FlatDirectory: Invalid upload content!`));
             callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
             return;
         }
@@ -535,6 +440,7 @@ export class FlatDirectory {
         for (let i = 0; i < chunkLength; i++) {
             const chunk = isBuffer(content) ? Buffer.from(content).subarray(i * chunkDataSize, (i + 1) * chunkDataSize) :
                 await getFileChunk(content, content.size, i * chunkDataSize, (i + 1) * chunkDataSize);
+
             // check is change
             if (clearState === REMOVE_NORMAL) {
                 const localHash = ethers.keccak256(chunk);
@@ -550,7 +456,6 @@ export class FlatDirectory {
                 }
             }
 
-            // upload
             // upload
             try {
                 const status = await this.#uploadCallData(fileContract, key, hexName, i, chunk, gasIncPct);
@@ -665,5 +570,82 @@ export class FlatDirectory {
     async #getBlobHashes(blobArr) {
         const commitments = await this.#getBlobCommitments(blobArr);
         return this.#getHashes(commitments);
+    }
+
+
+    #getBlobLength(content) {
+        let blobLength = -1;
+        if (isFile(content)) {
+            blobLength = Math.ceil(content.size / DEFAULT_BLOB_DATA_SIZE);
+        } else if (isBuffer(content)) {
+            blobLength = Math.ceil(content.length / DEFAULT_BLOB_DATA_SIZE);
+        }
+        return blobLength;
+    }
+
+    async #getBlobInfo(fileContract, content, hexName, blobLength, index) {
+        const data = isBuffer(content)
+            ? Buffer.from(content).subarray(index * DEFAULT_BLOB_DATA_SIZE, (index + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE) :
+            await getFileChunk(content, content.size, index * DEFAULT_BLOB_DATA_SIZE, (index + MAX_BLOB_COUNT) * DEFAULT_BLOB_DATA_SIZE);
+        const blobArr = encodeBlobs(data);
+        const chunkIdArr = [];
+        const chunkSizeArr = [];
+        const blobHashRequestArr = [];
+        for (let j = 0; j < blobArr.length; j++) {
+            chunkIdArr.push(index + j);
+            if (index + j === blobLength - 1) {
+                const size = isBuffer(content) ? content.length : content.size;
+                chunkSizeArr.push(size - DEFAULT_BLOB_DATA_SIZE * (blobLength - 1));
+            } else {
+                chunkSizeArr.push(DEFAULT_BLOB_DATA_SIZE);
+            }
+            blobHashRequestArr.push(fileContract.getChunkHash(hexName, index + j));
+        }
+        return {
+            blobArr,
+            chunkIdArr,
+            chunkSizeArr,
+            blobHashRequestArr
+        }
+    }
+
+    #getChunkLength(content) {
+        let chunkDataSize = -1;
+        let chunkLength = 1;
+        if (isFile(content)) {
+            chunkDataSize = content.size;
+            if (GALILEO_CHAIN_ID === this.#chainId) {
+                if (content.size > 475 * 1024) {
+                    // Data need to be sliced if file > 475K
+                    chunkDataSize = 475 * 1024;
+                    chunkLength = Math.ceil(content.size / (475 * 1024));
+                }
+            } else {
+                if (content.size > 24 * 1024 - 326) {
+                    // Data need to be sliced if file > 24K
+                    chunkDataSize = 24 * 1024 - 326;
+                    chunkLength = Math.ceil(content.size / (24 * 1024 - 326));
+                }
+            }
+        } else if (isBuffer(content)) {
+            chunkDataSize = content.length;
+            if (GALILEO_CHAIN_ID === this.#chainId) {
+                if (content.length > 475 * 1024) {
+                    // Data need to be sliced if file > 475K
+                    chunkDataSize = 475 * 1024;
+                    chunkLength = Math.ceil(content.length / (475 * 1024));
+                }
+            } else {
+                if (content.length > 24 * 1024 - 326) {
+                    // Data need to be sliced if file > 24K
+                    chunkDataSize = 24 * 1024 - 326;
+                    chunkLength = Math.ceil(content.length / (24 * 1024 - 326));
+                }
+            }
+        }
+        return {
+            chunkDataSize,
+            chunkLength
+        }
     }
 }
