@@ -32,3 +32,22 @@ export function isFile(content) {
 export function isNodejs() {
     return typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 }
+
+function computeVersionedHash(commitment, blobCommitmentVersion) {
+    const computedVersionedHash = new Uint8Array(32);
+    computedVersionedHash.set([blobCommitmentVersion], 0);
+    const hash = ethers.getBytes(ethers.sha256(commitment));
+    computedVersionedHash.set(hash.subarray(1), 1);
+    return computedVersionedHash;
+}
+
+export function commitmentsToVersionedHashes(commitment) {
+    return computeVersionedHash(commitment, 0x01);
+}
+
+export function getHash(commit) {
+    const localHash = commitmentsToVersionedHashes(commit);
+    const hash = new Uint8Array(32);
+    hash.set(localHash.subarray(0, 32 - 8));
+    return ethers.hexlify(hash);
+}
