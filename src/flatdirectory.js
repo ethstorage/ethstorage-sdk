@@ -650,7 +650,7 @@ export class FlatDirectory {
 
     #printHashLog(key, chunkIds, hash) {
         if (Array.isArray(chunkIds) && chunkIds.length > 1) {
-            console.log(`FlatDirectory: The transaction hash for chunk ${chunkIds} is ${hash}`, "", key);
+            console.log(`FlatDirectory: The transaction hash for chunks ${chunkIds} is ${hash}`, "", key);
         } else {
             console.log(`FlatDirectory: The transaction hash for chunk ${chunkIds} is ${hash}`, "", key);
         }
