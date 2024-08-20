@@ -51,3 +51,11 @@ export function getHash(commit) {
     hash.set(localHash.subarray(0, 32 - 8));
     return ethers.hexlify(hash);
 }
+
+export function copy(src, srcOff, des, desOff) {
+    const srcLength = src.length - srcOff;
+    const desLength = des.length - desOff;
+    const length = Math.min(srcLength, desLength);
+    src.set(des.slice(desOff, length), srcOff);
+    return length;
+}
