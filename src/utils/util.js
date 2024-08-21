@@ -51,3 +51,15 @@ export function getHash(commit) {
     hash.set(localHash.subarray(0, 32 - 8));
     return ethers.hexlify(hash);
 }
+
+export async function retry(fn, retries, ...args) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn.apply(null, args);
+        } catch (error) {
+            if (i === retries - 1) {
+                throw error;
+            }
+        }
+    }
+}

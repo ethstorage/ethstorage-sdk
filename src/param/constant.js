@@ -28,3 +28,5 @@ export const MAX_BLOB_COUNT = 3;
 
 export const UPLOAD_TYPE_CALLDATA = 1;
 export const UPLOAD_TYPE_BLOB = 2;
+
+export const MAX_RETRIES = 3;
