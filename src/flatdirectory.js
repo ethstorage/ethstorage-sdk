@@ -378,14 +378,9 @@ export class FlatDirectory {
             }
 
             // upload
-            try {
-                const status = await retry(() => this.#uploadBlob(fileContract, key, hexName, blobArr, blobCommitmentArr, chunkIdArr, chunkSizeArr, cost, gasIncPct), this.#retries);
-                if (!status) {
-                    callback.onFail(new Error("FlatDirectory: Sending transaction failed."));
-                    break;
-                }
-            } catch (e) {
-                callback.onFail(e);
+            const status = await retry(() => this.#uploadBlob(fileContract, key, hexName, blobArr, blobCommitmentArr, chunkIdArr, chunkSizeArr, cost, gasIncPct), this.#retries);
+            if (!status) {
+                callback.onFail(new Error("FlatDirectory: Sending transaction failed."));
                 break;
             }
 
@@ -447,14 +442,9 @@ export class FlatDirectory {
             }
 
             // upload
-            try {
-                const status = await retry(() => this.#uploadCallData(fileContract, key, hexName, i, chunk, gasIncPct), this.#retries);
-                if (!status) {
-                    callback.onFail(new Error("FlatDirectory: Sending transaction failed."));
-                    break;
-                }
-            } catch (e) {
-                callback.onFail(e);
+            const status = await retry(() => this.#uploadCallData(fileContract, key, hexName, i, chunk, gasIncPct), this.#retries);
+            if (!status) {
+                callback.onFail(new Error("FlatDirectory: Sending transaction failed."));
                 break;
             }
 
