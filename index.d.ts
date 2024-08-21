@@ -24,6 +24,7 @@ declare module 'ethstorage-sdk' {
     export type BufferLike = Buffer | Uint8Array;
     export type FileLike = File | NodeFile;
     export type ContentLike = BufferLike | FileLike;
+    export type AsyncFunction<T> = (...args: any[]) => Promise<T>;
 
     // Interfaces
     export interface SDKConfig {
@@ -94,20 +95,25 @@ declare module 'ethstorage-sdk' {
         getBlobGasPrice(): Promise<bigint>;
         getGasPrice(): Promise<ethers.FeeData>;
         estimateGas(params: any): Promise<bigint | null>;
-        sendTx(tx: ethers.TransactionRequest, blobs?: Uint8Array[]): Promise<ethers.TransactionResponse>;
-        sendTxLock(tx: ethers.TransactionRequest, blobs?: Uint8Array[]): Promise<ethers.TransactionResponse>;
+        sendTx(tx: ethers.TransactionRequest, blobs?: Uint8Array[], commitments?: Uint8Array[]): Promise<ethers.TransactionResponse>;
+        sendTxLock(tx: ethers.TransactionRequest, blobs?: Uint8Array[], commitments?: Uint8Array[]): Promise<ethers.TransactionResponse>;
+        getCommitment(blob: Uint8Array): Uint8Array;
         getBlobHash(blob: Uint8Array): string;
       }
 
-      export function stringToHex(s: string): string;
-      export function getChainId(rpc: string): Promise<number>;
       export function encodeBlobs(data: Buffer): Uint8Array[];
       export function decodeBlob(blob: string | Uint8Array): Uint8Array;
       export function decodeBlobs(blobs: string | Uint8Array): Buffer;
 
-      export function getFileChunk(file: FileLike, fileSize: number, start: number, end: number);
-      export function isBuffer(content: BufferLike);
-      export function isFile(content: FileLike);
+      export function stringToHex(s: string): string;
+      export function getChainId(rpc: string): Promise<number>;
+      export function getFileChunk(file: FileLike, fileSize: number, start: number, end: number): Buffer;
+      export function isBuffer(content: BufferLike): boolean;
+      export function isFile(content: FileLike): boolean;
+      export function isNodejs(): boolean;
+      export function commitmentsToVersionedHashes(commitment: Uint8Array): string;
+      export function getHash(commitment: Uint8Array): string;
+      export function retry<T>(fn: AsyncFunction<T>, retries: number, isThrow?: boolean, ...args: any[]): Promise<T>;
     }
 
     // Default export
