@@ -52,10 +52,10 @@ export function getHash(commit) {
     return ethers.hexlify(hash);
 }
 
-export function copy(src, srcOff, des, desOff) {
+export function copy(des, desOff, src, srcOff) {
     const srcLength = src.length - srcOff;
     const desLength = des.length - desOff;
     const length = Math.min(srcLength, desLength);
-    src.set(des.slice(desOff, length), srcOff);
+    des.set(src.subarray(srcOff, srcOff + length), desOff);
     return length;
 }

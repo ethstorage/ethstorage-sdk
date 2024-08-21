@@ -172,9 +172,9 @@ export function encodeOpBlob(data) {
             // Encode the length as big-endian uint24.
             // The length check at the start above ensures we can always fit the length value into only 3 bytes.
             let ilen = data.length
-            buf31[1] = ilen >> 16
-            buf31[2] = ilen >> 8
-            buf31[3] = ilen
+            buf31[1] = (ilen >> 16) & 0xFF;
+            buf31[2] = (ilen >> 8) & 0xFF;
+            buf31[3] = ilen & 0xFF;
 
             readOffset += copy(buf31, 4, data, 0)
         } else {
