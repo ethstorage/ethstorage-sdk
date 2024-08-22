@@ -52,6 +52,18 @@ export function getHash(commit) {
     return ethers.hexlify(hash);
 }
 
+export async function retry(fn, retries, ...args) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn.apply(null, args);
+        } catch (error) {
+            if (i === retries - 1) {
+                throw error;
+            }
+        }
+    }
+}
+
 export function copy(des, desOff, src, srcOff) {
     const srcLength = src.length - srcOff;
     const desLength = des.length - desOff;
