@@ -19,21 +19,21 @@ const saveFile = (data) => {
 
 async function EthStorageTest() {
     const es = await EthStorage.create({
-        rpc: 'http://65.109.20.29:8545',
-        ethStorageRpc: 'http://65.109.115.36:9540',
+        rpc: 'https://rpc.testnet.l2.quarkchain.io:8545',
+        ethStorageRpc: 'https://rpc.testnet.l2.ethstorage.io:9540',
         privateKey
     })
 
     const content = fs.readFileSync(filePath);
     // estimate cost
     const cost = await es.estimateCost(name, content.length > 126976 ? content.subarray(0, 126976) : content);
-    console.log(cost)
+    console.log("cost:", cost)
 
     // write
     let status = await es.write(name, content.length > 126976 ? content.subarray(0, 126976) : content);
-    console.log(status);
+    console.log("status:", status)
     // read
-    const buff = await es.read(name);
+    let buff = await es.read(name);
     const p = saveFile(buff);
     console.log(p)
 
@@ -41,14 +41,17 @@ async function EthStorageTest() {
     const keys = ["key1", "key2"];
     const blobData = [Buffer.from("some data1"), Buffer.from("some data2")];
     status = await es.writeBlobs(keys, blobData);
-    console.log(status);
+    console.log("status:", status)
+    // read
+    buff = await es.read('key2');
+    console.log(Buffer.from(buff).toString());
 }
 // EthStorageTest();
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({
-        rpc: 'http://142.132.154.16:8545',
-        ethStorageRpc: 'http://65.108.230.142:9545',
+        rpc: 'https://rpc.testnet.l2.quarkchain.io:8545',
+        ethStorageRpc: 'https://rpc.testnet.l2.ethstorage.io:9540',
         privateKey,
         // address: "0x91F57C2d88C55B7a2Dd6DC76ddae3891b8003CE8"
     })
@@ -57,13 +60,13 @@ async function FlatDirectoryTest() {
 
     const uploadCallback = {
         onProgress: (progress, count, isChange) => {
-            console.log(progress, count, isChange);
+            console.log(`progress:${progress}, count:${count}, isChange:${isChange}`);
         },
         onFail: (err) => {
             console.log(err);
         },
         onFinish: (totalUploadChunks, totalUploadSize, totalStorageCost) => {
-            console.log(totalUploadChunks, totalUploadSize, totalStorageCost);
+            console.log(`totalUploadChunks:${totalUploadChunks}, totalUploadSize:${totalUploadSize}, totalStorageCost:${totalStorageCost}`);
         }
     };
 
@@ -81,6 +84,7 @@ async function FlatDirectoryTest() {
     await fd.upload(request);
     cost = await fd.estimateCost(request);
     console.log(cost);
+    console.log("");
 
     // file
     const file = new NodeFile(filePath);
@@ -96,6 +100,7 @@ async function FlatDirectoryTest() {
     await fd.upload(request);
     cost = await fd.estimateCost(request);
     console.log(cost);
+    console.log("");
 
 
     // blob
@@ -112,6 +117,7 @@ async function FlatDirectoryTest() {
     await fd.upload(request);
     cost = await fd.estimateCost(request);
     console.log(cost);
+    console.log("");
 
     // file
     request = {
@@ -126,11 +132,12 @@ async function FlatDirectoryTest() {
     await fd.upload(request);
     cost = await fd.estimateCost(request);
     console.log(cost);
+    console.log("");
 
     // download
     await fd.download("data", {
         onProgress: (progress, count, data) => {
-            console.log(progress, count, data.length);
+            console.log(progress, count, Buffer.from(data).toString());
         },
         onFail: (err) => {
             console.log(err)
