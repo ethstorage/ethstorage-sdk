@@ -16,17 +16,26 @@ const BlobTxFieldElementsPerBlob         = 4096;
 export const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
 export const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
 
-export const DEFAULT_BLOB_DATA_SIZE = BLOB_DATA_SIZE;
+export const OP_BLOB_DATA_SIZE = (4 * 31 + 3) * 1024 - 4;
+
 
 // DecodeType
 export const RawData = 0;
 export const PaddingPer31Bytes = 1;
-
+export const OptimismCompact = 2;
 
 export const BLOB_COUNT_LIMIT = 6;
 export const MAX_BLOB_COUNT = 3;
 
+
 export const UPLOAD_TYPE_CALLDATA = 1;
 export const UPLOAD_TYPE_BLOB = 2;
 
+
 export const MAX_RETRIES = 3;
+
+
+export const VERSION_3 = 3; // OP BLOB AND CALLDATA
+export const VERSION_2 = 2; // BLOB AND CALLDATA
+export const VERSION_1 = 1; // ONLY CALLDATA
+

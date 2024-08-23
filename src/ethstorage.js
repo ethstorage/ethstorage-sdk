@@ -3,13 +3,13 @@ import {
     BlobUploader,
     stringToHex,
     getChainId,
-    encodeBlobs
+    encodeOpBlobs
 } from "./utils";
 import {
     ETHSTORAGE_MAPPING,
     BLOB_SIZE,
-    DEFAULT_BLOB_DATA_SIZE,
-    PaddingPer31Bytes,
+    OP_BLOB_DATA_SIZE,
+    OptimismCompact,
     EthStorageAbi,
     BLOB_COUNT_LIMIT
 } from "./param";
@@ -56,8 +56,8 @@ export class EthStorage {
             throw new Error(`EthStorage: Invalid data.`);
         }
         data = Buffer.from(data);
-        if (data.length < 0 || data.length > DEFAULT_BLOB_DATA_SIZE) {
-            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
+        if (data.length < 0 || data.length > OP_BLOB_DATA_SIZE) {
+            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${OP_BLOB_DATA_SIZE}.`);
         }
 
         const hexKey = ethers.keccak256(stringToHex(key));
@@ -68,7 +68,7 @@ export class EthStorage {
             this.#blobUploader.getGasPrice(),
         ]);
 
-        const blobs = encodeBlobs(data);
+        const blobs = encodeOpBlobs(data);
         const blobHash = this.#blobUploader.getBlobHash(blobs[0]);
         const gasLimit = await contract.putBlob.estimateGas(hexKey, 0, data.length, {
             value: storageCost,
@@ -90,8 +90,8 @@ export class EthStorage {
             throw new Error(`EthStorage: Invalid data.`);
         }
         data = Buffer.from(data);
-        if (data.length < 0 || data.length > DEFAULT_BLOB_DATA_SIZE) {
-            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
+        if (data.length < 0 || data.length > OP_BLOB_DATA_SIZE) {
+            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${OP_BLOB_DATA_SIZE}.`);
         }
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
@@ -102,7 +102,7 @@ export class EthStorage {
                 value: storageCost,
             });
 
-            const blobs = encodeBlobs(data);
+            const blobs = encodeOpBlobs(data);
             let txRes = await this.#blobUploader.sendTx(tx, blobs);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`)
             txRes = await txRes.wait();
@@ -129,7 +129,7 @@ export class EthStorage {
         if (size === 0n) {
             throw new Error(`EthStorage: There is no data corresponding to key ${key} under wallet address ${this.#wallet.address}.`)
         }
-        const data = await contract.get(hexKey, PaddingPer31Bytes, 0, size, {
+        const data = await contract.get(hexKey, OptimismCompact, 0, size, {
             from: this.#wallet.address
         });
         return ethers.getBytes(data);
@@ -153,10 +153,10 @@ export class EthStorage {
         const lengthArr = [];
         for (let i = 0; i < blobLength; i++) {
             const d = Buffer.from(dataBlobs[i]);
-            if (d.length < 0 || d.length > DEFAULT_BLOB_DATA_SIZE) {
-                throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
+            if (d.length < 0 || d.length > OP_BLOB_DATA_SIZE) {
+                throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${OP_BLOB_DATA_SIZE}.`);
             }
-            const blob = encodeBlobs(d);
+            const blob = encodeOpBlobs(d);
             blobArr.push(blob[0]);
             keyArr.push(ethers.keccak256(stringToHex(keys[i])));
             idArr.push(i);
