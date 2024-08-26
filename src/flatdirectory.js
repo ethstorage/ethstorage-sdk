@@ -75,27 +75,23 @@ export class FlatDirectory {
     async init(rpc, address) {
         await this.#blobUploader.init();
         this.#chainId = await getChainId(rpc);
-        // init upload version
-        if (address) {
-            const provider = new ethers.JsonRpcProvider(rpc);
-            const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
-            const [supportBlob, solcVersion] = await Promise.all([
-                retry(() => fileContract.isSupportBlob(), this.#retries).catch(() => { return false }),
-                retry(() => fileContract.version(), this.#retries).catch(() => { return 0 })
-            ]);
-            if(supportBlob && solcVersion === SOLC_VERSION_1_0_0) {
-                this.#version = VERSION_3;
-                this.#blobSize = OP_BLOB_DATA_SIZE;
-            } else if(supportBlob) {
-                this.#version = VERSION_2;
-                this.#blobSize = BLOB_DATA_SIZE;
-            } else {
-                this.#version = VERSION_1;
-            }
+        if (!address) return;
+
+        const provider = new ethers.JsonRpcProvider(rpc);
+        const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
+        const [supportBlob, solcVersion] = await Promise.all([
+            retry(() => fileContract.isSupportBlob(), this.#retries).catch(() => false),
+            retry(() => fileContract.version(), this.#retries).catch(() => 0)
+        ]);
+        if (supportBlob) {
+            this.#version = solcVersion === SOLC_VERSION_1_0_0 ? VERSION_3 : VERSION_2;
+            this.#blobSize = solcVersion === SOLC_VERSION_1_0_0 ? OP_BLOB_DATA_SIZE : BLOB_DATA_SIZE;
+        } else {
+            this.#version = VERSION_1;
         }
     }
 
-    checkAddress() {
+    #checkAddress() {
         if (!this.#contractAddr) {
             throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
         }
@@ -121,7 +117,7 @@ export class FlatDirectory {
     }
 
     async setDefault(filename) {
-        this.checkAddress();
+        this.#checkAddress();
 
         const hexName = filename ? stringToHex(filename) : "0x";
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
@@ -137,12 +133,12 @@ export class FlatDirectory {
     }
 
     async remove(key) {
-        this.checkAddress();
+        this.#checkAddress();
 
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         try {
             const tx = await fileContract.remove(stringToHex(key));
-            console.log(`FlatDirectory: tx hash is ${tx.hash}`);
+            console.log(`FlatDirectory: Tx hash is ${tx.hash}`);
             const receipt = await tx.wait();
             return receipt.status;
         } catch (e) {
@@ -152,7 +148,7 @@ export class FlatDirectory {
     }
 
     async download(key, cb = defaultCallback) {
-        this.checkAddress();
+        this.#checkAddress();
         if (!this.#ethStorageRpc) {
             throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
         }
@@ -168,13 +164,13 @@ export class FlatDirectory {
                 cb.onProgress(i, blobCount, Buffer.from(chunk));
             }
         } catch (err) {
-            cb.onFail(err)
+            cb.onFail(err);
         }
         cb.onFinish();
     }
 
     async estimateCost(request) {
-        this.checkAddress();
+        this.#checkAddress();
 
         const {key, type} = request;
         if (!key) {
@@ -211,7 +207,6 @@ export class FlatDirectory {
         }
     }
 
-    // private method
     async #estimateCostByBlob(request) {
         const {key, content, gasIncPct = 0} = request;
 
@@ -226,27 +221,27 @@ export class FlatDirectory {
 
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
-        const fileMod = await retry(() => fileContract.getStorageMode(hexName), this.#retries);
+        const [cost, oldBlobLength, maxFeePerBlobGas, gasFeeData, fileMod] = await Promise.all([
+            retry(() => fileContract.upfrontPayment(), this.#retries),
+            retry(() => this.#countChunks(fileContract, hexName), this.#retries),
+            retry(() => this.#blobUploader.getBlobGasPrice(), this.#retries),
+            retry(() => this.#blobUploader.getGasPrice(), this.#retries),
+            retry(() => fileContract.getStorageMode(hexName), this.#retries)
+        ]);
+
         if (fileMod !== BigInt(UPLOAD_TYPE_BLOB) && fileMod !== 0n) {
-            throw new Error(`FlatDirectory: This file does not support blob upload!`);
+            throw new Error("FlatDirectory: This file does not support blob upload!");
+        }
+
+        // batch get old data hash
+        let oldHashArr = [];
+        if (oldBlobLength > 0 && blobLength >= oldBlobLength) {
+            oldHashArr = await this.#getHashesFromContract(fileContract, hexName, oldBlobLength);
         }
 
         let totalGasCost = 0n;
         let totalStorageCost = 0n;
         let gasLimit = 0;
-        const [cost, oldBlobLength, maxFeePerBlobGas, gasFeeData] = await Promise.all([
-            retry(() => fileContract.upfrontPayment(), this.#retries),
-            retry(() => this.#countChunks(fileContract, hexName), this.#retries),
-            retry(() => this.#blobUploader.getBlobGasPrice(), this.#retries),
-            retry(() => this.#blobUploader.getGasPrice(), this.#retries)
-        ]);
-
-        // batch get old data hash
-        let oldHashArr = [];
-        if (oldBlobLength > 0 && blobLength >= oldBlobLength) {
-            oldHashArr = await this.#getOldHashes(fileContract, hexName, oldBlobLength);
-        }
-
         // send
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
             const {
@@ -265,7 +260,6 @@ export class FlatDirectory {
                 }
             }
 
-            // upload
             // storage cost
             const value = cost * BigInt(blobArr.length);
             totalStorageCost += value;
@@ -277,11 +271,12 @@ export class FlatDirectory {
                     blobVersionedHashes: blobHashArr
                 }), this.#retries);
             }
-            const gasCost = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * BigInt(100 + gasIncPct) / BigInt(100) * gasLimit;
-            const blobGasCost = maxFeePerBlobGas * BigInt(100 + gasIncPct) / BigInt(100) * BigInt(BLOB_SIZE);
-            totalGasCost += gasCost + blobGasCost;
+            const gasCost = (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * BigInt(gasLimit)
+                + maxFeePerBlobGas * BigInt(BLOB_SIZE);
+            totalGasCost += gasCost;
         }
 
+        totalGasCost += (totalGasCost * BigInt(gasIncPct)) / 100n;
         return {
             storageCost: totalStorageCost,
             gasCost: totalGasCost
@@ -298,20 +293,20 @@ export class FlatDirectory {
 
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
-        const fileMod = await retry(() => fileContract.getStorageMode(hexName), this.#retries);
+        const [oldChunkLength, gasFeeData, fileMod] = await Promise.all([
+            retry(() => this.#countChunks(fileContract, hexName), this.#retries),
+            retry(() => this.#blobUploader.getGasPrice(), this.#retries),
+            retry(() => fileContract.getStorageMode(hexName), this.#retries)
+        ]);
+
         if (fileMod !== BigInt(UPLOAD_TYPE_CALLDATA) && fileMod !== 0n) {
             throw new Error(`FlatDirectory: This file does not support calldata upload!`);
         }
 
-        const [oldChunkLength, gasFeeData] = await Promise.all([
-            retry(() => this.#countChunks(fileContract, hexName), this.#retries),
-            retry(() => this.#blobUploader.getGasPrice(), this.#retries),
-        ]);
-
         // batch get old data hash
         let oldHashArr = [];
         if (oldChunkLength > 0 && chunkLength >= oldChunkLength) {
-            oldHashArr = await this.#getOldHashes(fileContract, hexName, oldChunkLength);
+            oldHashArr = await this.#getHashesFromContract(fileContract, hexName, oldChunkLength);
         }
 
         let totalStorageCost = 0n;
@@ -339,9 +334,9 @@ export class FlatDirectory {
                 gasLimit = await retry(() => fileContract.writeChunk.estimateGas(hexName, 0, hexData, {value: cost}), this.#retries);
             }
             totalStorageCost += cost;
-            totalGasCost += (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas)
-                * BigInt(100 + gasIncPct) / BigInt(100) * gasLimit;
+            totalGasCost += (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * gasLimit;
         }
+        totalGasCost += (totalGasCost * BigInt(gasIncPct)) / 100n;
 
         return {
             storageCost: totalStorageCost,
@@ -370,18 +365,18 @@ export class FlatDirectory {
 
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
-        const fileMod = await retry(() => fileContract.getStorageMode(hexName), this.#retries);
+        const [cost, oldBlobLength, fileMod] = await Promise.all([
+            retry(() => fileContract.upfrontPayment(), this.#retries),
+            retry(() => this.#countChunks(fileContract, hexName), this.#retries),
+            retry(() => fileContract.getStorageMode(hexName), this.#retries)
+        ]);
+
         if (fileMod !== BigInt(UPLOAD_TYPE_BLOB) && fileMod !== 0n) {
             callback.onFail(new Error(`FlatDirectory: This file does not support blob upload!`));
             callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
             return;
         }
 
-        // check old data
-        const [cost, oldBlobLength] = await Promise.all([
-            retry(() => fileContract.upfrontPayment(), this.#retries),
-            retry(() => this.#countChunks(fileContract, hexName), this.#retries),
-        ]);
         const clearState = await retry(() => this.#clearOldFile(hexName, blobLength, oldBlobLength), this.#retries);
         if (clearState === REMOVE_FAIL) {
             callback.onFail(new Error(`FlatDirectory: Failed to delete old data!`));
@@ -392,7 +387,7 @@ export class FlatDirectory {
         // batch get old data hash
         let oldHashArr = [];
         if (clearState === REMOVE_NORMAL) {
-            oldHashArr = await this.#getOldHashes(fileContract, hexName, oldBlobLength);
+            oldHashArr = await this.#getHashesFromContract(fileContract, hexName, oldBlobLength);
         }
 
         // send
@@ -448,7 +443,10 @@ export class FlatDirectory {
 
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
-        const fileMod = await retry(() => fileContract.getStorageMode(hexName), this.#retries);
+        const [oldChunkLength, fileMod] = await Promise.all([
+            retry(() => this.#countChunks(fileContract, hexName), this.#retries),
+            retry(() => fileContract.getStorageMode(hexName), this.#retries)
+        ]);
         if (fileMod !== BigInt(UPLOAD_TYPE_CALLDATA) && fileMod !== 0n) {
             callback.onFail(new Error(`FlatDirectory: This file does not support calldata upload!`));
             callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
@@ -456,7 +454,6 @@ export class FlatDirectory {
         }
 
         // check old data
-        const oldChunkLength = await this.#countChunks(fileContract, hexName);
         const clearState = await retry(() => this.#clearOldFile(hexName, chunkLength, oldChunkLength), this.#retries);
         if (clearState === REMOVE_FAIL) {
             callback.onFail(new Error(`FlatDirectory: Failed to delete old data!`));
@@ -467,7 +464,7 @@ export class FlatDirectory {
         // batch get old data hash
         let oldHashArr = [];
         if (clearState === REMOVE_NORMAL) {
-            oldHashArr = await this.#getOldHashes(fileContract, hexName, oldChunkLength);
+            oldHashArr = await this.#getHashesFromContract(fileContract, hexName, oldChunkLength);
         }
 
         for (let i = 0; i < chunkLength; i++) {
@@ -577,30 +574,6 @@ export class FlatDirectory {
         return blobCommitmentArr.map(comment => getHash(comment));
     }
 
-    async #getOldHashes(fileContract, hexName, oldBlobLength) {
-        const oldHashArr = [];
-        for (let i = 0; i < oldBlobLength; i += MAX_HASH_LIMIT) {
-            const max = Math.min(i + MAX_HASH_LIMIT, oldBlobLength);
-            const chunkIdArr = [];
-            for (let j = i; j < max; j++) {
-                chunkIdArr.push(j);
-            }
-            const hashes = await this.#getCloudHashes(fileContract, hexName, chunkIdArr);
-            oldHashArr.push(...hashes);
-        }
-        return oldHashArr;
-    }
-
-    async #getCloudHashes(fileContract, hexName, chunkIdArr) {
-        if (this.#version === VERSION_3) {
-            return await retry(() => fileContract.getChunkHashes(hexName, chunkIdArr), this.#retries);
-        }
-
-        // old
-        const blobHashRequestArr = chunkIdArr.map(id => fileContract.getChunkHash(hexName, id))
-        return await retry(() => Promise.all(blobHashRequestArr), this.#retries);;
-    }
-
     async #getBlobHashes(blobArr) {
         const commitments = await this.#getBlobCommitments(blobArr);
         return this.#getHashes(commitments);
@@ -686,5 +659,29 @@ export class FlatDirectory {
         } else {
             console.log(`FlatDirectory: The transaction hash for chunk ${chunkIds} is ${hash}`, "", key);
         }
+    }
+
+    async #getHashesFromContract(fileContract, hexName, oldBlobLength) {
+        const oldHashArr = [];
+        for (let i = 0; i < oldBlobLength; i += MAX_HASH_LIMIT) {
+            const max = Math.min(i + MAX_HASH_LIMIT, oldBlobLength);
+            const chunkIdArr = [];
+            for (let j = i; j < max; j++) {
+                chunkIdArr.push(j);
+            }
+            const hashes = await this.#chunkHashes(fileContract, hexName, chunkIdArr);
+            oldHashArr.push(...hashes);
+        }
+        return oldHashArr;
+    }
+
+    async #chunkHashes(fileContract, hexName, chunkIdArr) {
+        if (this.#version === VERSION_3) {
+            return await retry(() => fileContract.getChunkHashes(hexName, chunkIdArr), this.#retries);
+        }
+
+        // old
+        const blobHashRequestArr = chunkIdArr.map(id => fileContract.getChunkHash(hexName, id))
+        return await retry(() => Promise.all(blobHashRequestArr), this.#retries);;
     }
 }
