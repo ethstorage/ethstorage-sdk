@@ -420,9 +420,7 @@ export class FlatDirectory {
             callback.onProgress(chunkIdArr[chunkIdArr.length - 1], blobLength, true);
             totalStorageCost += cost * BigInt(blobArr.length);
             totalUploadChunks += blobArr.length;
-            for (let i = 0; i < chunkSizeArr.length; i++) {
-                totalUploadSize += chunkSizeArr[i];
-            }
+            totalUploadSize += chunkSizeArr.reduce((acc, size) => acc + size, 0);
         }
 
         callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
@@ -662,17 +660,17 @@ export class FlatDirectory {
     }
 
     async #getHashesFromContract(fileContract, hexName, oldBlobLength) {
-        const oldHashArr = [];
+        const hashPromises = [];
         for (let i = 0; i < oldBlobLength; i += MAX_HASH_LIMIT) {
             const max = Math.min(i + MAX_HASH_LIMIT, oldBlobLength);
             const chunkIdArr = [];
             for (let j = i; j < max; j++) {
                 chunkIdArr.push(j);
             }
-            const hashes = await this.#chunkHashes(fileContract, hexName, chunkIdArr);
-            oldHashArr.push(...hashes);
+            hashPromises.push(this.#chunkHashes(fileContract, hexName, chunkIdArr));
         }
-        return oldHashArr;
+        const allHashes = await Promise.all(hashPromises);
+        return allHashes.flat();
     }
 
     async #chunkHashes(fileContract, hexName, chunkIdArr) {
