@@ -1,8 +1,16 @@
 import fs from 'fs';
-import {assertArgument} from "ethers";
+import { assertArgument } from 'ethers';
 
 export class NodeFile {
-    constructor(filePath, start = 0, end = null, type = '') {
+    isNodeJs: boolean;
+
+    filePath: string;
+    type: string;
+    size: number;
+    start: number;
+    end: number;
+
+    constructor(filePath: string, start: number = 0, end: number = 0, type: string = '') {
         this.isNodeJs = true;
         this.filePath = filePath;
         this.type = type;
@@ -10,37 +18,39 @@ export class NodeFile {
         assertArgument(fs.existsSync(filePath), "invalid file path", "file", filePath);
         const stat = fs.statSync(filePath);
         this.start = Math.min(start, stat.size - 1);
-        this.end = end == null ? stat.size : Math.min(end, stat.size);
+        this.end = end == 0 ? stat.size : Math.min(end, stat.size);
         this.size = this.end - this.start;
         assertArgument(this.size > 0, "invalid file size", "file", this.size);
     }
 
-    slice(start, end) {
+    slice(start: number, end: number): NodeFile {
         const newStart = this.start + start;
         const newEnd = newStart + (end - start);
-        assertArgument(newStart < newEnd && newEnd <= this.end, "invalid slice range", "file", {start, end});
+        assertArgument(newStart < newEnd && newEnd <= this.end, "invalid slice range", "file", { start, end });
         return new NodeFile(this.filePath, newStart, newEnd, this.type);
     }
 
-    async arrayBuffer() {
+    async arrayBuffer(): Promise<ArrayBuffer> {
         const start = this.start;
         const end = this.end;
         const length = end - start;
-        const buf = Buffer.alloc(length);
+
+        const arrayBuffer = new ArrayBuffer(length);
+        const uint8Array = new Uint8Array(arrayBuffer);
         const fd = fs.openSync(this.filePath, 'r');
-        fs.readSync(fd, buf, 0, length, start);
+        fs.readSync(fd, uint8Array, 0, length, start);
         fs.closeSync(fd);
-        return buf;
+        return arrayBuffer;
     }
 
-    async text() {
+    async text(): Promise<string> {
         const buffer = await this.arrayBuffer();
         return new TextDecoder().decode(buffer);
     }
 
-    stream() {
+    stream(): fs.ReadStream {
         const start = this.start;
         const end = this.end;
-        return fs.createReadStream(this.filePath, {start, end});
+        return fs.createReadStream(this.filePath, { start, end });
     }
 }
