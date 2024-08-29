@@ -16,7 +16,7 @@ export async function getFileChunk(file: FileLike, fileSize: number, start: numb
     return new Uint8Array(data);
 }
 
-export async function getBufferChunk(data: BufferLike, dataLength: number, start: number, end: number): Uint8Array {
+export function getBufferChunk(data: BufferLike, dataLength: number, start: number, end: number): Uint8Array {
     end = Math.min(end, dataLength);
     return data.slice(start, end);
 }
@@ -68,6 +68,7 @@ export async function retry<T>(fn: (...args: any[]) => Promise<T>, retries: numb
             }
         }
     }
+    throw new Error('Function failed after maximum retries');
 }
 
 // Copy data from src to des with offsets

@@ -30,7 +30,7 @@ interface KZG {
 }
 
 export class BlobUploader {
-    private kzg: KZG;
+    private kzg!: KZG;
 
     private readonly provider: ethers.JsonRpcProvider;
     private readonly wallet: ethers.Wallet;
@@ -61,7 +61,7 @@ export class BlobUploader {
 
     async getBlobGasPrice(): Promise<bigint> {
         const block = await this.provider.getBlock("latest");
-        if (block?.excessBlobGas === null) {
+        if (block === null || block.excessBlobGas === null) {
             throw new Error("Block has no excessBlobGas");
         }
         const excessBlobGas = BigInt(block.excessBlobGas);
@@ -83,10 +83,10 @@ export class BlobUploader {
 
     async sendTx(
         tx: ethers.TransactionRequest,
-        blobs: Uint8Array[] = undefined,
-        commitments: Uint8Array[] = undefined
+        blobs: Uint8Array[] = [],
+        commitments: Uint8Array[] = []
     ): Promise<ethers.TransactionResponse> {
-        if (!blobs) {
+        if (!blobs || blobs.length == 0) {
             return await this.wallet.sendTransaction(tx);
         }
 
@@ -122,8 +122,8 @@ export class BlobUploader {
 
     async sendTxLock(
         tx: ethers.TransactionRequest,
-        blobs: Uint8Array[] = undefined,
-        commitments: Uint8Array[] = undefined
+        blobs: Uint8Array[] = [],
+        commitments: Uint8Array[] = []
     ): Promise<ethers.TransactionResponse> {
         const release = await this.mutex.acquire();
         try {

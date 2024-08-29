@@ -61,7 +61,6 @@ export class FlatDirectory {
         if (!address) return;
 
         this.contractAddr = address;
-        const provider = new ethers.JsonRpcProvider(rpc);
         const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider) as any;
         const [supportBlob, solcVersion] = await Promise.all([
             retry(() => fileContract.isSupportBlob(), this.retries).catch(() => false),
@@ -148,7 +147,11 @@ export class FlatDirectory {
                 cb.onProgress(i, blobCount, Buffer.from(chunk));
             }
         } catch (e) {
-            cb.onFail(e);
+            if (e instanceof Error) {
+                cb.onFail(e);
+            } else {
+                cb.onFail(new Error(String(e)));
+            }
         }
         cb.onFinish();
     }
@@ -211,7 +214,7 @@ export class FlatDirectory {
             retry(() => this.blobUploader.getBlobGasPrice(), this.retries),
             retry(() => this.blobUploader.getGasPrice(), this.retries),
             retry(() => fileContract.getStorageMode(hexName), this.retries)
-        ]);
+        ]) as [bigint, number, bigint, ethers.FeeData, bigint];
 
         if (fileMod !== BigInt(UploadType.Blob) && fileMod !== BigInt(UploadType.Undefined)) {
             throw new Error("FlatDirectory: This file does not support blob upload!");
@@ -234,7 +237,7 @@ export class FlatDirectory {
                 chunkSizeArr
             } = await this.getBlobInfo(content, blobLength, i);
 
-            let blobHashArr: string[];
+            let blobHashArr: string[] | undefined = undefined;
             // check change
             if (i + blobArr.length <= oldHashArr.length) {
                 blobHashArr = await this.getBlobHashes(blobArr);
@@ -249,7 +252,7 @@ export class FlatDirectory {
             totalStorageCost += value;
             // gas cost
             if (gasLimit === 0) {
-                blobHashArr = blobHashArr ? blobHashArr : await this.getBlobHashes(blobArr);
+                blobHashArr = blobHashArr || await this.getBlobHashes(blobArr);
                 gasLimit = await retry(() => fileContract.writeChunks.estimateGas(hexName, chunkIdArr, chunkSizeArr, {
                     value: value,
                     blobVersionedHashes: blobHashArr
@@ -283,12 +286,12 @@ export class FlatDirectory {
             retry(() => fileContract.getStorageMode(hexName), this.retries)
         ]);
 
-        if (fileMod !== BigInt(UploadType.Blob) && fileMod !== BigInt(UploadType.Undefined)) {
+        if (fileMod !== BigInt(UploadType.Calldata) && fileMod !== BigInt(UploadType.Undefined)) {
             throw new Error(`FlatDirectory: This file does not support calldata upload!`);
         }
 
         // batch get old data hash
-        let oldHashArr = [];
+        let oldHashArr: string[] = [];
         if (oldChunkLength > 0 && chunkLength >= oldChunkLength) {
             oldHashArr = await this.getHashesFromContract(fileContract, hexName, oldChunkLength);
         }
@@ -318,7 +321,7 @@ export class FlatDirectory {
                 gasLimit = await retry(() => fileContract.writeChunk.estimateGas(hexName, 0, hexData, {value: cost}), this.retries);
             }
             totalStorageCost += cost;
-            totalGasCost += (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * gasLimit;
+            totalGasCost += (gasFeeData.maxFeePerGas! + gasFeeData.maxPriorityFeePerGas!) * gasLimit;
         }
         totalGasCost += (totalGasCost * BigInt(gasIncPct)) / 100n;
 
@@ -353,7 +356,7 @@ export class FlatDirectory {
             retry(() => fileContract.upfrontPayment(), this.retries),
             retry(() => this.countChunks(fileContract, hexName), this.retries),
             retry(() => fileContract.getStorageMode(hexName), this.retries)
-        ]);
+        ]) as [bigint, number, bigint];
 
         if (fileMod !== BigInt(UploadType.Blob) && fileMod !== BigInt(UploadType.Undefined)) {
             callback.onFail?.(new Error(`FlatDirectory: This file does not support blob upload!`));
@@ -500,8 +503,8 @@ export class FlatDirectory {
 
         if (gasIncPct > 0) {
             const feeData = await this.blobUploader.getGasPrice();
-            tx.maxFeePerGas = feeData.maxFeePerGas * BigInt(100 + gasIncPct) / BigInt(100);
-            tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * BigInt(100 + gasIncPct) / BigInt(100);
+            tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
+            tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
             // blob gas
             const blobGas = await this.blobUploader.getBlobGasPrice();
             tx.maxFeePerBlobGas = blobGas * BigInt(100 + gasIncPct) / BigInt(100);
@@ -529,8 +532,8 @@ export class FlatDirectory {
         // Increase % if user requests it
         if (gasIncPct > 0) {
             const feeData = await this.blobUploader.getGasPrice();
-            tx.maxFeePerGas = feeData.maxFeePerGas * BigInt(100 + gasIncPct) / BigInt(100);
-            tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * BigInt(100 + gasIncPct) / BigInt(100);
+            tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
+            tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
         }
 
         // send

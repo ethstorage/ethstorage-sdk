@@ -22,29 +22,29 @@ async function EthStorageTest() {
         rpc: 'https://rpc.testnet.l2.quarkchain.io:8545',
         ethStorageRpc: 'https://rpc.testnet.l2.ethstorage.io:9540',
         privateKey
-    })
+    });
 
     const content = fs.readFileSync(filePath);
     // estimate cost
     const cost = await es.estimateCost(name, content.length > 126976 ? content.subarray(0, 126976) : content);
-    console.log("cost:", cost)
+    console.log("cost:", cost);
 
     // write
     let status = await es.write(name, content.length > 126976 ? content.subarray(0, 126976) : content);
-    console.log("status:", status)
+    console.log("status:", status);
     // read
-    let buff = await es.read(name);
-    const p = saveFile(buff);
-    console.log(p)
+    let uint8Array = await es.read(name);
+    const p = saveFile(Buffer.from(uint8Array));
+    console.log(p);
 
     // put blobs
     const keys = ["key1", "key2"];
     const blobData = [Buffer.from("some data1"), Buffer.from("some data2")];
     status = await es.writeBlobs(keys, blobData);
-    console.log("status:", status)
-    // read
-    buff = await es.read('key2');
-    console.log(Buffer.from(buff).toString());
+    console.log("status:", status);
+    // read blob
+    uint8Array = await es.read('key2');
+    console.log(Buffer.from(uint8Array).toString());
 }
 // EthStorageTest();
 
@@ -54,7 +54,7 @@ async function FlatDirectoryTest() {
         ethStorageRpc: 'https://rpc.testnet.l2.ethstorage.io:9540',
         privateKey,
         // address: "0x91F57C2d88C55B7a2Dd6DC76ddae3891b8003CE8"
-    })
+    });
 
     await fd.deploy();
 
@@ -78,7 +78,7 @@ async function FlatDirectoryTest() {
         content: Buffer.from("12345678"),
         gasIncPct: 10,
         callback: uploadCallback
-    }
+    };
     let cost = await fd.estimateCost(request);
     console.log(cost);
     await fd.upload(request);
@@ -94,7 +94,7 @@ async function FlatDirectoryTest() {
         content: file,
         gasIncPct: 10,
         callback: uploadCallback
-    }
+    };
     cost = await fd.estimateCost(request);
     console.log(cost);
     await fd.upload(request);
@@ -111,7 +111,7 @@ async function FlatDirectoryTest() {
         content: Buffer.from("12345678"),
         gasIncPct: 5,
         callback: uploadCallback
-    }
+    };
     cost = await fd.estimateCost(request);
     console.log(cost);
     await fd.upload(request);
@@ -126,7 +126,7 @@ async function FlatDirectoryTest() {
         content: file,
         gasIncPct: 5,
         callback: uploadCallback
-    }
+    };
     cost = await fd.estimateCost(request);
     console.log(cost);
     await fd.upload(request);
