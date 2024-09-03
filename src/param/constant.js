@@ -38,6 +38,3 @@ export const MAX_RETRIES = 3;
 export const VERSION_3 = 3; // OP BLOB AND CALLDATA
 export const VERSION_2 = 2; // BLOB AND CALLDATA
 export const VERSION_1 = 1; // ONLY CALLDATA
-
-
-export const MAX_HASH_LIMIT = 10;
