@@ -13,7 +13,6 @@ export const FlatDirectoryAbi = [
   "function setDefault(bytes memory _defaultFile) public",
   "function upfrontPayment() external view returns (uint256)",
   "function getChunkHash(bytes memory name, uint256 chunkId) public view returns (bytes32)",
-  'function getChunkHashes(bytes memory name, uint256[] memory chunkIds) public view returns (bytes32[] memory hashes)',
   "function writeChunk(bytes memory name, uint256 chunkId, bytes calldata data) external payable",
   "function writeChunks(bytes memory name, uint256[] memory chunkIds, uint256[] memory sizes) external payable",
   "function refund() public",
