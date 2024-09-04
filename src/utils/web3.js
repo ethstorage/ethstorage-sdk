@@ -32,12 +32,9 @@ export async function getUploadInfo(contract, hexName, retries) {
 }
 
 
-export async function getChunkHash(contract, hexName, chunkId, retries) {
-    return await retry(() => contract.getChunkHash(hexName, chunkId), retries);
-}
-
-async function getBatchChunkHashes(contract, fileChunks, retries) {
-    return await retry(() => contract.getBatchChunkHashes(fileChunks), retries);
+export async function getChunkHash(contract, name, chunkId, retries) {
+    const hash = await retry(() => contract.getChunkHash(stringToHex(name), chunkId), retries);
+    return { name: name, chunkId: chunkId, hash: hash };
 }
 
 export async function getChunkHashes(contract, batch, retries) {
@@ -46,8 +43,7 @@ export async function getChunkHashes(contract, batch, retries) {
         file.chunkIds
     ]);
 
-    const hashes = await getBatchChunkHashes(contract, fileChunks, retries);
-
+    const hashes = await retry(() => contract.getBatchChunkHashes(fileChunks), retries);
     const results = [];
     let index = 0;
     for (let file of batch) {

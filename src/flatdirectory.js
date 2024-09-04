@@ -17,7 +17,8 @@ import {
     isBuffer, isFile,
     stringToHex, isNodejs,
     retry,
-    createFlatDirectoryContract, countChunks, getChunkHashes
+    createFlatDirectoryContract, countChunks,
+    getChunkHashes, getChunkHash
 } from "./utils";
 
 import workerpool from 'workerpool';
@@ -167,15 +168,21 @@ export class FlatDirectory {
         }
 
         const limit = async (concurrencyLimit, asyncTasks) => {
-            const pool = [];
+            const results = [];
+            const executing = [];
             for (const task of asyncTasks) {
-                const p = task().finally(() => pool.splice(pool.indexOf(p), 1));
-                pool.push(p);
-                if (pool.length >= concurrencyLimit) {
-                    await Promise.race(pool);
+                const p = task().then(result => {
+                    results.push(result);
+                    return result;
+                }).finally(() => executing.splice(executing.indexOf(p), 1));
+                executing.push(p);
+
+                if (executing.length >= concurrencyLimit) {
+                    await Promise.race(executing);
                 }
             }
-            return Promise.all(pool);
+            await Promise.all(executing);
+            return results;
         };
 
         const allHashes = {};
@@ -190,48 +197,68 @@ export class FlatDirectory {
 
 
         // get hashes
-        const batchArray = [];
-        let currentBatch = {};
-        let currentChunkCount = 0;
-        for (const { key, chunkCount } of files) {
-            if(chunkCount === 0) {
-                allHashes[key] = [];
-                continue;
-            }
-
-            allHashes[key] = new Array(chunkCount);
-            for (let i = 0; i < chunkCount; i++) {
-                if (!currentBatch[key]) {
-                    currentBatch[key] = [];
+        if (this.#version === VERSION_3) {
+            // new contract, use getBatchChunkHashes((bytes,uint256[])[] memory fileChunks)
+            const batchArray = [];
+            let currentBatch = {};
+            let currentChunkCount = 0;
+            for (const { key, chunkCount } of files) {
+                if (chunkCount === 0) {
+                    allHashes[key] = [];
+                    continue;
                 }
-                currentBatch[key].push(i);
-                currentChunkCount++;
-                // If the batch reaches the chunk limit, create a task
-                if (currentChunkCount === MAX_CHUNKS) {
-                    batchArray.push(currentBatch);
-                    currentBatch = {};
-                    currentChunkCount = 0;
+
+                allHashes[key] = new Array(chunkCount);
+                for (let i = 0; i < chunkCount; i++) {
+                    if (!currentBatch[key]) {
+                        currentBatch[key] = [];
+                    }
+                    currentBatch[key].push(i);
+                    currentChunkCount++;
+                    // If the batch reaches the chunk limit, create a task
+                    if (currentChunkCount === MAX_CHUNKS) {
+                        batchArray.push(currentBatch);
+                        currentBatch = {};
+                        currentChunkCount = 0;
+                    }
                 }
             }
-        }
-        if (Object.keys(currentBatch).length > 0) {
-            batchArray.push(currentBatch);
-        }
+            if (Object.keys(currentBatch).length > 0) {
+                batchArray.push(currentBatch);
+            }
+            // request
+            const hashPromises = batchArray.map(batch => async () => {
+                const fileChunksArray = Object.keys(batch).map(name => ({
+                    name,
+                    chunkIds: batch[name]
+                }));
+                return await getChunkHashes(contract, fileChunksArray, this.#retries);
+            });
+            const hashResults = await limit(concurrencyLimit, hashPromises);
 
-        // get hash
-        const hashPromises = batchArray.map(batch => async () => {
-            const fileChunksArray = Object.keys(batch).map(name => ({
-                name,
-                chunkIds: batch[name]
-            }));
-            return await getChunkHashes(contract, fileChunksArray, this.#retries);
-        });
-        const hashResults = await limit(concurrencyLimit, hashPromises);
+            // Combine results
+            hashResults.flat().forEach(({name, chunkId, hash}) => {
+                allHashes[name][chunkId] = hash;  // Directly place hash at the correct index
+            });
+        } else {
+            // old contract, use getChunkHash(bytes memory name, uint256 chunkId);
+            const hashPromises = files.flatMap(({ key, chunkCount }) => {
+                if (chunkCount === 0) {
+                    allHashes[key] = [];
+                    return [];
+                }
 
-        // Combine results
-        hashResults.flat().forEach(({ name, chunkId, hash }) => {
-            allHashes[name][chunkId] = hash;  // Directly place hash at the correct index
-        });
+                allHashes[key] = new Array(chunkCount);
+                return Array.from({ length: chunkCount }, (_, i) => async () => {
+                    return await getChunkHash(contract, key, i, this.#retries);
+                });
+            });
+            const hashResults = await limit(concurrencyLimit, hashPromises);
+
+            hashResults.forEach(({name, chunkId, hash}) => {
+                allHashes[name][chunkId] = hash;  // Directly place hash at the correct index
+            });
+        }
         return allHashes;
     }
 
