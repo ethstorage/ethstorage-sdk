@@ -1,18 +1,13 @@
 import {ethers} from "ethers";
 import {
-    BLOB_SIZE,
-    BLOB_DATA_SIZE,
-    OP_BLOB_DATA_SIZE,
+    BLOB_SIZE, BLOB_DATA_SIZE, OP_BLOB_DATA_SIZE,
     ETHSTORAGE_MAPPING,
     FlatDirectoryAbi,
     FlatDirectoryBytecode,
     MAX_BLOB_COUNT,
-    UPLOAD_TYPE_BLOB,
-    UPLOAD_TYPE_CALLDATA,
-    MAX_RETRIES,
-    VERSION_3,
-    VERSION_2,
-    VERSION_1,
+    UPLOAD_TYPE_BLOB, UPLOAD_TYPE_CALLDATA,
+    MAX_RETRIES, MAX_CHUNKS,
+    VERSION_3, VERSION_2, VERSION_1,
     SOLC_VERSION_1_0_0
 } from './param';
 import {
@@ -21,7 +16,8 @@ import {
     getChainId, getFileChunk, getHash,
     isBuffer, isFile,
     stringToHex, isNodejs,
-    retry
+    retry,
+    createFlatDirectoryContract, countChunks, getChunkHashes
 } from "./utils";
 
 import workerpool from 'workerpool';
@@ -76,8 +72,7 @@ export class FlatDirectory {
         this.#chainId = await getChainId(rpc);
         if (!address) return;
 
-        const provider = new ethers.JsonRpcProvider(rpc);
-        const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
+        const fileContract = createFlatDirectoryContract(address, this.#wallet);
         const [supportBlob, solcVersion] = await Promise.all([
             retry(() => fileContract.isSupportBlob(), this.#retries).catch(() => false),
             retry(() => fileContract.version(), this.#retries).catch(() => 0)
@@ -117,7 +112,7 @@ export class FlatDirectory {
         this.#checkAddress();
 
         const hexName = filename ? stringToHex(filename) : "0x";
-        const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
+        const fileContract = createFlatDirectoryContract(this.#contractAddr, this.#wallet);
         try {
             const tx = await fileContract.setDefault(hexName);
             console.log(`FlatDirectory: Tx hash is ${tx.hash}`);
@@ -132,7 +127,7 @@ export class FlatDirectory {
     async remove(key) {
         this.#checkAddress();
 
-        const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
+        const fileContract = createFlatDirectoryContract(this.#contractAddr, this.#wallet);
         try {
             const tx = await fileContract.remove(stringToHex(key));
             console.log(`FlatDirectory: Tx hash is ${tx.hash}`);
@@ -164,6 +159,80 @@ export class FlatDirectory {
             cb.onFail(err);
         }
         cb.onFinish();
+    }
+
+    async fetchHashes(keys, concurrencyLimit = 5) {
+        if (!keys) {
+            throw new Error(`Invalid keys.`);
+        }
+
+        const limit = async (concurrencyLimit, asyncTasks) => {
+            const pool = [];
+            for (const task of asyncTasks) {
+                const p = task().finally(() => pool.splice(pool.indexOf(p), 1));
+                pool.push(p);
+                if (pool.length >= concurrencyLimit) {
+                    await Promise.race(pool);
+                }
+            }
+            return Promise.all(pool);
+        };
+
+        const allHashes = {};
+        const contract = createFlatDirectoryContract(this.#contractAddr, this.#wallet);
+
+        // get file chunks
+        const chunkCountPromises = keys.map(key => async () => {
+            const chunkCount = await countChunks(contract, stringToHex(key), this.#retries);
+            return { key, chunkCount };
+        });
+        const files = await limit(concurrencyLimit, chunkCountPromises);
+
+
+        // get hashes
+        const batchArray = [];
+        let currentBatch = {};
+        let currentChunkCount = 0;
+        for (const { key, chunkCount } of files) {
+            if(chunkCount === 0) {
+                allHashes[key] = [];
+                continue;
+            }
+
+            allHashes[key] = new Array(chunkCount);
+            for (let i = 0; i < chunkCount; i++) {
+                if (!currentBatch[key]) {
+                    currentBatch[key] = [];
+                }
+                currentBatch[key].push(i);
+                currentChunkCount++;
+                // If the batch reaches the chunk limit, create a task
+                if (currentChunkCount === MAX_CHUNKS) {
+                    batchArray.push(currentBatch);
+                    currentBatch = {};
+                    currentChunkCount = 0;
+                }
+            }
+        }
+        if (Object.keys(currentBatch).length > 0) {
+            batchArray.push(currentBatch);
+        }
+
+        // get hash
+        const hashPromises = batchArray.map(batch => async () => {
+            const fileChunksArray = Object.keys(batch).map(name => ({
+                name,
+                chunkIds: batch[name]
+            }));
+            return await getChunkHashes(contract, fileChunksArray, this.#retries);
+        });
+        const hashResults = await limit(concurrencyLimit, hashPromises);
+
+        // Combine results
+        hashResults.flat().forEach(({ name, chunkId, hash }) => {
+            allHashes[name][chunkId] = hash;  // Directly place hash at the correct index
+        });
+        return allHashes;
     }
 
     async estimateCost(request) {
@@ -203,6 +272,8 @@ export class FlatDirectory {
             return await this.#uploadByCallData(request);
         }
     }
+
+
 
     // private method
     #checkAddress() {
