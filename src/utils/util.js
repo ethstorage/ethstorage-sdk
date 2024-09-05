@@ -33,16 +33,12 @@ export function isNodejs() {
     return typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 }
 
-function computeVersionedHash(commitment, blobCommitmentVersion) {
+export function commitmentsToVersionedHashes(commitment) {
     const computedVersionedHash = new Uint8Array(32);
-    computedVersionedHash.set([blobCommitmentVersion], 0);
+    computedVersionedHash.set([0x01], 0);
     const hash = ethers.getBytes(ethers.sha256(commitment));
     computedVersionedHash.set(hash.subarray(1), 1);
     return computedVersionedHash;
-}
-
-export function commitmentsToVersionedHashes(commitment) {
-    return computeVersionedHash(commitment, 0x01);
 }
 
 export function getHash(commit) {
@@ -70,4 +66,22 @@ export function copy(des, desOff, src, srcOff) {
     const length = Math.min(srcLength, desLength);
     des.set(src.subarray(srcOff, srcOff + length), desOff);
     return length;
+}
+
+export async function limit(concurrencyLimit, asyncTasks) {
+    const results = [];
+    const executing = [];
+    for (const task of asyncTasks) {
+        const p = task().then(result => {
+            results.push(result);
+            return result;
+        }).finally(() => executing.splice(executing.indexOf(p), 1));
+        executing.push(p);
+
+        if (executing.length >= concurrencyLimit) {
+            await Promise.race(executing);
+        }
+    }
+    await Promise.all(executing);
+    return results;
 }
