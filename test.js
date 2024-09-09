@@ -8,6 +8,7 @@ dotenv.config()
 const privateKey = process.env.pk;
 
 const filePath = '/Users/lmp/Downloads/dist/img122.jpeg';
+const filePath2 = '/Users/lmp/Downloads/dist/img123.jpeg';
 const name = filePath.substring(filePath.lastIndexOf("/") + 1);
 
 const saveFile = (data) => {
@@ -87,10 +88,10 @@ async function FlatDirectoryTest() {
     console.log("");
 
     // file
-    const file = new NodeFile(filePath);
+    let file = new NodeFile(filePath);
     request = {
         type: 1,
-        key: "file",
+        key: "file.jpg",
         content: file,
         gasIncPct: 10,
         callback: uploadCallback
@@ -120,9 +121,10 @@ async function FlatDirectoryTest() {
     console.log("");
 
     // file
+    file = new NodeFile(filePath2);
     request = {
         type: 2,
-        key: "blobFile",
+        key: "blobFile.jpg",
         content: file,
         gasIncPct: 5,
         callback: uploadCallback

@@ -2,7 +2,7 @@ import fs from 'fs';
 import {assertArgument} from "ethers";
 
 export class NodeFile {
-    constructor(filePath, start = 0, end = null, type = '') {
+    constructor(filePath, start = 0, end = 0, type = '') {
         this.isNodeJs = true;
         this.filePath = filePath;
         this.type = type;
@@ -10,7 +10,7 @@ export class NodeFile {
         assertArgument(fs.existsSync(filePath), "invalid file path", "file", filePath);
         const stat = fs.statSync(filePath);
         this.start = Math.min(start, stat.size - 1);
-        this.end = end == null ? stat.size : Math.min(end, stat.size);
+        this.end = end === 0 ? stat.size : Math.min(end, stat.size);
         this.size = this.end - this.start;
         assertArgument(this.size > 0, "invalid file size", "file", this.size);
     }
@@ -26,11 +26,13 @@ export class NodeFile {
         const start = this.start;
         const end = this.end;
         const length = end - start;
-        const buf = Buffer.alloc(length);
+
+        const arrayBuffer = new ArrayBuffer(length);
+        const uint8Array = new Uint8Array(arrayBuffer);
         const fd = fs.openSync(this.filePath, 'r');
-        fs.readSync(fd, buf, 0, length, start);
+        fs.readSync(fd, uint8Array, 0, length, start);
         fs.closeSync(fd);
-        return buf;
+        return arrayBuffer;
     }
 
     async text() {
