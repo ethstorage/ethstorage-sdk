@@ -9,9 +9,7 @@ import {
     UPLOAD_TYPE_BLOB,
     UPLOAD_TYPE_CALLDATA,
     MAX_RETRIES,
-    VERSION_3,
-    VERSION_1,
-    SOLC_VERSION_1_0_0
+    FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0
 } from './param';
 import {
     BlobUploader,
@@ -44,37 +42,31 @@ export class FlatDirectory {
     #ethStorageRpc;
     #contractAddr;
     #chainId;
-    #version;
-    #blobSize;
+    #isSupportBlob;
+    #retries;
 
     #wallet;
     #blobUploader;
-    #retries;
 
     static async create(config) {
-        const {rpc, address} = config;
-        const flatDirectory = new FlatDirectory(config);
-        await flatDirectory.init(rpc, address);
+        const flatDirectory = new FlatDirectory();
+        await flatDirectory.init(config);
         return flatDirectory;
     }
 
-    constructor(config) {
+    async init(config) {
         const {rpc, ethStorageRpc, privateKey, address} = config;
         this.#ethStorageRpc = ethStorageRpc;
         this.#contractAddr = address;
+        this.#retries = MAX_RETRIES;
 
         const provider = new ethers.JsonRpcProvider(rpc);
         this.#wallet = new ethers.Wallet(privateKey, provider);
         this.#blobUploader = new BlobUploader(rpc, privateKey);
-        this.#retries = MAX_RETRIES;
-    }
-
-    async init(rpc, address) {
         await this.#blobUploader.init();
         this.#chainId = await getChainId(rpc);
         if (!address) return;
 
-        const provider = new ethers.JsonRpcProvider(rpc);
         const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
         const [supportBlob, solcVersion] = await Promise.all([
             retry(() => fileContract.isSupportBlob(), this.#retries).catch((e) => {
@@ -86,18 +78,14 @@ export class FlatDirectory {
                 throw e;
             })
         ]);
-        if (solcVersion !== SOLC_VERSION_1_0_0) {
-            throw new Error("FlatDirectory: The current version does not support this contract. Please switch to a different version.");
+        if (solcVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
+            throw new Error("FlatDirectory: The current SDK does not support this contract. Please switch to version 2.0.0.");
         }
-        this.#version = supportBlob ? VERSION_3 : VERSION_1;
-    }
-
-    version() {
-        return this.#version;
+        this.#isSupportBlob = supportBlob;
     }
 
     async deploy() {
-        this.#version = ETHSTORAGE_MAPPING[this.#chainId] != null ? VERSION_3 : VERSION_1;
+        this.#isSupportBlob = ETHSTORAGE_MAPPING[this.#chainId] != null;
 
         const ethStorage = ETHSTORAGE_MAPPING[this.#chainId] || '0x0000000000000000000000000000000000000000';
         const factory = new ethers.ContractFactory(FlatDirectoryAbi, FlatDirectoryBytecode, this.#wallet);
@@ -215,7 +203,7 @@ export class FlatDirectory {
     async #estimateCostByBlob(request) {
         const {key, content, gasIncPct = 0} = request;
 
-        if (this.#version === VERSION_1) {
+        if (!this.#isSupportBlob) {
             throw new Error(`FlatDirectory: The contract does not support blob upload!`);
         }
 
@@ -346,7 +334,7 @@ export class FlatDirectory {
         let totalStorageCost = 0n;
 
         const {key, content, callback, gasIncPct} = request;
-        if (this.#version === VERSION_1) {
+        if (!this.#isSupportBlob) {
             callback.onFail(new Error(`FlatDirectory: The contract does not support blob upload!`));
             callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
             return;
@@ -531,7 +519,7 @@ export class FlatDirectory {
     }
 
     async #uploadCallData(fileContract, key, hexName, chunkId, chunk, gasIncPct) {
-        const hexData = ethers.hexlify(chunk);;
+        const hexData = ethers.hexlify(chunk);
         const cost = chunk.length > 24 * 1024 - 326 ? BigInt(Math.floor((chunk.length + 326) / 1024 / 24)) : 0n;
         const tx = await fileContract.writeChunk.populateTransaction(hexName, chunkId, hexData, {
             value: ethers.parseEther(cost.toString())
