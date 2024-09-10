@@ -18,10 +18,7 @@ export const FlatDirectoryAbi = [
   "function truncate(bytes memory name, uint256 chunkId) external returns (uint256)",
 
   'function readChunk(bytes memory name, uint256 chunkId) external view returns (bytes memory, bool)',
-  "function upfrontPayment() external view returns (uint256)",
   "function countChunks(bytes memory name) external view returns (uint256)",
-  "function getStorageMode(bytes memory name) external view returns(uint256)",
   'function getUploadInfo(bytes memory name) external view returns (uint8 mode, uint256 count, uint256 payment)',
-  "function getChunkHash(bytes memory name, uint256 chunkId) external view returns (bytes32)",
   'function getBatchChunkHashes((bytes,uint256[])[] memory fileChunks) external view returns (bytes32[] memory)'
 ];

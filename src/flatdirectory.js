@@ -18,8 +18,8 @@ import {
     stringToHex, isNodejs,
     retry, getContentChunk,
     createFlatDirectoryContract, countChunks,
-    getChunkHashes, getChunkHash, limit,
-    getUploadInfo, getStorageMode, upfrontPayment
+    getChunkHashes, getUploadInfo,
+    limit,
 } from "./utils";
 
 import workerpool from 'workerpool';
@@ -170,38 +170,38 @@ export class FlatDirectory {
 
     async #fetchHashes(fileInfos, concurrencyLimit = 5) {
         const allHashes = {};
-        const contract = createFlatDirectoryContract(this.#contractAddr, this.#wallet);
-        if (this.#version === VERSION_3) {
-            // new contract, use getBatchChunkHashes((bytes,uint256[])[] memory fileChunks)
-            const batchArray = [];
-            let currentBatch = {};
-            let currentChunkCount = 0;
-            for (const { key, chunkCount } of fileInfos) {
-                if (chunkCount === 0) {
-                    allHashes[key] = [];
-                    continue;
-                }
 
-                allHashes[key] = new Array(chunkCount);
-                for (let i = 0; i < chunkCount; i++) {
-                    if (!currentBatch[key]) {
-                        currentBatch[key] = [];
-                    }
-                    currentBatch[key].push(i);
-                    currentChunkCount++;
-                    // If the batch reaches the chunk limit, create a task
-                    if (currentChunkCount === MAX_CHUNKS) {
-                        batchArray.push(currentBatch);
-                        currentBatch = {};
-                        currentChunkCount = 0;
-                    }
-                }
-            }
-            if (Object.keys(currentBatch).length > 0) {
-                batchArray.push(currentBatch);
+        const batchArray = [];
+        let currentBatch = {};
+        let currentChunkCount = 0;
+        for (const { key, chunkCount } of fileInfos) {
+            if (chunkCount === 0) {
+                allHashes[key] = [];
+                continue;
             }
 
-            // request
+            allHashes[key] = new Array(chunkCount);
+            for (let i = 0; i < chunkCount; i++) {
+                if (!currentBatch[key]) {
+                    currentBatch[key] = [];
+                }
+                currentBatch[key].push(i);
+                currentChunkCount++;
+                // If the batch reaches the chunk limit, create a task
+                if (currentChunkCount === MAX_CHUNKS) {
+                    batchArray.push(currentBatch);
+                    currentBatch = {};
+                    currentChunkCount = 0;
+                }
+            }
+        }
+        if (Object.keys(currentBatch).length > 0) {
+            batchArray.push(currentBatch);
+        }
+
+        // request
+        if (batchArray.length > 0) {
+            const contract = createFlatDirectoryContract(this.#contractAddr, this.#wallet);
             const hashPromises = batchArray.map(batch => async () => {
                 const fileChunksArray = Object.keys(batch).map(name => ({
                     name,
@@ -212,24 +212,6 @@ export class FlatDirectory {
             const hashResults = await limit(concurrencyLimit, hashPromises);
             // Combine results
             hashResults.flat().forEach(({name, chunkId, hash}) => {
-                allHashes[name][chunkId] = hash;
-            });
-        } else {
-            // old contract, use getChunkHash(bytes memory name, uint256 chunkId);
-            const hashPromises = fileInfos.flatMap(({ key, chunkCount }) => {
-                if (chunkCount === 0) {
-                    allHashes[key] = [];
-                    return [];
-                }
-
-                allHashes[key] = new Array(chunkCount);
-                return Array.from({ length: chunkCount }, (_, i) => async () => {
-                    return await getChunkHash(contract, key, i, this.#retries);
-                });
-            });
-
-            const hashResults = await limit(concurrencyLimit, hashPromises);
-            hashResults.forEach(({name, chunkId, hash}) => {
                 allHashes[name][chunkId] = hash;
             });
         }
@@ -308,8 +290,8 @@ export class FlatDirectory {
 
         // Get old chunk hashes, If the chunk hashes is not passed, it is obtained here
         if (!chunkHashes) {
-            const hashes = this.#fetchHashes([{ key, oldChunkLength }]);
-            chunkHashes =  hashes[key];
+            const hashes = await this.#fetchHashes([{ key, chunkCount: oldChunkLength }]);
+            chunkHashes = hashes[key];
         }
 
         let totalGasCost = 0n;
@@ -317,7 +299,7 @@ export class FlatDirectory {
         let gasLimit = 0;
         // send
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
-            const { blobArr, chunkIdArr, chunkSizeArr } = await this.#getBlobInfo(fileContract, content, hexName, blobLength, i);
+            const { blobArr, chunkIdArr, chunkSizeArr } = await this.#getBlobInfo(fileContract, content, hexName, i);
 
             let blobHashArr;
             // check change
@@ -370,8 +352,8 @@ export class FlatDirectory {
 
         // Get old chunk hashes, If the chunk hashes is not passed, it is obtained here
         if (!chunkHashes) {
-            const hashes = this.#fetchHashes([{ key, oldChunkLength }]);
-            chunkHashes =  hashes[key];
+            const hashes = await this.#fetchHashes([{ key, chunkCount: oldChunkLength }]);
+            chunkHashes = hashes[key];
         }
 
         let totalStorageCost = 0n;
@@ -429,7 +411,7 @@ export class FlatDirectory {
 
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
-        const { fileMod, oldChunkLength, cost} = await this.#getUploadBlobInfo(fileContract, hexName);
+        const { fileMod, oldChunkLength, cost} = await this.#getUploadInfo(fileContract, hexName);
         if (fileMod !== UPLOAD_TYPE_BLOB && fileMod !== 0) {
             callback.onFail(new Error(`FlatDirectory: This file does not support blob upload!`));
             callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
@@ -445,15 +427,15 @@ export class FlatDirectory {
 
         // Get old chunk hashes, If the chunk hashes is not passed, it is obtained here
         if (!chunkHashes) {
-            const hashes = this.#fetchHashes([{ key, oldChunkLength }]);
-            chunkHashes =  hashes[key];
+            const hashes = await this.#fetchHashes([{ key, chunkCount: oldChunkLength }]);
+            chunkHashes = hashes[key];
         }
 
         // send
         for (let i = 0; i < blobLength; i += MAX_BLOB_COUNT) {
             const {
                 blobArr, chunkIdArr, chunkSizeArr
-            } = await this.#getBlobInfo(fileContract, content, hexName, blobLength, i);
+            } = await this.#getBlobInfo(fileContract, content, hexName, i);
             const blobCommitmentArr = await this.#getBlobCommitments(blobArr);
 
             // check change
@@ -498,7 +480,7 @@ export class FlatDirectory {
 
         const hexName = stringToHex(key);
         const fileContract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
-        const {fileMod, oldChunkLength} = await this.#getUploadCallDataInfo(fileContract, hexName);
+        const {fileMod, oldChunkLength} = await this.#getUploadInfo(fileContract, hexName);
         if (fileMod !== UPLOAD_TYPE_CALLDATA && fileMod !== 0) {
             callback.onFail(new Error(`FlatDirectory: This file does not support calldata upload!`));
             callback.onFinish(totalUploadChunks, totalUploadSize, totalStorageCost);
@@ -515,8 +497,8 @@ export class FlatDirectory {
 
         // Get old chunk hashes, If the chunk hashes is not passed, it is obtained here
         if (!chunkHashes) {
-            const hashes = this.#fetchHashes([{ key, oldChunkLength }]);
-            chunkHashes =  hashes[key];
+            const hashes = await this.#fetchHashes([{ key, chunkCount: oldChunkLength }]);
+            chunkHashes = hashes[key];
         }
 
         for (let i = 0; i < chunkLength; i++) {
@@ -549,100 +531,38 @@ export class FlatDirectory {
     }
 
     async #getEstimateBlobInfo(contract, hexName) {
-        if (this.#isSupportBlob) {
-            const [result, maxFeePerBlobGas, gasFeeData] = await Promise.all([
-                getUploadInfo(contract, hexName, this.#retries),
-                retry(() => this.#blobUploader.getBlobGasPrice(), this.#retries),
-                retry(() => this.#blobUploader.getGasPrice(), this.#retries),
-            ]);
-            return {
-                fileMod: result.mode,
-                oldChunkLength: result.chunkSize,
-                cost: result.cost,
-                maxFeePerBlobGas,
-                gasFeeData
-            }
-        } else {
-            const [fileMod, oldChunkLength, cost, maxFeePerBlobGas, gasFeeData] = await Promise.all([
-                getStorageMode(contract, hexName, this.#retries),
-                countChunks(contract, hexName, this.#retries),
-                upfrontPayment(contract, this.#retries),
-                retry(() => this.#blobUploader.getBlobGasPrice(), this.#retries),
-                retry(() => this.#blobUploader.getGasPrice(), this.#retries),
-            ]);
-            return {
-                fileMod: fileMod,
-                oldChunkLength: oldChunkLength,
-                cost: cost,
-                maxFeePerBlobGas,
-                gasFeeData
-            }
+        const [result, maxFeePerBlobGas, gasFeeData] = await Promise.all([
+            getUploadInfo(contract, hexName, this.#retries),
+            retry(() => this.#blobUploader.getBlobGasPrice(), this.#retries),
+            retry(() => this.#blobUploader.getGasPrice(), this.#retries),
+        ]);
+        return {
+            fileMod: result.mode,
+            oldChunkLength: result.chunkSize,
+            cost: result.cost,
+            maxFeePerBlobGas,
+            gasFeeData
         }
     }
 
     async #getEstimateCallDataInfo(contract, hexName) {
-        if (this.#isSupportBlob) {
-            const [result, gasFeeData] = await Promise.all([
-                getUploadInfo(contract, hexName, this.#retries),
-                retry(() => this.#blobUploader.getGasPrice(), this.#retries),
-            ]);
-            return {
-                fileMod: result.mode,
-                oldChunkLength: result.chunkSize,
-                gasFeeData
-            }
-        } else {
-            const [fileMod, oldChunkLength, gasFeeData] = await Promise.all([
-                getStorageMode(contract, hexName, this.#retries),
-                countChunks(contract, hexName, this.#retries),
-                retry(() => this.#blobUploader.getGasPrice(), this.#retries),
-            ]);
-            return {
-                fileMod: fileMod,
-                oldChunkLength: oldChunkLength,
-                gasFeeData
-            }
+        const [result, gasFeeData] = await Promise.all([
+            getUploadInfo(contract, hexName, this.#retries),
+            retry(() => this.#blobUploader.getGasPrice(), this.#retries),
+        ]);
+        return {
+            fileMod: result.mode,
+            oldChunkLength: result.chunkSize,
+            gasFeeData
         }
     }
 
-    async #getUploadBlobInfo(contract, hexName) {
-        if (this.#isSupportBlob) {
-            const result = await getUploadInfo(contract, hexName, this.#retries);
-            return {
-                fileMod: result.mode,
-                oldChunkLength: result.chunkSize,
-                cost: result.cost
-            }
-        } else {
-            const [fileMod, oldChunkLength, cost] = await Promise.all([
-                getStorageMode(contract, hexName, this.#retries),
-                countChunks(contract, hexName, this.#retries),
-                upfrontPayment(contract, this.#retries),
-            ]);
-            return {
-                fileMod: fileMod,
-                oldChunkLength: oldChunkLength,
-                cost: cost
-            }
-        }
-    }
-
-    async #getUploadCallDataInfo(contract, hexName) {
-        if (this.#isSupportBlob) {
-            const result = await getUploadInfo(contract, hexName, this.#retries);
-            return {
-                fileMod: result.mode,
-                oldChunkLength: result.chunkSize,
-            }
-        } else {
-            const [fileMod, oldChunkLength] = await Promise.all([
-                getStorageMode(contract, hexName, this.#retries),
-                countChunks(contract, hexName, this.#retries)
-            ]);
-            return {
-                fileMod: fileMod,
-                oldChunkLength: oldChunkLength,
-            }
+    async #getUploadInfo(contract, hexName) {
+        const result = await getUploadInfo(contract, hexName, this.#retries);
+        return {
+            fileMod: result.mode,
+            oldChunkLength: result.chunkSize,
+            cost: result.cost
         }
     }
 
