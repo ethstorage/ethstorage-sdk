@@ -68,7 +68,7 @@ export class FlatDirectory {
         if (!address) return;
 
         const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
-        const [supportBlob, solcVersion] = await Promise.all([
+        const [supportBlob, contractVersion] = await Promise.all([
             retry(() => fileContract.isSupportBlob(), this.#retries).catch((e) => {
                 if (e?.code === 'BAD_DATA') return false;
                 throw e;
@@ -78,7 +78,7 @@ export class FlatDirectory {
                 throw e;
             })
         ]);
-        if (solcVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
+        if (contractVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
             throw new Error("FlatDirectory: The current SDK does not support this contract. Please switch to version 2.0.0.");
         }
         this.#isSupportBlob = supportBlob;
