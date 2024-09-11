@@ -3,13 +3,13 @@ import {
     BlobUploader,
     stringToHex,
     getChainId,
-    encodeBlobs
+    encodeOpBlobs
 } from "./utils";
 import {
     ETHSTORAGE_MAPPING,
     BLOB_SIZE,
-    DEFAULT_BLOB_DATA_SIZE,
-    PaddingPer31Bytes,
+    OP_BLOB_DATA_SIZE,
+    OptimismCompact,
     EthStorageAbi,
     BLOB_COUNT_LIMIT
 } from "./param";
@@ -52,14 +52,7 @@ export class EthStorage {
     }
 
     async estimateCost(key, data) {
-        if (!data) {
-            throw new Error(`EthStorage: Invalid data.`);
-        }
-        data = Buffer.from(data);
-        if (data.length < 0 || data.length > DEFAULT_BLOB_DATA_SIZE) {
-            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
-        }
-
+        this.#checkData(data);
         const hexKey = ethers.keccak256(stringToHex(key));
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         const [storageCost, maxFeePerBlobGas, gasFeeData] = await Promise.all([
@@ -68,7 +61,7 @@ export class EthStorage {
             this.#blobUploader.getGasPrice(),
         ]);
 
-        const blobs = encodeBlobs(data);
+        const blobs = encodeOpBlobs(data);
         const blobHash = this.#blobUploader.getBlobHash(blobs[0]);
         const gasLimit = await contract.putBlob.estimateGas(hexKey, 0, data.length, {
             value: storageCost,
@@ -86,13 +79,7 @@ export class EthStorage {
     }
 
     async write(key, data) {
-        if (!data) {
-            throw new Error(`EthStorage: Invalid data.`);
-        }
-        data = Buffer.from(data);
-        if (data.length < 0 || data.length > DEFAULT_BLOB_DATA_SIZE) {
-            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
-        }
+        this.#checkData(data);
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         const hexKey = ethers.keccak256(stringToHex(key));
@@ -102,7 +89,7 @@ export class EthStorage {
                 value: storageCost,
             });
 
-            const blobs = encodeBlobs(data);
+            const blobs = encodeOpBlobs(data);
             let txRes = await this.#blobUploader.sendTx(tx, blobs);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`)
             txRes = await txRes.wait();
@@ -113,7 +100,7 @@ export class EthStorage {
         return false;
     }
 
-    async read(key) {
+    async read(key, decodeType = OptimismCompact) {
         if (!key) {
             throw new Error(`EthStorage: Invalid key.`);
         }
@@ -129,7 +116,7 @@ export class EthStorage {
         if (size === 0n) {
             throw new Error(`EthStorage: There is no data corresponding to key ${key} under wallet address ${this.#wallet.address}.`)
         }
-        const data = await contract.get(hexKey, PaddingPer31Bytes, 0, size, {
+        const data = await contract.get(hexKey, decodeType, 0, size, {
             from: this.#wallet.address
         });
         return ethers.getBytes(data);
@@ -152,15 +139,13 @@ export class EthStorage {
         const idArr = [];
         const lengthArr = [];
         for (let i = 0; i < blobLength; i++) {
-            const d = Buffer.from(dataBlobs[i]);
-            if (d.length < 0 || d.length > DEFAULT_BLOB_DATA_SIZE) {
-                throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${DEFAULT_BLOB_DATA_SIZE}.`);
-            }
-            const blob = encodeBlobs(d);
+            const data = dataBlobs[i];
+            this.#checkData(data);
+            const blob = encodeOpBlobs(data);
             blobArr.push(blob[0]);
             keyArr.push(ethers.keccak256(stringToHex(keys[i])));
             idArr.push(i);
-            lengthArr.push(d.length);
+            lengthArr.push(data.length);
         }
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
@@ -178,5 +163,14 @@ export class EthStorage {
             console.error(`EthStorage: Put blobs failed!`, e.message);
         }
         return false;
+    }
+
+    #checkData(data) {
+        if (!data || !(data instanceof Uint8Array)) {
+            throw new Error(`EthStorage: Invalid data.`);
+        }
+        if (data.length === 0 || data.length > OP_BLOB_DATA_SIZE) {
+            throw new Error(`EthStorage: the length of data(Uint8Array) should be > 0 && < ${OP_BLOB_DATA_SIZE}.`);
+        }
     }
 }

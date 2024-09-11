@@ -8,15 +8,18 @@ export async function getChainId(rpc) {
     return Number(network.chainId);
 }
 
-export async function getFileChunk(file, fileSize, start, end) {
-    end = end > fileSize ? fileSize : end;
-    const slice = file.slice(start, end);
-    const data = await slice.arrayBuffer();
-    return Buffer.from(data);
+export async function getContentChunk(content, start, end) {
+    if (isBuffer(content)) {
+        return content.slice(start, Math.min(end, content.length));
+    } else {
+        const slice = content.slice(start, Math.min(end, content.size));
+        const data = await slice.arrayBuffer();
+        return new Uint8Array(data);
+    }
 }
 
 export function isBuffer(content) {
-    return (content instanceof Uint8Array) || (content instanceof Buffer);
+    return content instanceof Uint8Array;
 }
 
 export function isFile(content) {
@@ -62,4 +65,12 @@ export async function retry(fn, retries, ...args) {
             }
         }
     }
+}
+
+export function copy(des, desOff, src, srcOff) {
+    const srcLength = src.length - srcOff;
+    const desLength = des.length - desOff;
+    const length = Math.min(srcLength, desLength);
+    des.set(src.subarray(srcOff, srcOff + length), desOff);
+    return length;
 }

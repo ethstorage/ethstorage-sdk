@@ -9,6 +9,7 @@ export const EthStorageAbi = [
 
 export const FlatDirectoryAbi = [
   "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
+  "function version() public view returns (string)",
   "function setDefault(bytes memory _defaultFile) public",
   "function upfrontPayment() external view returns (uint256)",
   "function getChunkHash(bytes memory name, uint256 chunkId) public view returns (bytes32)",
