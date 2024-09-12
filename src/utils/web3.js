@@ -1,10 +1,4 @@
-import { ethers } from "ethers";
-import { FlatDirectoryAbi } from "../param";
 import {retry, stringToHex} from "./util";
-
-export function createFlatDirectoryContract(address, runner) {
-    return new ethers.Contract(address, FlatDirectoryAbi, runner);
-}
 
 export async function countChunks(contract, hexName, retries) {
     const count = await retry(() => contract.countChunks(hexName), retries);
