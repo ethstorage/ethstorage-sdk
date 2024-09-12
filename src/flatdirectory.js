@@ -18,7 +18,7 @@ import {
     stringToHex, isNodejs,
     retry, getContentChunk,
     countChunks, getChunkHashes,
-    getUploadInfo, limit,
+    getUploadDetails, limit, getChunkCounts,
 } from "./utils";
 
 import workerpool from 'workerpool';
@@ -157,13 +157,9 @@ export class FlatDirectory {
             throw new Error('Invalid keys.');
         }
 
-        const contract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         // get file chunks
-        const chunkCountPromises = keys.map(key => async () => {
-            const chunkCount = await countChunks(contract, stringToHex(key), this.#retries);
-            return {key, chunkCount};
-        });
-        const fileInfos = await limit(concurrencyLimit, chunkCountPromises);
+        const contract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
+        const fileInfos = await getChunkCounts(contract, keys, this.#retries);
         return this.#fetchHashes(fileInfos, concurrencyLimit);
     }
 
@@ -524,7 +520,7 @@ export class FlatDirectory {
 
     async #getEstimateBlobInfo(contract, hexName) {
         const [result, maxFeePerBlobGas, gasFeeData] = await Promise.all([
-            getUploadInfo(contract, hexName, this.#retries),
+            getUploadDetails(contract, hexName, this.#retries),
             retry(() => this.#blobUploader.getBlobGasPrice(), this.#retries),
             retry(() => this.#blobUploader.getGasPrice(), this.#retries),
         ]);
@@ -539,7 +535,7 @@ export class FlatDirectory {
 
     async #getEstimateCallDataInfo(contract, hexName) {
         const [result, gasFeeData] = await Promise.all([
-            getUploadInfo(contract, hexName, this.#retries),
+            getUploadDetails(contract, hexName, this.#retries),
             retry(() => this.#blobUploader.getGasPrice(), this.#retries),
         ]);
         return {
@@ -550,7 +546,7 @@ export class FlatDirectory {
     }
 
     async #getUploadInfo(contract, hexName) {
-        const result = await getUploadInfo(contract, hexName, this.#retries);
+        const result = await getUploadDetails(contract, hexName, this.#retries);
         return {
             fileMod: result.mode,
             oldChunkLength: result.chunkSize,

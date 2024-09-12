@@ -71,6 +71,9 @@ async function FlatDirectoryTest() {
         }
     };
 
+    const hashes = await fd.fetchHashes(["file.jpg", "blobFile.jpg"]);
+    console.log(hashes);
+
     // calldata
     // data
     let request = {
