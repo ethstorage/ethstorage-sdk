@@ -572,10 +572,12 @@ export class FlatDirectory {
 
     async #uploadBlob(fileContract, key, hexName, blobArr, blobCommitmentArr, chunkIdArr, chunkSizeArr, cost, gasIncPct) {
         // create tx
-        const value = cost * BigInt(blobArr.length);
-        const tx = await fileContract.writeChunks.populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
-            value: value,
-        });
+        const data = fileContract.interface.encodeFunctionData('writeChunks', [hexName, chunkIdArr, chunkSizeArr]);
+        const tx = {
+            to: this.#contractAddr,
+            value: cost * BigInt(blobArr.length),
+            data: data
+        }
         // Increase % if user requests it
         if (gasIncPct > 0) {
             // Fetch the current gas price and increase it
@@ -586,6 +588,7 @@ export class FlatDirectory {
             const blobGas = await this.#blobUploader.getBlobGasPrice();
             tx.maxFeePerBlobGas = blobGas * BigInt(100 + gasIncPct) / BigInt(100);
         }
+
         // send
         const txResponse = await this.#blobUploader.sendTxLock(tx, blobArr, blobCommitmentArr);
         this.#printHashLog(key, chunkIdArr, txResponse.hash);

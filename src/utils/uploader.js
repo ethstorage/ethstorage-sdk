@@ -69,9 +69,9 @@ export class BlobUploader {
         return null;
     }
 
-    async sendTx(tx, blobs = null, commitments = null) {
+    async #preSend(tx, blobs = null, commitments = null, isLock = false) {
         if (!blobs) {
-            return await this.#wallet.sendTransaction(tx);
+            return isLock ? await this.#lockSend(tx) : await this.#wallet.sendTransaction(tx);
         }
 
         if (tx.maxFeePerBlobGas == null) {
@@ -79,13 +79,24 @@ export class BlobUploader {
         }
 
         // blobs
-        const kzg = this.#kzg;
+        const [ethersBlobs, versionedHashes] = await this.#processBlobs(blobs, commitments);
+
+        // send
+        tx.type = 3;
+        tx.blobVersionedHashes = versionedHashes;
+        tx.blobs = ethersBlobs;
+        tx.kzg = this.#kzg;
+        return isLock ? await this.#lockSend(tx) : await this.#wallet.sendTransaction(tx);
+    }
+
+    async #processBlobs(blobs, commitments) {
         const ethersBlobs = [];
         const versionedHashes = [];
-        for (let i = 0; i < blobs.length; i++) {
-            const blob = blobs[i];
-            const commitment = (commitments && commitments.length > i) ? commitments[i] : kzg.blobToKzgCommitment(blob);
-            const proof = kzg.computeBlobKzgProof(blob, commitment);
+
+        const blobPromises = blobs.map(async (blob, index) => {
+            const commitment = (commitments && commitments.length > index) ? commitments[index] : this.#kzg.blobToKzgCommitment(blob);
+            const proof = this.#kzg.computeBlobKzgProof(blob, commitment);
+
             ethersBlobs.push({
                 data: blob,
                 proof: proof,
@@ -94,23 +105,27 @@ export class BlobUploader {
 
             const hash = commitmentsToVersionedHashes(commitment);
             versionedHashes.push(ethers.hexlify(hash));
-        }
+        });
 
-        // send
-        tx.type = 3;
-        tx.blobVersionedHashes = versionedHashes;
-        tx.blobs = ethersBlobs;
-        tx.kzg = kzg;
-        return await this.#wallet.sendTransaction(tx);
+        await Promise.all(blobPromises);
+        return [ethersBlobs, versionedHashes];
     }
 
-    async sendTxLock(tx, blobs = null, commitments = null) {
+    async #lockSend(tx) {
         const release = await this.#mutex.acquire();
         try {
-            return await this.sendTx(tx, blobs, commitments);
+            return await this.#wallet.sendTransaction(tx);
         } finally {
             release();
         }
+    }
+
+    async sendTx(tx, blobs = null, commitments = null) {
+        return await this.#preSend(tx, blobs, commitments, false);
+    }
+
+    async sendTxLock(tx, blobs = null, commitments = null) {
+        return await this.#preSend(tx, blobs, commitments, true);
     }
 
     getCommitment(blob) {
