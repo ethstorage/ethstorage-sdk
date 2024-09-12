@@ -64,7 +64,7 @@ export class FlatDirectory {
         this.#chainId = await getChainId(rpc);
         if (!address) return;
 
-        const fileContract = new ethers.Contract(address, FlatDirectoryAbi, this.#wallet);
+        const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
         const [supportBlob, contractVersion] = await Promise.all([
             retry(() => fileContract.isSupportBlob(), this.#retries).catch((e) => {
                 if (e?.code === 'BAD_DATA') return false;
@@ -326,7 +326,7 @@ export class FlatDirectory {
                 + maxFeePerBlobGas * BigInt(BLOB_SIZE);
             totalGasCost += gasCost;
         }
-        totalGasCost += totalGasCost * BigInt(gasIncPct) / 100n;
+        totalGasCost += (totalGasCost * BigInt(gasIncPct)) / 100n;
 
         return {
             storageCost: totalStorageCost,
@@ -375,7 +375,7 @@ export class FlatDirectory {
             totalStorageCost += cost;
             totalGasCost += (gasFeeData.maxFeePerGas + gasFeeData.maxPriorityFeePerGas) * gasLimit;
         }
-        totalGasCost += totalGasCost * BigInt(gasIncPct) / 100n;
+        totalGasCost += (totalGasCost * BigInt(gasIncPct)) / 100n;
 
         return {
             storageCost: totalStorageCost,
