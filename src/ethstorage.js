@@ -1,4 +1,4 @@
-import {ethers} from "ethers";
+import { ethers } from "ethers";
 import {
     BlobUploader,
     stringToHex,
@@ -22,14 +22,14 @@ export class EthStorage {
     #blobUploader;
 
     static async create(config) {
-        const {rpc, address} = config;
+        const { rpc, address } = config;
         const ethStorage = new EthStorage(config);
         await ethStorage.init(rpc, address);
         return ethStorage;
     }
 
     constructor(config) {
-        const {rpc, ethStorageRpc, privateKey} = config;
+        const { rpc, ethStorageRpc, privateKey } = config;
         this.#ethStorageRpc = ethStorageRpc;
 
         const provider = new ethers.JsonRpcProvider(rpc);
@@ -47,7 +47,7 @@ export class EthStorage {
         if (!this.#contractAddr) {
             throw new Error("EthStorage: Network not supported yet.");
         }
-
+        console.log(`EthStorage: contract addrss: ${this.#contractAddr}`)
         await this.#blobUploader.init();
     }
 
@@ -117,7 +117,7 @@ export class EthStorage {
         if (!key) {
             throw new Error(`EthStorage: Invalid key.`);
         }
-        if(!this.#ethStorageRpc) {
+        if (!this.#ethStorageRpc) {
             throw new Error(`EthStorage: Reading content requires providing 'ethStorageRpc'.`)
         }
         const hexKey = ethers.keccak256(stringToHex(key));
@@ -175,9 +175,15 @@ export class EthStorage {
             let txRes = await this.#blobUploader.sendTx(tx, blobArr);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             txRes = await txRes.wait();
+            const gasPrice = (await this.#blobUploader.getGasPrice()).gasPrice;
+            const blobGasPrice = await this.#blobUploader.getBlobGasPrice();
+            console.log(` gasPrice=${gasPrice}`);
+            console.log(` blobGasPrice=${blobGasPrice}`);
+            console.log(` gasUsed=${txRes.gasUsed}; blobGasUsed=${txRes.blobGasUsed}`);
+            console.log(` tx cost=${txRes.gasUsed * gasPrice}+${txRes.blobGasUsed * blobGasPrice}=${txRes.gasUsed * gasPrice + txRes.blobGasUsed * blobGasPrice}`);
             return txRes.status;
         } catch (e) {
-            console.error(`EthStorage: Put blobs failed!`, e.message.substring(e.message.length - 100));
+            console.error(`EthStorage: Put blobs failed!`, e.message);
         }
         return false;
     }

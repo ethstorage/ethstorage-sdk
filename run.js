@@ -6,6 +6,7 @@ const dotenv = require("dotenv");
 
 dotenv.config()
 
+const blobsPerTx = 6;
 
 function fill(length) {
     let str = crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
@@ -13,8 +14,9 @@ function fill(length) {
 }
 
 async function upload(es, batchIndex) {
-    const keys = Array.from({ length: 6 }, (_, i) => `key_${batchIndex}_${i}`);
-    const data = Array.from({ length: 6 }, (_, i) => Buffer.from(`data_${batchIndex}_${i}_`));
+    const keys = Array.from({ length: blobsPerTx }, (_, i) => `key_${batchIndex}_${i}`);
+    // const keys = Array.from({ length: blobsPerTx }, (_, i) => `key_same`);
+    const data = Array.from({ length: blobsPerTx }, (_, i) => Buffer.from(`data_${batchIndex}_${i}_`));
 
     data.forEach((d, i) => {
         data[i] = Buffer.concat([d, fill(31 * 4096 - d.length)]);
@@ -39,6 +41,7 @@ async function main() {
     for (let i = 0; i < pks.length; i++) {
         const es = await EthStorage.create({
             rpc: 'http://65.109.20.29:8545',
+            // rpc: 'http://88.99.30.186:8545',
             ethStorageRpc: 'http://65.109.115.36:9540',
             privateKey: pks[i]
         })
@@ -54,7 +57,7 @@ async function main() {
     setTimeout(() => {
         console.log('Timeout: Breaking the loop');
         shouldContinue = false;
-    }, 24 * 3600 * 1000);
+    }, 60 * 1000);
 
     while (shouldContinue) {
         await Promise.all(
