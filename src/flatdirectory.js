@@ -81,6 +81,10 @@ export class FlatDirectory {
         this.#isSupportBlob = supportBlob;
     }
 
+    isSupportBlob() {
+        return this.#isSupportBlob;
+    }
+
     async deploy() {
         this.#isSupportBlob = ETHSTORAGE_MAPPING[this.#chainId] != null;
 
