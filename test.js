@@ -97,6 +97,7 @@ async function FlatDirectoryTest() {
         key: "file.jpg",
         content: file,
         gasIncPct: 10,
+        chunkHashes: hashes[0],
         callback: uploadCallback
     }
     cost = await fd.estimateCost(request);
@@ -130,6 +131,7 @@ async function FlatDirectoryTest() {
         key: "blobFile.jpg",
         content: file,
         gasIncPct: 5,
+        chunkHashes: hashes[1],
         callback: uploadCallback
     }
     cost = await fd.estimateCost(request);
