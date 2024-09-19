@@ -1,7 +1,8 @@
 import workerpool from 'workerpool';
-import {loadKZG} from 'kzg-wasm';
+import { loadKZG } from 'kzg-wasm';
+import { KZG } from "../param";
 
-let kzgInstance = null;
+let kzgInstance: KZG | null = null;
 
 async function initializeKzg() {
     if (!kzgInstance) {
@@ -10,7 +11,7 @@ async function initializeKzg() {
     return kzgInstance;
 }
 
-async function getCommitment(blob) {
+async function getCommitment(blob: Uint8Array) {
     const kzg = await initializeKzg();
     return kzg.blobToKzgCommitment(blob);
 }
