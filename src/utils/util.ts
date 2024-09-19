@@ -1,14 +1,15 @@
-import {ethers} from "ethers";
+import { ethers } from "ethers";
+import { ContentLike, BufferLike, FileLike } from "../param";
 
-export const stringToHex = (s) => ethers.hexlify(ethers.toUtf8Bytes(s));
+export const stringToHex = (s: string): string => ethers.hexlify(ethers.toUtf8Bytes(s));
 
-export async function getChainId(rpc) {
+export async function getChainId(rpc: string): Promise<number> {
     const provider = new ethers.JsonRpcProvider(rpc);
     const network = await provider.getNetwork();
     return Number(network.chainId);
 }
 
-export async function getContentChunk(content, start, end) {
+export async function getContentChunk(content: ContentLike, start: number, end: number) {
     if (isBuffer(content)) {
         return content.slice(start, Math.min(end, content.length));
     } else {
@@ -18,25 +19,25 @@ export async function getContentChunk(content, start, end) {
     }
 }
 
-export function isBuffer(content) {
+export function isBuffer(content: ContentLike): content is BufferLike {
     return content instanceof Uint8Array;
 }
 
-export function isFile(content) {
+export function isFile(content: ContentLike): content is FileLike {
     if (isNodejs()) {
         return content && typeof content === 'object' &&
-            typeof content.isNodeJs === 'boolean' &&
-            content.isNodeJs;
+            typeof (content as any).isNodeJs === 'boolean' &&
+            (content as any).isNodeJs;
     } else {
         return content instanceof File;
     }
 }
 
-export function isNodejs() {
+export function isNodejs(): boolean {
     return typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 }
 
-export function commitmentsToVersionedHashes(commitment) {
+export function commitmentsToVersionedHashes(commitment: Uint8Array): Uint8Array {
     const computedVersionedHash = new Uint8Array(32);
     computedVersionedHash.set([0x01], 0);
     const hash = ethers.getBytes(ethers.sha256(commitment));
@@ -44,26 +45,27 @@ export function commitmentsToVersionedHashes(commitment) {
     return computedVersionedHash;
 }
 
-export function getHash(commit) {
+export function getHash(commit: Uint8Array): string {
     const localHash = commitmentsToVersionedHashes(commit);
     const hash = new Uint8Array(32);
     hash.set(localHash.subarray(0, 32 - 8));
     return ethers.hexlify(hash);
 }
 
-export async function retry(fn, retries, ...args) {
+export async function retry<T>(fn: (...args: any[]) => Promise<T>, retries: number, ...args: any[]): Promise<T> {
     for (let i = 0; i < retries; i++) {
         try {
-            return await fn.apply(null, args);
+            return await fn(...args);
         } catch (error) {
             if (i === retries - 1) {
                 throw error;
             }
         }
     }
+    throw new Error('Function failed after maximum retries');
 }
 
-export function copy(des, desOff, src, srcOff) {
+export function copy(des: Uint8Array, desOff: number, src: Uint8Array, srcOff: number): number {
     const srcLength = src.length - srcOff;
     const desLength = des.length - desOff;
     const length = Math.min(srcLength, desLength);
@@ -71,9 +73,13 @@ export function copy(des, desOff, src, srcOff) {
     return length;
 }
 
-export async function limit(concurrencyLimit, asyncTasks) {
-    const results = [];
-    const executing = [];
+export async function limit<T>(
+    concurrencyLimit: number,
+    asyncTasks: (() => Promise<T>)[]
+): Promise<T[]> {
+    const results: T[] = [];
+    const executing: Promise<T>[] = [];
+
     for (const task of asyncTasks) {
         const p = task().then(result => {
             results.push(result);

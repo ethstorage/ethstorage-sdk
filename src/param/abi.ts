@@ -1,5 +1,5 @@
 
-export const EthStorageAbi = [
+export const EthStorageAbi: readonly string[] = [
   'function putBlobs(bytes32[] memory _keys, uint256[] memory _blobIdxs, uint256[] memory _lengths)',
   'function putBlob(bytes32 _key, uint256 _blobIdx, uint256 _length) public payable',
   'function get(bytes32 _key, uint8 _decodeType, uint256 _off, uint256 _len) public view returns (bytes memory)',
@@ -7,7 +7,7 @@ export const EthStorageAbi = [
   'function upfrontPayment() public view returns (uint256)'
 ];
 
-export const FlatDirectoryAbi = [
+export const FlatDirectoryAbi: readonly string[] = [
   "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
   "function version() external view returns (string)",
   "function isSupportBlob() view external returns (bool)",
