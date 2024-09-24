@@ -4,6 +4,7 @@ declare module 'ethstorage-sdk' {
 
     // Constants
     export const BLOB_DATA_SIZE: number;
+    export const OP_BLOB_DATA_SIZE: number;
     export const BLOB_SIZE: number;
     export const MAX_BLOB_COUNT: number;
     export const PaddingPer31Bytes: number;

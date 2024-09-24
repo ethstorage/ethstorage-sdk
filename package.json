@@ -15,7 +15,7 @@
     }
   },
   "scripts": {
-    "build": "rollup -c",
+    "build": "rm -rf dist && rollup -c",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
