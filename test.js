@@ -97,7 +97,6 @@ async function FlatDirectoryTest() {
         key: "file.jpg",
         content: file,
         gasIncPct: 10,
-        chunkHashes: hashes[0],
         callback: uploadCallback
     }
     cost = await fd.estimateCost(request);

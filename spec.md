@@ -382,7 +382,6 @@ flatDirectory.download("example.txt", {
 
 **Parameters**
 - `keys` (string[]): The keys to be retrieved.
-- `concurrencyLimit` (number, optional): Concurrency limit.
 
 **Returns**
 - `result` (Promise<Record<string, string[]>>): A Promise that resolves to an object where each key (from the input keys) maps to an array of chunk hashes.

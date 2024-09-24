@@ -156,7 +156,7 @@ export class FlatDirectory {
         cb.onFinish();
     }
 
-    async fetchHashes(keys, concurrencyLimit = 5) {
+    async fetchHashes(keys) {
         if (!keys || !Array.isArray(keys)) {
             throw new Error('Invalid keys.');
         }
@@ -164,7 +164,7 @@ export class FlatDirectory {
         // get file chunks
         const contract = new ethers.Contract(this.#contractAddr, FlatDirectoryAbi, this.#wallet);
         const fileInfos = await getChunkCounts(contract, keys, this.#retries);
-        return this.#fetchHashes(fileInfos, concurrencyLimit);
+        return this.#fetchHashes(fileInfos, 1);
     }
 
     async #fetchHashes(fileInfos, concurrencyLimit = 5) {
