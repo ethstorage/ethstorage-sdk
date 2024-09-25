@@ -9,16 +9,18 @@ export const EthStorageAbi = [
 
 export const FlatDirectoryAbi = [
   "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
-  "function version() public view returns (string)",
-  "function setDefault(bytes memory _defaultFile) public",
-  "function upfrontPayment() external view returns (uint256)",
+  "function version() external view returns (string)",
+  "function isSupportBlob() view external returns (bool)",
+  "function setDefault(bytes memory _defaultFile) external",
   "function getChunkHash(bytes memory name, uint256 chunkId) public view returns (bytes32)",
   "function writeChunk(bytes memory name, uint256 chunkId, bytes calldata data) external payable",
   "function writeChunks(bytes memory name, uint256[] memory chunkIds, uint256[] memory sizes) external payable",
-  "function refund() public",
   "function remove(bytes memory name) external returns (uint256)",
+  "function truncate(bytes memory name, uint256 chunkId) external returns (uint256)",
+
+  "function readChunk(bytes memory name, uint256 chunkId) external view returns (bytes memory, bool)",
   "function countChunks(bytes memory name) external view returns (uint256)",
-  "function isSupportBlob() view public returns (bool)",
-  "function getStorageMode(bytes memory name) public view returns(uint256)",
-  'function readChunk(bytes memory name, uint256 chunkId) external view returns (bytes memory, bool)'
+  "function getUploadInfo(bytes memory name) external view returns (uint8 mode, uint256 chunkCount, uint256 storageCost)",
+  "function getChunkHashesBatch((bytes,uint256[])[] memory fileChunks) external view returns (bytes32[] memory)",
+  "function getChunkCountsBatch(bytes[] memory names) external view returns (uint256[] memory)"
 ];
