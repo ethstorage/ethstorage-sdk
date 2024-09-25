@@ -6,8 +6,8 @@ export async function countChunks(contract, hexName, retries) {
     return Number(count);
 }
 
-export async function getUploadDetails(contract, hexName, retries) {
-    const result = await retry(() => contract.getUploadDetails(hexName), retries);
+export async function getUploadInfo(contract, hexName, retries) {
+    const result = await retry(() => contract.getUploadInfo(hexName), retries);
     return {
         mode: Number(result[0]),
         chunkSize: Number(result[1]),

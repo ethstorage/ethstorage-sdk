@@ -18,7 +18,7 @@ import {
     stringToHex, isNodejs,
     retry, getContentChunk,
     countChunks, getChunkHashes,
-    getUploadDetails, limit, getChunkCounts,
+    getUploadInfo, limit, getChunkCounts,
 } from "./utils";
 
 import workerpool from 'workerpool';
@@ -524,7 +524,7 @@ export class FlatDirectory {
 
     async #getEstimateBlobInfo(contract, hexName) {
         const [result, maxFeePerBlobGas, gasFeeData] = await Promise.all([
-            getUploadDetails(contract, hexName, this.#retries),
+            getUploadInfo(contract, hexName, this.#retries),
             retry(() => this.#blobUploader.getBlobGasPrice(), this.#retries),
             retry(() => this.#blobUploader.getGasPrice(), this.#retries),
         ]);
@@ -539,7 +539,7 @@ export class FlatDirectory {
 
     async #getEstimateCallDataInfo(contract, hexName) {
         const [result, gasFeeData] = await Promise.all([
-            getUploadDetails(contract, hexName, this.#retries),
+            getUploadInfo(contract, hexName, this.#retries),
             retry(() => this.#blobUploader.getGasPrice(), this.#retries),
         ]);
         return {
@@ -550,7 +550,7 @@ export class FlatDirectory {
     }
 
     async #getUploadInfo(contract, hexName) {
-        const result = await getUploadDetails(contract, hexName, this.#retries);
+        const result = await getUploadInfo(contract, hexName, this.#retries);
         return {
             fileMod: result.mode,
             oldChunkLength: result.chunkSize,
