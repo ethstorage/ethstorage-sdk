@@ -6,7 +6,8 @@ const dotenv = require("dotenv");
 
 dotenv.config()
 
-const blobsPerTx = 6;
+const blobsPerTx = 1;
+const batchSize = 4870;
 
 function fill(length) {
     let str = crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
@@ -14,13 +15,13 @@ function fill(length) {
 }
 
 async function upload(es, batchIndex) {
-    const keys = Array.from({ length: blobsPerTx }, (_, i) => `key_${batchIndex}_${i}`);
-    // const keys = Array.from({ length: blobsPerTx }, (_, i) => `key_same`);
+    // const keys = Array.from({ length: blobsPerTx }, (_, i) => `key_${batchIndex}_${i}`);
+    const keys = Array.from({ length: batchSize }, (_, i) => `key_same`);
     const data = Array.from({ length: blobsPerTx }, (_, i) => Buffer.from(`data_${batchIndex}_${i}_`));
 
-    data.forEach((d, i) => {
-        data[i] = Buffer.concat([d, fill(31 * 4096 - d.length)]);
-    })
+    // data.forEach((d, i) => {
+    //     data[i] = Buffer.concat([d, fill(31 * 4096 - d.length)]);
+    // })
     return await es.writeBlobs(keys, data);
 }
 
@@ -57,7 +58,7 @@ async function main() {
     setTimeout(() => {
         console.log('Timeout: Breaking the loop');
         shouldContinue = false;
-    }, 60 * 1000);
+    }, 1 * 1000);
 
     while (shouldContinue) {
         await Promise.all(

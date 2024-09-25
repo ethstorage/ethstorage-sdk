@@ -139,12 +139,12 @@ export class EthStorage {
         if (!keys || !dataBlobs) {
             throw new Error(`EthStorage: Invalid parameter.`);
         }
-        if (keys.length !== dataBlobs.length) {
-            throw new Error(`EthStorage: The number of keys and data does not match.`);
-        }
-        if (keys.length > BLOB_COUNT_LIMIT) {
-            throw new Error(`EthStorage: The count exceeds the maximum blob limit.`);
-        }
+        // if (keys.length !== dataBlobs.length) {
+        //     throw new Error(`EthStorage: The number of keys and data does not match.`);
+        // }
+        // if (keys.length > BLOB_COUNT_LIMIT) {
+        //     throw new Error(`EthStorage: The count exceeds the maximum blob limit.`);
+        // }
 
         const blobLength = keys.length;
         const blobDataSize = BLOB_DATA_SIZE;
@@ -153,25 +153,30 @@ export class EthStorage {
         const keyArr = [];
         const idArr = [];
         const lengthArr = [];
+        const d = Buffer.from(dataBlobs[0]);
+        if (d.length < 0 || d.length > blobDataSize) {
+            throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${blobDataSize}.`);
+        }
+        const blob = encodeBlobs(d);
+        blobArr.push(blob[0]);
         for (let i = 0; i < blobLength; i++) {
-            const d = Buffer.from(dataBlobs[i]);
-            if (d.length < 0 || d.length > blobDataSize) {
-                throw new Error(`EthStorage: the length of data(Buffer) should be > 0 && < ${blobDataSize}.`);
-            }
-            const blob = encodeBlobs(d);
-            blobArr.push(blob[0]);
             keyArr.push(ethers.keccak256(stringToHex(keys[i])));
-            idArr.push(i);
+            idArr.push(0);
             lengthArr.push(d.length);
         }
 
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#wallet);
         try {
             const storageCost = await contract.upfrontPayment();
+
+            console.log(` batch size: ${blobLength}`);
+            // console.log(` idArr=${idArr}`);
+            // console.log(` lengthArr=${lengthArr}`);
             const tx = await contract.putBlobs.populateTransaction(keyArr, idArr, lengthArr, {
                 value: storageCost * BigInt(blobLength),
             });
 
+            // console.log(` blobArr=${blobArr}`);
             let txRes = await this.#blobUploader.sendTx(tx, blobArr);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             txRes = await txRes.wait();
