@@ -70,8 +70,16 @@ export class BlobUploader {
     }
 
     async sendTx(tx, blobs = null, commitments = null) {
+        return await this.#send(tx, blobs, commitments, false);
+    }
+
+    async sendTxLock(tx, blobs = null, commitments = null) {
+        return await this.#send(tx, blobs, commitments, true);
+    }
+
+    async #send(tx, blobs = null, commitments = null, isLock = false) {
         if (!blobs) {
-            return await this.#wallet.sendTransaction(tx);
+            return isLock ? await this.#lockSend(tx) : await this.#wallet.sendTransaction(tx);
         }
 
         if (tx.maxFeePerBlobGas == null) {
@@ -101,13 +109,13 @@ export class BlobUploader {
         tx.blobVersionedHashes = versionedHashes;
         tx.blobs = ethersBlobs;
         tx.kzg = kzg;
-        return await this.#wallet.sendTransaction(tx);
+        return isLock ? await this.#lockSend(tx) : await this.#wallet.sendTransaction(tx);
     }
 
-    async sendTxLock(tx, blobs = null, commitments = null) {
+    async #lockSend(tx) {
         const release = await this.#mutex.acquire();
         try {
-            return await this.sendTx(tx, blobs, commitments);
+            return await this.#wallet.sendTransaction(tx);
         } finally {
             release();
         }
