@@ -34,4 +34,5 @@ export const UPLOAD_TYPE_BLOB = 2;
 
 export const MAX_RETRIES = 3;
 
-export const MAX_CHUNKS = 115;
+// eth-call also consumes gas, so the number of chunks that can be obtained is capped at 3000w gasLimit.
+export const MAX_CHUNKS = 140;
