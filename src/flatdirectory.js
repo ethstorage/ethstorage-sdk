@@ -169,19 +169,15 @@ export class FlatDirectory {
         return this.#fetchHashes(fileInfos);
     }
 
-    async #fetchHashes(fileInfos, concurrencyLimit = 5) {
+    async #fetchHashes(fileInfos) {
         const allHashes = {};
 
         const batchArray = [];
         let currentBatch = {};
         let currentChunkCount = 0;
         for (const { key, chunkCount } of fileInfos) {
-            if (chunkCount === 0) {
-                allHashes[key] = [];
-                continue;
-            }
+            allHashes[key] = chunkCount === 0 ? [] : new Array(chunkCount);
 
-            allHashes[key] = new Array(chunkCount);
             for (let i = 0; i < chunkCount; i++) {
                 if (!currentBatch[key]) {
                     currentBatch[key] = [];

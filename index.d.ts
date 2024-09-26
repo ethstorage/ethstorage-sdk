@@ -83,7 +83,7 @@ declare module 'ethstorage-sdk' {
       setDefault(filename: string): Promise<boolean>;
       remove(key: string): Promise<boolean>;
       download(key: string, cb: Partial<DownloadCallback>): void;
-      fetchHashes(keys: string[], concurrencyLimit?:number):Promise<any>;
+      fetchHashes(keys: string[]):Promise<any>;
       estimateCost(request: EstimateGasRequest): Promise<CostEstimate>;
       upload(request: UploadRequest): Promise<void>;
     }
