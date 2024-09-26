@@ -148,7 +148,7 @@ async function FlatDirectoryTest() {
             console.log('download finish');
         }
     });
-    await fd.download("blobFile", {
+    await fd.download("blobFile.jpg", {
         onProgress: (progress, count, data) => {
             console.log(progress, count, data.length);
         },
