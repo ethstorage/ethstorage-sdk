@@ -20,6 +20,7 @@
         - estimateCost
         - upload
         - download
+        - fetchHashes
         - setDefault
 - [5. Version History](#Version)
 
@@ -62,6 +63,7 @@ data of arbitrary size.
 | estimateCost | Estimate the cost of uploading data(gas cost and storage cost) |
 | upload       | Asynchronously upload data of arbitrary size                   |
 | download     | Asynchronously download data                                   |
+| fetchHashes  | Get chunk hashes of data in batches                            |
 | setDefault   | Set the default file for FlatDirectory                         |
 
 <p id="EthStorage"></p>
@@ -222,6 +224,7 @@ const address = await flatDirectory.deploy();
     - `key` (string): The key of the data.
     - `type` (number): File upload mode, 1 for calldata, 2 for blob
     - `content` (Buffer|File, optional): The content to be uploaded, which can be either a Buffer or a File.
+    - `chunkHashes` (string[], optional): The chunk hashes corresponding to the content. If this parameter exists, no request to retrieve the hashes will be triggered.
     - `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default
       gas. For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120
       gwei.
@@ -282,6 +285,7 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
     - `key` (string): The key of the data.
     - `type` (number): File upload mode, 1 for calldata, 2 for blob
     - `content` (Buffer|File, optional): The content to be uploaded, which can be either a Buffer or a File.
+    - `chunkHashes` (string[], optional): The chunk hashes corresponding to the content. If this parameter exists, no request to retrieve the hashes will be triggered.
     - `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default
       gas. For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120
       gwei.
@@ -370,6 +374,22 @@ flatDirectory.download("example.txt", {
         console.log("Download finish.");
     }
 });
+```
+
+### fetchHashes
+
+**Description**: Retrieve the chunk hashes corresponding to the batch of keys.
+
+**Parameters**
+- `keys` (string[]): The keys to be retrieved.
+
+**Returns**
+- `result` (Promise<Record<string, string[]>>): A Promise that resolves to an object where each key (from the input keys) maps to an array of chunk hashes.
+
+**Example**
+```javascript
+const keys = ["key1", "key2"];
+const result = await flatDirectory.fetchHashes(keys);
 ```
 
 ### setDefault

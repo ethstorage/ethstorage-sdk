@@ -33,3 +33,5 @@ export const UPLOAD_TYPE_BLOB = 2;
 
 
 export const MAX_RETRIES = 3;
+
+export const MAX_CHUNKS = 115;

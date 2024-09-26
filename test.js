@@ -71,6 +71,9 @@ async function FlatDirectoryTest() {
         }
     };
 
+    const hashes = await fd.fetchHashes(["file.jpg", "blobFile.jpg"]);
+    console.log(hashes);
+
     // calldata
     // data
     let request = {
@@ -127,6 +130,7 @@ async function FlatDirectoryTest() {
         key: "blobFile.jpg",
         content: file,
         gasIncPct: 5,
+        chunkHashes: hashes[1],
         callback: uploadCallback
     }
     cost = await fd.estimateCost(request);
@@ -159,5 +163,8 @@ async function FlatDirectoryTest() {
             console.log('download finish');
         }
     });
+
+    const hashes2 = await fd.fetchHashes(["file.jpg", "blobFile.jpg"]);
+    console.log(hashes2);
 }
 FlatDirectoryTest();

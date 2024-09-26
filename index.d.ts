@@ -4,6 +4,7 @@ declare module 'ethstorage-sdk' {
 
     // Constants
     export const BLOB_DATA_SIZE: number;
+    export const OP_BLOB_DATA_SIZE: number;
     export const BLOB_SIZE: number;
     export const MAX_BLOB_COUNT: number;
     export const PaddingPer31Bytes: number;
@@ -11,6 +12,7 @@ declare module 'ethstorage-sdk' {
     export const BLOB_COUNT_LIMIT: number;
     export const UPLOAD_TYPE_CALLDATA: number;
     export const UPLOAD_TYPE_BLOB: number;
+    export const MAX_CHUNKS: number;
 
     export const ETHSTORAGE_MAPPING: {
       [chainId: number]: string;
@@ -39,6 +41,7 @@ declare module 'ethstorage-sdk' {
         content: ContentLike,
         type: number,
         gasIncPct?: number,
+        chunkHashes?: Uint8Array[],
     }
 
     export interface UploadRequest extends EstimateGasRequest {
@@ -75,12 +78,12 @@ declare module 'ethstorage-sdk' {
 
     export class FlatDirectory {
       static create(config: SDKConfig): Promise<FlatDirectory>;
-      constructor(config: SDKConfig);
-      init(rpc: string, address?: string): Promise<void>;
+      isSupportBlob(): boolean;
       deploy(): Promise<string | null>;
       setDefault(filename: string): Promise<boolean>;
       remove(key: string): Promise<boolean>;
       download(key: string, cb: Partial<DownloadCallback>): void;
+      fetchHashes(keys: string[], concurrencyLimit?:number):Promise<any>;
       estimateCost(request: EstimateGasRequest): Promise<CostEstimate>;
       upload(request: UploadRequest): Promise<void>;
     }
@@ -101,13 +104,12 @@ declare module 'ethstorage-sdk' {
         getBlobHash(blob: Uint8Array): string;
       }
 
-      export function encodeBlobs(data: Buffer): Uint8Array[];
-      export function decodeBlob(blob: string | Uint8Array): Uint8Array;
-      export function decodeBlobs(blobs: string | Uint8Array): Buffer;
+      export function encodeOpBlobs(data: Uint8Array): Uint8Array[];
+      export function encodeOpBlob(blob: Uint8Array): Uint8Array;
 
       export function stringToHex(s: string): string;
       export function getChainId(rpc: string): Promise<number>;
-      export function getFileChunk(file: FileLike, fileSize: number, start: number, end: number): Buffer;
+      export function getContentChunk(content: ContentLike, start: number, end: number): Uint8Array;
       export function isBuffer(content: BufferLike): boolean;
       export function isFile(content: FileLike): boolean;
       export function isNodejs(): boolean;
