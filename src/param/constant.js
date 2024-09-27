@@ -6,13 +6,13 @@ const QUARKCHAIN_L2_TESTNET_CHAIN_ID = 43069;
 export const ETHSTORAGE_MAPPING = {
     [SEPOLIA_CHAIN_ID]: '0x804C520d3c084C805E37A35E90057Ac32831F96f',
     [QUARKCHAIN_L2_DEVNET_CHAIN_ID]: '0x90a708C0dca081ca48a9851a8A326775155f87Fd',
-    [QUARKCHAIN_L2_TESTNET_CHAIN_ID]: '0xF52e8ca7be99D1e3aB2BF79585663Be665505443',
+    [QUARKCHAIN_L2_TESTNET_CHAIN_ID]: '0xec71aE1589e8EBD2FfC57E248113CF204c803170',
 }
 
 
 
-const BlobTxBytesPerFieldElement         = 32;      // Size in bytes of a field element
-const BlobTxFieldElementsPerBlob         = 4096;
+const BlobTxBytesPerFieldElement = 32;      // Size in bytes of a field element
+const BlobTxFieldElementsPerBlob = 4096;
 export const BLOB_SIZE = BlobTxBytesPerFieldElement * BlobTxFieldElementsPerBlob;
 export const BLOB_DATA_SIZE = 31 * BlobTxFieldElementsPerBlob;
 
