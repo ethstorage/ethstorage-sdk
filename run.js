@@ -57,7 +57,7 @@ async function main() {
     setTimeout(() => {
         console.log('Timeout: Breaking the loop');
         shouldContinue = false;
-    }, 60 * 1000);
+    }, 60000 * 1000);
 
     while (shouldContinue) {
         await Promise.all(
