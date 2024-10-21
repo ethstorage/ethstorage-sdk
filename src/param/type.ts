@@ -79,8 +79,8 @@ export interface FileBatch {
 }
 
 export interface UploadDetails {
-    mode: number;
-    chunkCount: number;
+    fileMode: number;
+    oldChunkCount: number;
     cost: bigint;
     gasFeeData?: ethers.FeeData,
     maxFeePerBlobGas?: bigint,
