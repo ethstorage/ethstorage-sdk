@@ -86,7 +86,7 @@ export class BlobUploader {
             return isLock ? await this.lockSend(tx) : await this.wallet.sendTransaction(tx);
         }
 
-        if (tx.maxFeePerBlobGas == null) {
+        if (!tx.maxFeePerBlobGas) {
             tx.maxFeePerBlobGas = await this.getBlobGasPrice();
         }
 
