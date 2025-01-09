@@ -29,8 +29,8 @@ Create an `EthStorage` instance.
 ```js
 const { EthStorage } = require("ethstorage-sdk");
 
-const rpc = "https://rpc.testnet.l2.quarkchain.io:8545";
-const ethStorageRpc = "https://rpc.testnet.l2.ethstorage.io:9540";
+const rpc = "https://rpc.beta.testnet.l2.quarkchain.io:8545";
+const ethStorageRpc = "https://rpc.beta.testnet.l2.ethstorage.io:9596";
 const privateKey = "0xabcd...";
 
 const ethStorage = await EthStorage.create({
@@ -91,8 +91,8 @@ Create a `FlatDirectory` instance.
 ```js
 const { FlatDirectory } = require("ethstorage-sdk");
 
-const rpc = "https://rpc.testnet.l2.quarkchain.io:8545";
-const ethStorageRpc = "https://rpc.testnet.l2.ethstorage.io:9540";
+const rpc = "https://rpc.beta.testnet.l2.quarkchain.io:8545";
+const ethStorageRpc = "https://rpc.beta.testnet.l2.ethstorage.io:9596";
 const privateKey = "0xabcd...";
 
 const flatDirectory = await FlatDirectory.create({
