@@ -20,8 +20,8 @@ const saveFile = (data) => {
 
 async function EthStorageTest() {
     const es = await EthStorage.create({
-        rpc: 'https://rpc.testnet.l2.quarkchain.io:8545',
-        ethStorageRpc: 'https://rpc.testnet.l2.ethstorage.io:9540',
+        rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
+        ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
         privateKey
     })
 
@@ -51,10 +51,10 @@ async function EthStorageTest() {
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({
-        rpc: 'https://rpc.testnet.l2.quarkchain.io:8545',
-        ethStorageRpc: 'https://rpc.testnet.l2.ethstorage.io:9540',
+        rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
+        ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
         privateKey,
-        // address: "0x91F57C2d88C55B7a2Dd6DC76ddae3891b8003CE8"
+        address: "0x808f50c22D18D137AEf6E464E3f83af5FFc78b7A"
     })
 
     await fd.deploy();
