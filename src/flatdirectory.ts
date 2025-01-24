@@ -20,7 +20,15 @@ import {
 } from "./utils";
 
 import workerpool from 'workerpool';
-const pool = workerpool.pool(__dirname + '/worker.cjs.js');
+let pool: import("workerpool/types/Pool") | null = null;
+if (isNodejs()) {
+    if (typeof process !== 'undefined' && process.versions?.node) {
+        const path = new URL('./worker.mjs', import.meta.url).pathname;
+        pool = workerpool.pool(path);
+    } else {
+        pool = workerpool.pool(__dirname + '/worker.cjs');
+    }
+}
 
 const GALILEO_CHAIN_ID = 3334;
 
@@ -619,7 +627,7 @@ export class FlatDirectory {
     }
 
     async #getBlobCommitments(blobArr: Uint8Array[]): Promise<Uint8Array[]> {
-        const promises = isNodejs()
+        const promises = pool
             ? blobArr.map(blob => pool.exec('getCommitment', [blob]))
             : blobArr.map(blob => this.blobUploader.getCommitment(blob));
         return await Promise.all(promises);
