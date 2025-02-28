@@ -129,11 +129,13 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
   transferred by a blob.
 
 **Returns**
-- `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
+- `result` (Promise<{ hexKey: string, success: boolean }>): A Promise that resolves to an object containing:
+  - `hash` (string): The transaction hash of the write operation.
+  - `success` (boolean): The execution result (true if the transaction was successful, otherwise false).
 
 **Example**
 ```javascript
-const status = await ethStorage.write("dataKey", Buffer.from("some data"));
+const result = await ethStorage.write("dataKey", Buffer.from("some data"));
 ```
 
 ### read
@@ -160,13 +162,15 @@ const data = await ethStorage.read("example.txt");
   the corresponding blob size.
 
 **Returns**
-- `status` (Promise<boolean>): A Promise that resolves to the execution result. `true|false`
+- `result` (Promise<{ hexKeys: string[], success: boolean }>): A Promise that resolves to an object containing:
+  - `hash` (string): The transaction hash of the write operation.
+  - `success` (boolean): The execution result (true if all blobs were uploaded successfully, otherwise false).
 
 **Example**
 ```javascript
 const keys = ["key1", "key2", "key3"];
 const dataBlobs = [Buffer.from("test data 1"), Buffer.from("test data 2"), Buffer.from("test data 3")];
-const status = await ethStorage.writeBlobs(keys, dataBlobs);
+const result = await ethStorage.writeBlobs(keys, dataBlobs);
 ```
 
 <p id="FlatDirectory"></p>
