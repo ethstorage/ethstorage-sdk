@@ -31,8 +31,8 @@ async function EthStorageTest() {
     console.log("cost:", cost)
 
     // write
-    let status = await es.write(name, content.length > 126976 ? content.subarray(0, 126976) : content);
-    console.log("status:", status)
+    let result = await es.write(name, content.length > 126976 ? content.subarray(0, 126976) : content);
+    console.log("status:", result.success, result.hexKey);
     // read
     let buff = await es.read(name);
     const p = saveFile(buff);
@@ -41,13 +41,13 @@ async function EthStorageTest() {
     // put blobs
     const keys = ["key1", "key2"];
     const blobData = [Buffer.from("some data1"), Buffer.from("some data2")];
-    status = await es.writeBlobs(keys, blobData);
-    console.log("status:", status)
+    result = await es.writeBlobs(keys, blobData);
+    console.log("status:", result.success, result.hexKeys);
     // read
     buff = await es.read('key2');
     console.log(Buffer.from(buff).toString());
 }
-// EthStorageTest();
+EthStorageTest();
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({
@@ -167,4 +167,4 @@ async function FlatDirectoryTest() {
     const hashes2 = await fd.fetchHashes(["file.jpg", "blobFile.jpg"]);
     console.log(hashes2);
 }
-FlatDirectoryTest();
+// FlatDirectoryTest();

@@ -66,7 +66,7 @@ Batch upload blob data.
 ```js
 const keys = ["key1", "key2"];
 const dataBlobs = [Buffer.from("some data"), Buffer.from("test data")];
-const status = await ethStorage.writeBlobs(keys, dataBlobs);
+const result = await ethStorage.writeBlobs(keys, dataBlobs);
 ```
 
 ### estimateCost
