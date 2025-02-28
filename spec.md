@@ -130,7 +130,7 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 
 **Returns**
 - `result` (Promise<{ hexKey: string, success: boolean }>): A Promise that resolves to an object containing:
-  - `hexKey` (string): The hashed key (keccak256 of the provided key).
+  - `hash` (string): The transaction hash of the write operation.
   - `success` (boolean): The execution result (true if the transaction was successful, otherwise false).
 
 **Example**
@@ -163,7 +163,7 @@ const data = await ethStorage.read("example.txt");
 
 **Returns**
 - `result` (Promise<{ hexKeys: string[], success: boolean }>): A Promise that resolves to an object containing:
-  - `hexKeys` (string[]): An array of hashed keys (keccak256 of each provided key).
+  - `hash` (string): The transaction hash of the write operation.
   - `success` (boolean): The execution result (true if all blobs were uploaded successfully, otherwise false).
 
 **Example**

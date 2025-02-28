@@ -76,7 +76,7 @@ export class EthStorage {
         }
     }
 
-    async write(key: string, data: Uint8Array): Promise<{ hexKey: string, success: boolean }> {
+    async write(key: string, data: Uint8Array): Promise<{ hash: string, success: boolean }> {
         this.checkData(data);
 
         const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.wallet);
@@ -91,11 +91,11 @@ export class EthStorage {
             const txRes = await this.blobUploader.sendTx(tx, blobs);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             const receipt = await txRes.wait();
-            return { hexKey, success: receipt?.status === 1 };
+            return { hash: txRes.hash, success: receipt?.status === 1 };
         } catch (e) {
             console.error(`EthStorage: Write blob failed!`, (e as Error).message);
         }
-        return { hexKey, success: false };
+        return { hash: '0x', success: false };
     }
 
     async read(key: string, decodeType = DecodeType.OptimismCompact): Promise<Uint8Array> {
@@ -120,7 +120,7 @@ export class EthStorage {
         return ethers.getBytes(data);
     }
 
-    async writeBlobs(keys: string[], dataBlobs: Uint8Array[]): Promise<{ hexKeys: string[], success: boolean }> {
+    async writeBlobs(keys: string[], dataBlobs: Uint8Array[]): Promise<{ hash: string, success: boolean }> {
         if (!keys || !dataBlobs) {
             throw new Error(`EthStorage: Invalid parameter.`);
         }
@@ -156,11 +156,11 @@ export class EthStorage {
             const txRes = await this.blobUploader.sendTx(tx, blobArr);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             const receipt = await txRes.wait();
-            return { hexKeys: keyArr, success: receipt?.status === 1 };
+            return { hash: txRes.hash, success: receipt?.status === 1 };
         } catch (e) {
             console.error(`EthStorage: Put blobs failed!`, (e as Error).message);
         }
-        return { hexKeys: keyArr, success: false };
+        return { hash: '0x', success: false };
     }
 
     checkData(data: Uint8Array | null): void {

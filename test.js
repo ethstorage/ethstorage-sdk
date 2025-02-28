@@ -32,7 +32,7 @@ async function EthStorageTest() {
 
     // write
     let result = await es.write(name, content.length > 126976 ? content.subarray(0, 126976) : content);
-    console.log("status:", result.success, result.hexKey);
+    console.log("status:", result.success, result.hash);
     // read
     let buff = await es.read(name);
     const p = saveFile(buff);
@@ -42,7 +42,7 @@ async function EthStorageTest() {
     const keys = ["key1", "key2"];
     const blobData = [Buffer.from("some data1"), Buffer.from("some data2")];
     result = await es.writeBlobs(keys, blobData);
-    console.log("status:", result.success, result.hexKeys);
+    console.log("status:", result.success, result.hash);
     // read
     buff = await es.read('key2');
     console.log(Buffer.from(buff).toString());
