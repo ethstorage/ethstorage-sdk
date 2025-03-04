@@ -23,7 +23,7 @@ export default [
             declarationDir: 'dist/types',
             rootDir: 'src',
         })],
-        external: ["ethers", "kzg-wasm", "workerpool"]
+        external: ["ethers"]
     },
     {
         input: 'src/node/file.ts',
@@ -34,15 +34,5 @@ export default [
         },
         plugins: [commonjs(), resolve(), typescript()],
         external: ["ethers"]
-    },
-    {
-        input: 'src/worker/worker.ts',
-        output: {
-            file: 'dist/worker.cjs.js',
-            format: 'cjs',
-            sourcemap: true,
-        },
-        plugins: [commonjs(), resolve(), typescript()],
-        external: ["kzg-wasm", "workerpool"]
-    },
+    }
 ];

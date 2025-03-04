@@ -46,7 +46,7 @@ export class EthStorage {
             throw new Error("EthStorage: Network not supported yet.");
         }
 
-        this.blobUploader = await BlobUploader.create(rpc, privateKey);
+        this.blobUploader = new BlobUploader(rpc, privateKey);
     }
 
     async estimateCost(key: string, data: Uint8Array): Promise<CostEstimate> {
