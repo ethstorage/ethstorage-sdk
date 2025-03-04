@@ -121,8 +121,8 @@ contract [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/ma
 for [EIP-5018](https://eips.ethereum.org/EIPS/eip-5018) standard.
 
 ```js
-const contracAddress = await flatDirectory.deploy();
-console.log(`FlatDirectory address is ${contracAddress}.`);
+const contractAddress = await flatDirectory.deploy();
+console.log(`FlatDirectory address is ${contractAddress}.`);
 ```
 
 ### upload
