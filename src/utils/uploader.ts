@@ -1,8 +1,7 @@
 import { ethers } from "ethers";
-import { loadKZG } from 'kzg-wasm';
 import { Mutex } from 'async-mutex';
 import { getHash, commitmentsToVersionedHashes } from "./util";
-import { KZG } from "../param";
+import { KZGWrapper } from "../kzg/kzg";
 
 // blob gas price
 const MIN_BLOB_GASPRICE: bigint = 1n;
@@ -24,25 +23,13 @@ export class BlobUploader {
     private readonly provider: ethers.JsonRpcProvider;
     private readonly wallet: ethers.Wallet;
     private readonly mutex: Mutex;
+    private readonly kzg: KZGWrapper;
 
-    private kzg!: KZG;
-
-    static async create(rpc: string, pk: string): Promise<BlobUploader> {
-        const uploader = new BlobUploader(rpc, pk);
-        await uploader.init();
-        return uploader;
-    }
-
-    private constructor(rpc: string, pk: string) {
+    constructor(rpc: string, pk: string) {
         this.provider = new ethers.JsonRpcProvider(rpc);
         this.wallet = new ethers.Wallet(pk, this.provider);
         this.mutex = new Mutex();
-    }
-
-    private async init() {
-        if (!this.kzg) {
-            this.kzg = await loadKZG();
-        }
+        this.kzg = new KZGWrapper();
     }
 
     async getBlobGasPrice(): Promise<bigint> {
@@ -112,7 +99,6 @@ export class BlobUploader {
         tx.type = 3;
         tx.blobVersionedHashes = versionedHashes;
         tx.blobs = ethersBlobs;
-        tx.kzg = kzg;
         return isLock ? await this.lockSend(tx) : await this.wallet.sendTransaction(tx);
     }
 

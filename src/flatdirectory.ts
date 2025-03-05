@@ -13,14 +13,11 @@ import {
     encodeOpBlobs,
     getChainId, getHash,
     isBuffer, isFile,
-    stringToHex, isNodejs,
+    stringToHex,
     retry, getContentChunk,
     getUploadInfo, getChunkCounts,
     getChunkHashes,
 } from "./utils";
-
-import workerpool from 'workerpool';
-const pool = workerpool.pool(__dirname + '/worker.cjs.js');
 
 const GALILEO_CHAIN_ID = 3334;
 
@@ -55,7 +52,7 @@ export class FlatDirectory {
 
         const provider = new ethers.JsonRpcProvider(rpc);
         this.wallet = new ethers.Wallet(privateKey, provider);
-        this.blobUploader = await BlobUploader.create(rpc, privateKey);
+        this.blobUploader = new BlobUploader(rpc, privateKey);
         this.chainId = await getChainId(rpc);
         if (!address) return;
 
@@ -294,7 +291,7 @@ export class FlatDirectory {
             let blobHashArr: string[] | null = null;
             // check change
             if (i + blobArr.length <= chunkHashes.length) {
-                blobHashArr = await this.#getBlobHashes(blobArr);
+                blobHashArr = this.#getBlobHashes(blobArr);
                 const cloudHashArr = chunkHashes.slice(i, i + blobHashArr.length);
                 if (JSON.stringify(blobHashArr) === JSON.stringify(cloudHashArr)) {
                     continue;
@@ -307,7 +304,7 @@ export class FlatDirectory {
             totalStorageCost += value;
             // gas cost
             if (gasLimit === 0n) {
-                blobHashArr = blobHashArr || await this.#getBlobHashes(blobArr);
+                blobHashArr = blobHashArr || this.#getBlobHashes(blobArr);
                 gasLimit = await retry(() => fileContract["writeChunks"].estimateGas(hexName, chunkIdArr, chunkSizeArr, {
                     value: value,
                     blobVersionedHashes: blobHashArr
@@ -419,7 +416,7 @@ export class FlatDirectory {
             const {
                 blobArr, chunkIdArr, chunkSizeArr
             } = await this.#getBlobInfo(content, i);
-            const blobCommitmentArr = await this.#getBlobCommitments(blobArr);
+            const blobCommitmentArr = this.#getBlobCommitments(blobArr);
 
             // check change
             if (i + blobArr.length <= chunkHashes.length) {
@@ -618,19 +615,16 @@ export class FlatDirectory {
         return txReceipt?.status === 1;
     }
 
-    async #getBlobCommitments(blobArr: Uint8Array[]): Promise<Uint8Array[]> {
-        const promises = isNodejs()
-            ? blobArr.map(blob => pool.exec('getCommitment', [blob]))
-            : blobArr.map(blob => this.blobUploader.getCommitment(blob));
-        return await Promise.all(promises);
+    #getBlobCommitments(blobArr: Uint8Array[]): Uint8Array[] {
+        return blobArr.map(blob => this.blobUploader.getCommitment(blob));
     }
 
     #getHashes(blobCommitmentArr: Uint8Array[]): string[] {
         return blobCommitmentArr.map(comment => getHash(comment));
     }
 
-    async #getBlobHashes(blobArr: Uint8Array[]): Promise<string[]> {
-        const commitments = await this.#getBlobCommitments(blobArr);
+    #getBlobHashes(blobArr: Uint8Array[]): string[] {
+        const commitments = this.#getBlobCommitments(blobArr);
         return this.#getHashes(commitments);
     }
 

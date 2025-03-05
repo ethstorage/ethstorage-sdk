@@ -47,14 +47,14 @@ async function EthStorageTest() {
     buff = await es.read('key2');
     console.log(Buffer.from(buff).toString());
 }
-EthStorageTest();
+// EthStorageTest();
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({
         rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
         ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
         privateKey,
-        address: "0x808f50c22D18D137AEf6E464E3f83af5FFc78b7A"
+        // address: "0x808f50c22D18D137AEf6E464E3f83af5FFc78b7A"
     })
 
     await fd.deploy();
@@ -167,4 +167,4 @@ async function FlatDirectoryTest() {
     const hashes2 = await fd.fetchHashes(["file.jpg", "blobFile.jpg"]);
     console.log(hashes2);
 }
-// FlatDirectoryTest();
+FlatDirectoryTest();
