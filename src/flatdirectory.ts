@@ -19,8 +19,6 @@ import {
     getChunkHashes,
 } from "./utils";
 
-const GALILEO_CHAIN_ID = 3334;
-
 const defaultCallback: DownloadCallback = {
     onProgress: () => { },
     onFail: () => { },
@@ -657,40 +655,18 @@ export class FlatDirectory {
     }
 
     #getChunkLength(content: ContentLike): { chunkDataSize: number; chunkLength: number } {
-        let chunkDataSize = -1;
-        let chunkLength = 1;
+        const maxChunkSize = 24 * 1024 - 326;
+        const getChunkInfo = (size: number) => ({
+            chunkDataSize: size > maxChunkSize ? maxChunkSize : size,
+            chunkLength: size > maxChunkSize ? Math.ceil(size / maxChunkSize) : 1
+        });
+
         if (isFile(content)) {
-            chunkDataSize = content.size;
-            if (GALILEO_CHAIN_ID === this.chainId) {
-                if (content.size > 475 * 1024) {
-                    // Data need to be sliced if file > 475K
-                    chunkDataSize = 475 * 1024;
-                    chunkLength = Math.ceil(content.size / (475 * 1024));
-                }
-            } else {
-                if (content.size > 24 * 1024 - 326) {
-                    // Data need to be sliced if file > 24K
-                    chunkDataSize = 24 * 1024 - 326;
-                    chunkLength = Math.ceil(content.size / (24 * 1024 - 326));
-                }
-            }
+            return getChunkInfo(content.size);
         } else if (isBuffer(content)) {
-            chunkDataSize = content.length;
-            if (GALILEO_CHAIN_ID === this.chainId) {
-                if (content.length > 475 * 1024) {
-                    // Data need to be sliced if file > 475K
-                    chunkDataSize = 475 * 1024;
-                    chunkLength = Math.ceil(content.length / (475 * 1024));
-                }
-            } else {
-                if (content.length > 24 * 1024 - 326) {
-                    // Data need to be sliced if file > 24K
-                    chunkDataSize = 24 * 1024 - 326;
-                    chunkLength = Math.ceil(content.length / (24 * 1024 - 326));
-                }
-            }
+            return getChunkInfo(content.length);
         }
-        return { chunkDataSize, chunkLength }
+        return { chunkDataSize: -1, chunkLength: 1 };
     }
 
     #printHashLog(key: string, chunkIds: number[] | number, hash: string) {
