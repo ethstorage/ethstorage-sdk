@@ -1,5 +1,19 @@
 import fs from 'fs';
-import { assertArgument } from 'ethers';
+
+export function assertArgument(
+    check: boolean,
+    message: string,
+    name: string,
+    value: unknown
+): asserts check {
+    if (!check) {
+        const error = new Error(message) as Error & { code?: string; argument?: string; value?: unknown };
+        error.code = "INVALID_ARGUMENT";
+        error.argument = name;
+        error.value = value;
+        throw error;
+    }
+}
 
 export class NodeFile {
     isNodeJs: boolean;
