@@ -288,16 +288,23 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 - `request` (object): Configuration the upload object containing necessary settings.
     - `key` (string): The key of the data.
     - `type` (number): File upload mode, 1 for calldata, 2 for blob
-    - `content` (Buffer|File, optional): The content to be uploaded, which can be either a Buffer or a File.
-    - `chunkHashes` (string[], optional): The chunk hashes corresponding to the content. If this parameter exists, no request to retrieve the hashes will be triggered.
+    - `content` (Buffer|File): The content to be uploaded, which can be either a Buffer or a File.
+    - `chunkHashes` (string[], optional): The chunk hashes corresponding to the content. If this parameter exists, no
+      request to retrieve the hashes will be triggered.
     - `gasIncPct` (number, optional): The parameter is used to specify the percentage increase on the current default
-      gas. For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be 120
-      gwei.
+      gas. For example, if the current default gas is 100 gwei and `gasIncPct` is set to 20, then the final gas will be
+      120 gwei.
     - `callback` (object): An object containing callback functions:
-        - `onProgress` (function): Callback function that receives `(progress, count, isChange)`.
-        - `onFail` (function): Callback function that receives `(error)`.
-        - `onFinish` (function): Callback function that
-          receives `(totalUploadChunks, totalUploadSize, totalStorageCost)`.
+        - `onProgress(currentChunk, totalChunks, isChange)` (function): Called during the upload process to track progress.
+            - **`currentChunk`** (number): The index of the currently uploading chunk.
+            - **`totalChunks`** (number): The total number of chunks to be uploaded.
+            - **`isChange`** (boolean): Indicates whether the content has changed.
+        - `onFail(error)` (function): Called when an error occurs during the upload process.
+            - **`error`** (Error): The error object describing the failure.
+        - `onFinish(totalUploadChunks, totalUploadSize, totalStorageCost)` (function): Called when the upload is completed.
+            - **`totalUploadChunks`** (number): The total number of uploaded chunks.
+            - **`totalUploadSize`** (number): The total uploaded size (in bytes).
+            - **`totalStorageCost`** (bigint): The total storage cost.
 
 **Example**
 ```javascript
@@ -361,15 +368,19 @@ await flatDirectory.upload(request);
 **Parameters**
 - `key` (string): The key for the data to be read.
 - `callback` (object): An object containing callback functions:
-    - `onProgress` (function): Callback function that receives `(progress, count, chunk)`.
-    - `onFail` (function): Callback function that receives `(error)`.
-    - `onFinish` (function): Indicates that the upload was finish.
+    - `onProgress(currentChunk, totalChunks, chunkData)` (function): Called during the download process to track progress and receive chunk data.
+      - **`currentChunk`** (number): The index of the currently downloading chunk.
+      - **`totalChunks`** (number): The total number of chunks to be downloaded.
+      - **`chunkData`** (Uint8Array): The binary data of the current chunk.
+    - `onFail(error)` (function): Called when an error occurs during the download process.
+      - **`error`** (Error): The error object describing the failure.
+    - `onFinish()` (function): Indicates that the upload was finish.
 
 **Example**
 ```javascript
 flatDirectory.download("example.txt", {
     onProgress: function (progress, count, chunk) {
-        console.log(`Download ${progress} of ${count} chunks, this chunk is ${chunk.toString()}`);
+        console.log(`Download ${progress} of ${count} chunks, this chunk is ${Buffer.from(chunk).toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);
