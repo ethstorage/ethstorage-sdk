@@ -141,8 +141,7 @@ export class FlatDirectory {
             const blobCount = result[0].chunkCount;
             for (let i = 0; i < blobCount; i++) {
                 const result = await contract["readChunk"](hexName, i);
-                const chunk = ethers.getBytes(result[0]);
-                cb.onProgress(i, blobCount, Buffer.from(chunk));
+                cb.onProgress(i, blobCount, ethers.getBytes(result[0]));
             }
         } catch (err) {
             cb.onFail(err as Error);

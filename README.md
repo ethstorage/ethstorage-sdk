@@ -189,7 +189,7 @@ Monitor the download progress by passing in a callback function.
 const key = "test.txt";
 await flatDirectory.download(key, {
     onProgress: function (progress, count, chunk) {
-        console.log(`Download ${progress} of ${count} chunks, this chunk is ${chunk.toString()}`);
+        console.log(`Download ${progress} of ${count} chunks, this chunk is ${Buffer.from(chunk).toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);
