@@ -28,17 +28,21 @@ const defaultCallback: DownloadCallback = {
 export class FlatDirectory {
     private ethStorageRpc?: string;
     private contractAddr?: string;
-    private chainId!: number;
-    private retries!: number;
 
+    private chainId!: number;
     private wallet!: ethers.Wallet;
     private blobUploader!: BlobUploader;
 
+    private retries: number = MAX_RETRIES;
     public isSupportBlob: boolean = false;
 
     static async create(config: SDKConfig) {
         const flatDirectory = new FlatDirectory();
-        await flatDirectory.init(config);
+        if (config.privateKey) {
+            await flatDirectory.init(config);
+        } else {
+            await flatDirectory.initWithoutPrivateKey(config);
+        }
         return flatDirectory;
     }
 
@@ -46,7 +50,6 @@ export class FlatDirectory {
         const {rpc, ethStorageRpc, privateKey, address} = config;
         this.ethStorageRpc = ethStorageRpc;
         this.contractAddr = address;
-        this.retries = MAX_RETRIES;
 
         const provider = new ethers.JsonRpcProvider(rpc);
         this.wallet = new ethers.Wallet(privateKey, provider);
@@ -71,7 +74,31 @@ export class FlatDirectory {
         this.isSupportBlob = supportBlob as boolean;
     }
 
+    async initWithoutPrivateKey(config: SDKConfig): Promise<void> {
+        const { ethStorageRpc, address } = config;
+        if(!ethStorageRpc || !address) {
+            throw new Error("FlatDirectory: Invalid contract address and ethstorage rpc");
+        }
+
+        this.ethStorageRpc = ethStorageRpc;
+        this.contractAddr = address;
+        const provider = new ethers.JsonRpcProvider(ethStorageRpc);
+        const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
+        const contractVersion = await retry(() => fileContract["version"](), this.retries).catch((e) => {
+            if (e?.code === 'BAD_DATA') return "0";
+            throw e;
+        });
+        if (contractVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
+            throw new Error("FlatDirectory: The current SDK does not support this contract. Please switch to version 2.0.0.");
+        }
+    }
+
     async deploy(): Promise<string | null> {
+        if (!this.wallet) {
+            console.error(`FlatDirectory: Private key is required for this operation.`);
+            return null;
+        }
+
         this.isSupportBlob = ETHSTORAGE_MAPPING[this.chainId] != null;
 
         const ethStorage = ETHSTORAGE_MAPPING[this.chainId] || '0x0000000000000000000000000000000000000000';
@@ -91,6 +118,7 @@ export class FlatDirectory {
     }
 
     async setDefault(filename: string): Promise<boolean> {
+        this.checkPrivateKeyRequired();
         if (!this.contractAddr) {
             throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
         }
@@ -109,6 +137,7 @@ export class FlatDirectory {
     }
 
     async remove(key: string): Promise<boolean> {
+        this.checkPrivateKeyRequired();
         if (!this.contractAddr) {
             throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
         }
@@ -150,6 +179,7 @@ export class FlatDirectory {
     }
 
     async fetchHashes(keys: string[]): Promise<Record<string, string[]>> {
+        this.checkPrivateKeyRequired();
         if (!this.contractAddr) {
             throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
         }
@@ -161,6 +191,61 @@ export class FlatDirectory {
         const contract = new ethers.Contract(this.contractAddr, FlatDirectoryAbi, this.wallet);
         const fileInfos = await getChunkCounts(contract, keys, this.retries);
         return this.#fetchHashes(fileInfos);
+    }
+
+    async estimateCost(request: EstimateGasRequest): Promise<CostEstimate> {
+        this.checkPrivateKeyRequired();
+        if (!this.contractAddr) {
+            throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
+        }
+
+        const { key, type } = request;
+        if (!key) {
+            throw new Error(`FlatDirectory: Invalid key!`);
+        }
+
+        if (type === UploadType.Blob) {
+            return await this.#estimateCostByBlob(request);
+        } else {
+            return await this.#estimateCostByCallData(request);
+        }
+    }
+
+    async upload(request: UploadRequest): Promise<void> {
+        const { key, callback, type } = request;
+        if (!callback) {
+            throw new Error(`FlatDirectory: Invalid callback object!`);
+        }
+        if (!key) {
+            callback.onFail!(new Error(`FlatDirectory: Invalid key!`));
+            callback.onFinish!(0, 0, 0n);
+            return;
+        }
+        if (!this.contractAddr) {
+            callback.onFail!(new Error(`FlatDirectory: FlatDirectory not deployed!`));
+            callback.onFinish!(0, 0, 0n);
+            return;
+        }
+        if (!this.wallet) {
+            callback.onFail!(new Error(`FlatDirectory: Private key is required for this operation.`));
+            callback.onFinish!(0, 0, 0n);
+            return;
+        }
+
+        if (type === UploadType.Blob) {
+            await this.#uploadByBlob(request);
+        } else {
+            await this.#uploadByCallData(request);
+        }
+    }
+
+
+
+    // private method
+    private checkPrivateKeyRequired() {
+        if (!this.wallet) {
+            throw new Error("FlatDirectory: Private key is required for this operation.");
+        }
     }
 
     async #fetchHashes(fileInfos: ChunkCountResult[]): Promise<Record<string, string[]>> {
@@ -208,49 +293,6 @@ export class FlatDirectory {
         return allHashes;
     }
 
-    async estimateCost(request: EstimateGasRequest): Promise<CostEstimate> {
-        if (!this.contractAddr) {
-            throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
-        }
-
-        const { key, type } = request;
-        if (!key) {
-            throw new Error(`FlatDirectory: Invalid key!`);
-        }
-
-        if (type === UploadType.Blob) {
-            return await this.#estimateCostByBlob(request);
-        } else {
-            return await this.#estimateCostByCallData(request);
-        }
-    }
-
-    async upload(request: UploadRequest): Promise<void> {
-        const { key, callback, type } = request;
-        if (!callback) {
-            throw new Error(`FlatDirectory: Invalid callback object!`);
-        }
-        if (!key) {
-            callback.onFail!(new Error(`FlatDirectory: Invalid key!`));
-            callback.onFinish!(0, 0, 0n);
-            return;
-        }
-        if (!this.contractAddr) {
-            callback.onFail!(new Error(`FlatDirectory: FlatDirectory not deployed!`));
-            callback.onFinish!(0, 0, 0n);
-            return;
-        }
-
-        if (type === UploadType.Blob) {
-            await this.#uploadByBlob(request);
-        } else {
-            await this.#uploadByCallData(request);
-        }
-    }
-
-
-
-    // private method
     async #estimateCostByBlob(request: EstimateGasRequest): Promise<CostEstimate> {
         let { key, content, chunkHashes, gasIncPct = 0 } = request;
 
