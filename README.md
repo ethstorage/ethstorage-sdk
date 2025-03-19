@@ -200,6 +200,17 @@ await flatDirectory.download(key, {
 });
 ```
 
+Note: If you only need the download function, you can create a FlatDirector using the following pattern.
+
+```js
+const address = "0x987..."; // FlatDirectory address
+const flatDirectory = await FlatDirectory.create({
+    ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
+    address: address
+});
+```
+
+
 ### estimateCost
 
 Estimate gas costs before uploading.

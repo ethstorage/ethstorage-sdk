@@ -57,7 +57,7 @@ async function FlatDirectoryTest() {
         // address: "0x808f50c22D18D137AEf6E464E3f83af5FFc78b7A"
     })
 
-    await fd.deploy();
+    const address = await fd.deploy();
 
     const uploadCallback = {
         onProgress: (progress, count, isChange) => {
@@ -165,6 +165,23 @@ async function FlatDirectoryTest() {
     });
 
     const hashes2 = await fd.fetchHashes(["file.jpg", "blobFile.jpg"]);
-    console.log(hashes2);
+    console.log("get hashes", hashes2);
+
+    console.log("only download")
+    const downloadFd = await FlatDirectory.create({
+        ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
+        address: address
+    })
+    await downloadFd.download("blobFile.jpg", {
+        onProgress: (progress, count, data) => {
+            console.log(progress, count, data.length);
+        },
+        onFail: (err) => {
+            console.log(err)
+        },
+        onFinish: () => {
+            console.log('download finish');
+        }
+    });
 }
 FlatDirectoryTest();
