@@ -172,10 +172,10 @@ export class FlatDirectory {
                 const result = await contract["readChunk"](hexName, i);
                 cb.onProgress(i, blobCount, ethers.getBytes(result[0]));
             }
+            cb.onFinish();
         } catch (err) {
             cb.onFail(err as Error);
         }
-        cb.onFinish();
     }
 
     async fetchHashes(keys: string[]): Promise<Record<string, string[]>> {
