@@ -41,7 +41,7 @@ export class FlatDirectory {
         if (config.privateKey) {
             await flatDirectory.init(config);
         } else {
-            await flatDirectory.initWithoutPrivateKey(config);
+            await flatDirectory.initReadOnly(config);
         }
         return flatDirectory;
     }
@@ -74,10 +74,10 @@ export class FlatDirectory {
         this.isSupportBlob = supportBlob as boolean;
     }
 
-    async initWithoutPrivateKey(config: SDKConfig): Promise<void> {
+    async initReadOnly(config: SDKConfig): Promise<void> {
         const { ethStorageRpc, address } = config;
         if(!ethStorageRpc || !address) {
-            throw new Error("FlatDirectory: Invalid contract address and ethstorage rpc");
+            throw new Error("FlatDirectory: Invalid contract address or ethstorage rpc");
         }
 
         this.ethStorageRpc = ethStorageRpc;
