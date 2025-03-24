@@ -8,7 +8,7 @@ The `EthStorage` class provides asynchronous read and write operations for key-v
 The `FlatDirectory` class is a higher-level data management tool that provides methods for uploading and downloading
 data of arbitrary size.
 
-Click here to view [spec](https://github.com/ethstorage/ethstorage-sdk/sepc.md).
+Click here to view [spec](https://github.com/ethstorage/ethstorage-sdk/blob/main/spec.md).
 
 # Installation
 
