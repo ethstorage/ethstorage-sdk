@@ -197,43 +197,6 @@ export class FlatDirectory {
 
 
 
-    // get
-    private get ContractAddr(): string {
-        if (!this.contractAddr) {
-            throw new Error("FlatDirectory: FlatDirectory not deployed!");
-        }
-        return this.contractAddr;
-    }
-
-    private get EthStorageRpc(): string {
-        if (!this.ethStorageRpc) {
-            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
-        }
-        return this.ethStorageRpc;
-    }
-
-    private get Rpc(): string {
-        if (!this.rpc) {
-            throw new Error(`FlatDirectory: rpc is required for this operation.`);
-        }
-        return this.rpc;
-    }
-
-    private get Wallet(): ethers.Wallet {
-        if (!this.wallet) {
-            throw new Error("FlatDirectory: Private key is required for this operation.");
-        }
-        return this.wallet;
-    }
-
-    private get BlobUploader(): BlobUploader {
-        if (!this.blobUploader) {
-            throw new Error("FlatDirectory: BlobUploader is not initialized.");
-        }
-        return this.blobUploader;
-    }
-
-
     // private method
     async #fetchHashes(fileInfos: ChunkCountResult[]): Promise<Record<string, string[]>> {
         const allHashes: Record<string, string[]> = {};
@@ -703,5 +666,41 @@ export class FlatDirectory {
         } else {
             console.log(`FlatDirectory: The transaction hash for chunk ${chunkIds} is ${hash}`, "", key);
         }
+    }
+
+    // get
+    private get ContractAddr(): string {
+        if (!this.contractAddr) {
+            throw new Error("FlatDirectory: FlatDirectory not deployed!");
+        }
+        return this.contractAddr;
+    }
+
+    private get EthStorageRpc(): string {
+        if (!this.ethStorageRpc) {
+            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
+        }
+        return this.ethStorageRpc;
+    }
+
+    private get Rpc(): string {
+        if (!this.rpc) {
+            throw new Error(`FlatDirectory: rpc is required for this operation.`);
+        }
+        return this.rpc;
+    }
+
+    private get Wallet(): ethers.Wallet {
+        if (!this.wallet) {
+            throw new Error("FlatDirectory: Private key is required for this operation.");
+        }
+        return this.wallet;
+    }
+
+    private get BlobUploader(): BlobUploader {
+        if (!this.blobUploader) {
+            throw new Error("FlatDirectory: BlobUploader is not initialized.");
+        }
+        return this.blobUploader;
     }
 }
