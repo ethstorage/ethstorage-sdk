@@ -1,7 +1,8 @@
-const {EthStorage, FlatDirectory} = require("./dist/index.cjs");
+const {EthStorage, FlatDirectory, DecodeType} = require("./dist/index.cjs");
 const {NodeFile} = require("./dist/file.cjs");
 const fs = require('fs');
 const os = require('os');
+const {ethers} = require('ethers');
 
 const dotenv = require("dotenv")
 dotenv.config()
@@ -45,6 +46,16 @@ async function EthStorageTest() {
     console.log("status:", result.success, result.hash);
     // read
     buff = await es.read('key2');
+    console.log(Buffer.from(buff).toString());
+
+    // only read
+    const es = await EthStorage.create({
+        rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
+        ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
+    })
+    // read
+    const wallet = new ethers.Wallet(privateKey);
+    buff = await es.read('key2', DecodeType.OptimismCompact, wallet.address);
     console.log(Buffer.from(buff).toString());
 }
 // EthStorageTest();

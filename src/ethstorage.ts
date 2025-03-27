@@ -17,11 +17,11 @@ import {
 } from "./param";
 
 export class EthStorage {
-    private ethStorageRpc?: string;
-
     private contractAddr!: string;
-    private wallet!: ethers.Wallet;
-    private blobUploader!: BlobUploader;
+
+    private ethStorageRpc?: string;
+    private wallet?: ethers.Wallet;
+    private blobUploader?: BlobUploader;
 
     static async create(config: SDKConfig) {
         const ethStorage = new EthStorage();
@@ -31,14 +31,9 @@ export class EthStorage {
 
     private async init(config: SDKConfig) {
         const { rpc, privateKey, ethStorageRpc, address } = config;
-        this.ethStorageRpc = ethStorageRpc;
-
-        const provider = new ethers.JsonRpcProvider(rpc);
-        this.wallet = new ethers.Wallet(privateKey, provider);
-
         if (address) {
             this.contractAddr = address;
-        } else {
+        } else if (rpc) {
             const chainId = await getChainId(rpc);
             this.contractAddr = ETHSTORAGE_MAPPING[chainId];
         }
@@ -46,10 +41,19 @@ export class EthStorage {
             throw new Error("EthStorage: Network not supported yet.");
         }
 
-        this.blobUploader = new BlobUploader(rpc, privateKey);
+        this.ethStorageRpc = ethStorageRpc;
+
+        if (privateKey && rpc) {
+            const provider = new ethers.JsonRpcProvider(rpc);
+            this.wallet = new ethers.Wallet(privateKey, provider);
+            this.blobUploader = new BlobUploader(rpc, privateKey);
+        }
     }
 
     async estimateCost(key: string, data: Uint8Array): Promise<CostEstimate> {
+        if (!this.wallet || !this.blobUploader) {
+            throw new Error("EthStorage: Cannot estimate cost. Ensure the SDK is initialized with a private key for upload operations.");
+        }
         this.checkData(data);
         const hexKey = ethers.keccak256(stringToHex(key));
         const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.wallet);
@@ -77,6 +81,9 @@ export class EthStorage {
     }
 
     async write(key: string, data: Uint8Array): Promise<{ hash: string, success: boolean }> {
+        if (!this.wallet || !this.blobUploader) {
+            throw new Error("EthStorage: Cannot write. Ensure the SDK is initialized with a private key for upload operations.");
+        }
         this.checkData(data);
 
         const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.wallet);
@@ -98,29 +105,41 @@ export class EthStorage {
         return { hash: '0x', success: false };
     }
 
-    async read(key: string, decodeType = DecodeType.OptimismCompact): Promise<Uint8Array> {
+    async read(
+        key: string,
+        decodeType = DecodeType.OptimismCompact,
+        address?: string
+    ): Promise<Uint8Array> {
         if (!key) {
             throw new Error(`EthStorage: Invalid key.`);
         }
         if (!this.ethStorageRpc) {
             throw new Error(`EthStorage: Reading content requires providing 'ethStorageRpc'.`);
         }
+        const fromAddress = this.wallet?.address || address;
+        if (!fromAddress) {
+            throw new Error(`EthStorage: Read operation requires an address when 'wallet' is not available.`);
+        }
+
         const hexKey = ethers.keccak256(stringToHex(key));
         const provider = new ethers.JsonRpcProvider(this.ethStorageRpc);
         const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, provider) as any;
         const size = await contract.size(hexKey, {
-            from: this.wallet.address
+            from: fromAddress
         });
         if (size === 0n) {
-            throw new Error(`EthStorage: There is no data corresponding to key ${key} under wallet address ${this.wallet.address}.`);
+            throw new Error(`EthStorage: There is no data corresponding to key ${key} under wallet address ${fromAddress}.`);
         }
         const data = await contract.get(hexKey, decodeType, 0, size, {
-            from: this.wallet.address
+            from: fromAddress
         });
         return ethers.getBytes(data);
     }
 
     async writeBlobs(keys: string[], dataBlobs: Uint8Array[]): Promise<{ hash: string, success: boolean }> {
+        if (!this.wallet || !this.blobUploader) {
+            throw new Error("EthStorage: Cannot write blobs. Ensure the SDK is initialized with a private key for upload operations.");
+        }
         if (!keys || !dataBlobs) {
             throw new Error(`EthStorage: Invalid parameter.`);
         }

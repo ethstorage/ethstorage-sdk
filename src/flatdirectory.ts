@@ -26,37 +26,42 @@ const defaultCallback: DownloadCallback = {
 };
 
 export class FlatDirectory {
+    private rpc?: string;
     private ethStorageRpc?: string;
     private contractAddr?: string;
 
-    private chainId!: number;
-    private wallet!: ethers.Wallet;
-    private blobUploader!: BlobUploader;
+    private wallet?: ethers.Wallet;
+    private blobUploader?: BlobUploader;
 
     private retries: number = MAX_RETRIES;
     public isSupportBlob: boolean = false;
 
     static async create(config: SDKConfig) {
         const flatDirectory = new FlatDirectory();
-        if (config.privateKey) {
-            await flatDirectory.init(config);
-        } else {
-            await flatDirectory.initReadOnly(config);
-        }
+        await flatDirectory.init(config);
         return flatDirectory;
     }
 
     async init(config: SDKConfig) {
-        const {rpc, ethStorageRpc, privateKey, address} = config;
-        this.ethStorageRpc = ethStorageRpc;
+        const {privateKey, rpc, address, ethStorageRpc} = config;
+        this.rpc = rpc;
         this.contractAddr = address;
+        this.ethStorageRpc = ethStorageRpc;
 
-        const provider = new ethers.JsonRpcProvider(rpc);
-        this.wallet = new ethers.Wallet(privateKey, provider);
-        this.blobUploader = new BlobUploader(rpc, privateKey);
-        this.chainId = await getChainId(rpc);
-        if (!address) return;
+        if (privateKey && rpc) {
+            // normal
+            const provider = new ethers.JsonRpcProvider(rpc);
+            this.wallet = new ethers.Wallet(privateKey, provider);
+            this.blobUploader = new BlobUploader(rpc, privateKey);
+            if (!address) return;
+        } else if (!ethStorageRpc || !address) {
+            // check is read-only mode?
+            throw new Error("FlatDirectory: Read-only mode requires both 'ethStorageRpc' and 'address'");
+        }
 
+        // check solidity version
+        const localRpc = rpc || ethStorageRpc;
+        const provider = new ethers.JsonRpcProvider(localRpc);
         const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
         const [supportBlob, contractVersion] = await Promise.all([
             retry(() => fileContract["isSupportBlob"](), this.retries).catch((e) => {
@@ -69,40 +74,17 @@ export class FlatDirectory {
             })
         ]);
         if (contractVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
-            throw new Error("FlatDirectory: The current SDK does not support this contract. Please switch to version 2.0.0.");
+            throw new Error("FlatDirectory: The current SDK does not support this contract. Please switch to version 2.x");
         }
         this.isSupportBlob = supportBlob as boolean;
     }
 
-    async initReadOnly(config: SDKConfig): Promise<void> {
-        const { ethStorageRpc, address } = config;
-        if(!ethStorageRpc || !address) {
-            throw new Error("FlatDirectory: Invalid contract address or ethstorage rpc");
-        }
-
-        this.ethStorageRpc = ethStorageRpc;
-        this.contractAddr = address;
-        const provider = new ethers.JsonRpcProvider(ethStorageRpc);
-        const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
-        const contractVersion = await retry(() => fileContract["version"](), this.retries).catch((e) => {
-            if (e?.code === 'BAD_DATA') return "0";
-            throw e;
-        });
-        if (contractVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
-            throw new Error("FlatDirectory: The current SDK does not support this contract. Please switch to version 2.0.0.");
-        }
-    }
-
     async deploy(): Promise<string | null> {
-        if (!this.wallet) {
-            console.error(`FlatDirectory: Private key is required for this operation.`);
-            return null;
-        }
+        const chainId = await getChainId(this.Rpc);
+        this.isSupportBlob = ETHSTORAGE_MAPPING[chainId] != null;
 
-        this.isSupportBlob = ETHSTORAGE_MAPPING[this.chainId] != null;
-
-        const ethStorage = ETHSTORAGE_MAPPING[this.chainId] || '0x0000000000000000000000000000000000000000';
-        const factory = new ethers.ContractFactory(FlatDirectoryAbi, FlatDirectoryBytecode, this.wallet);
+        const ethStorage = ETHSTORAGE_MAPPING[chainId] || '0x0000000000000000000000000000000000000000';
+        const factory = new ethers.ContractFactory(FlatDirectoryAbi, FlatDirectoryBytecode, this.Wallet);
         try {
             // @ts-ignore
             const contract = await factory.deploy(0, OP_BLOB_DATA_SIZE, ethStorage, {gasLimit: 3800000});
@@ -118,13 +100,8 @@ export class FlatDirectory {
     }
 
     async setDefault(filename: string): Promise<boolean> {
-        this.checkPrivateKeyRequired();
-        if (!this.contractAddr) {
-            throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
-        }
-
         const hexName = filename ? stringToHex(filename) : "0x";
-        const fileContract = new ethers.Contract(this.contractAddr, FlatDirectoryAbi, this.wallet) as any;
+        const fileContract = new ethers.Contract(this.ContractAddr, FlatDirectoryAbi, this.Wallet) as any;
         try {
             const tx = await fileContract.setDefault(hexName);
             console.log(`FlatDirectory: Tx hash is ${tx.hash}`);
@@ -137,12 +114,7 @@ export class FlatDirectory {
     }
 
     async remove(key: string): Promise<boolean> {
-        this.checkPrivateKeyRequired();
-        if (!this.contractAddr) {
-            throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
-        }
-
-        const fileContract = new ethers.Contract(this.contractAddr, FlatDirectoryAbi, this.wallet) as any;
+        const fileContract = new ethers.Contract(this.ContractAddr, FlatDirectoryAbi, this.Wallet) as any;
         try {
             const tx = await fileContract.remove(stringToHex(key));
             console.log(`FlatDirectory: Tx hash is ${tx.hash}`);
@@ -155,16 +127,9 @@ export class FlatDirectory {
     }
 
     async download(key: string, cb: DownloadCallback = defaultCallback) {
-        if (!this.contractAddr) {
-            throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
-        }
-        if (!this.ethStorageRpc) {
-            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
-        }
-
         const hexName = stringToHex(key);
-        const provider = new ethers.JsonRpcProvider(this.ethStorageRpc);
-        const contract = new ethers.Contract(this.contractAddr, FlatDirectoryAbi, provider);
+        const provider = new ethers.JsonRpcProvider(this.EthStorageRpc);
+        const contract = new ethers.Contract(this.ContractAddr, FlatDirectoryAbi, provider);
         try {
             const result = await getChunkCounts(contract, [key], this.retries);
             const blobCount = result[0].chunkCount;
@@ -179,26 +144,17 @@ export class FlatDirectory {
     }
 
     async fetchHashes(keys: string[]): Promise<Record<string, string[]>> {
-        this.checkPrivateKeyRequired();
-        if (!this.contractAddr) {
-            throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
-        }
         if (!keys || !Array.isArray(keys)) {
             throw new Error('Invalid keys.');
         }
 
         // get file chunks
-        const contract = new ethers.Contract(this.contractAddr, FlatDirectoryAbi, this.wallet);
+        const contract = new ethers.Contract(this.ContractAddr, FlatDirectoryAbi, this.Wallet);
         const fileInfos = await getChunkCounts(contract, keys, this.retries);
         return this.#fetchHashes(fileInfos);
     }
 
     async estimateCost(request: EstimateGasRequest): Promise<CostEstimate> {
-        this.checkPrivateKeyRequired();
-        if (!this.contractAddr) {
-            throw new Error(`FlatDirectory: FlatDirectory not deployed!`);
-        }
-
         const { key, type } = request;
         if (!key) {
             throw new Error(`FlatDirectory: Invalid key!`);
@@ -241,13 +197,44 @@ export class FlatDirectory {
 
 
 
-    // private method
-    private checkPrivateKeyRequired() {
+    // get
+    private get ContractAddr(): string {
+        if (!this.contractAddr) {
+            throw new Error("FlatDirectory: FlatDirectory not deployed!");
+        }
+        return this.contractAddr;
+    }
+
+    private get EthStorageRpc(): string {
+        if (!this.ethStorageRpc) {
+            throw new Error(`FlatDirectory: Reading content requires providing 'ethStorageRpc'.`);
+        }
+        return this.ethStorageRpc;
+    }
+
+    private get Rpc(): string {
+        if (!this.rpc) {
+            throw new Error(`FlatDirectory: rpc is required for this operation.`);
+        }
+        return this.rpc;
+    }
+
+    private get Wallet(): ethers.Wallet {
         if (!this.wallet) {
             throw new Error("FlatDirectory: Private key is required for this operation.");
         }
+        return this.wallet;
     }
 
+    private get BlobUploader(): BlobUploader {
+        if (!this.blobUploader) {
+            throw new Error("FlatDirectory: BlobUploader is not initialized.");
+        }
+        return this.blobUploader;
+    }
+
+
+    // private method
     async #fetchHashes(fileInfos: ChunkCountResult[]): Promise<Record<string, string[]>> {
         const allHashes: Record<string, string[]> = {};
 
@@ -308,7 +295,7 @@ export class FlatDirectory {
 
         // get file info
         const hexName = stringToHex(key);
-        const fileContract = new ethers.Contract(this.contractAddr!, FlatDirectoryAbi, this.wallet);
+        const fileContract = new ethers.Contract(this.ContractAddr!, FlatDirectoryAbi, this.Wallet);
         const { cost, oldChunkCount, fileMode, maxFeePerBlobGas, gasFeeData } = await this.#getEstimateBlobInfo(fileContract, hexName);
         if (fileMode !== UploadType.Blob && fileMode !== UploadType.Undefined) {
             throw new Error("FlatDirectory: This file does not support blob upload!");
@@ -370,7 +357,7 @@ export class FlatDirectory {
         }
 
         const hexName = stringToHex(key);
-        const fileContract = new ethers.Contract(this.contractAddr!, FlatDirectoryAbi, this.wallet) as any;
+        const fileContract = new ethers.Contract(this.ContractAddr!, FlatDirectoryAbi, this.Wallet) as any;
         const { oldChunkCount, fileMode, gasFeeData } = await this.#getEstimateCallDataInfo(fileContract, hexName);
         if (fileMode !== UploadType.Calldata && fileMode !== UploadType.Undefined) {
             throw new Error(`FlatDirectory: This file does not support calldata upload!`);
@@ -551,8 +538,8 @@ export class FlatDirectory {
     async #getEstimateBlobInfo(contract: any, hexName: string): Promise<UploadDetails> {
         const [result, maxFeePerBlobGas, gasFeeData]: [UploadDetails, bigint, ethers.FeeData] = await Promise.all([
             getUploadInfo(contract, hexName, this.retries),
-            retry(() => this.blobUploader.getBlobGasPrice(), this.retries),
-            retry(() => this.blobUploader.getGasPrice(), this.retries),
+            retry(() => this.BlobUploader.getBlobGasPrice(), this.retries),
+            retry(() => this.BlobUploader.getGasPrice(), this.retries),
         ]);
         return {
             ...result,
@@ -564,7 +551,7 @@ export class FlatDirectory {
     async #getEstimateCallDataInfo(contract: any, hexName: string): Promise<UploadDetails> {
         const [result, gasFeeData]: [UploadDetails, ethers.FeeData] = await Promise.all([
             getUploadInfo(contract, hexName, this.retries),
-            retry(() => this.blobUploader.getGasPrice(), this.retries),
+            retry(() => this.BlobUploader.getGasPrice(), this.retries),
         ]);
         return {
             ...result,
@@ -611,16 +598,16 @@ export class FlatDirectory {
         // Increase % if user requests it
         if (gasIncPct > 0) {
             // Fetch the current gas price and increase it
-            const feeData = await this.blobUploader.getGasPrice();
+            const feeData = await this.BlobUploader.getGasPrice();
             tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
             tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
             // blob gas
-            const blobGas = await this.blobUploader.getBlobGasPrice();
+            const blobGas = await this.BlobUploader.getBlobGasPrice();
             tx.maxFeePerBlobGas = blobGas * BigInt(100 + gasIncPct) / BigInt(100);
         }
 
         // send
-        const txResponse = await this.blobUploader.sendTxLock(tx, blobArr, blobCommitmentArr);
+        const txResponse = await this.BlobUploader.sendTxLock(tx, blobArr, blobCommitmentArr);
         this.#printHashLog(key, chunkIdArr, txResponse.hash);
         const txReceipt = await txResponse.wait();
         return txReceipt?.status === 1;
@@ -642,20 +629,20 @@ export class FlatDirectory {
         // Increase % if user requests it
         if (gasIncPct > 0) {
             // Fetch the current gas price and increase it
-            const feeData = await this.blobUploader.getGasPrice();
+            const feeData = await this.BlobUploader.getGasPrice();
             tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
             tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
         }
 
         // send
-        const txResponse = await this.blobUploader.sendTxLock(tx);
+        const txResponse = await this.BlobUploader.sendTxLock(tx);
         this.#printHashLog(key, chunkId, txResponse.hash);
         const txReceipt = await txResponse.wait();
         return txReceipt?.status === 1;
     }
 
     #getBlobCommitments(blobArr: Uint8Array[]): Uint8Array[] {
-        return blobArr.map(blob => this.blobUploader.getCommitment(blob));
+        return blobArr.map(blob => this.BlobUploader.getCommitment(blob));
     }
 
     #getHashes(blobCommitmentArr: Uint8Array[]): string[] {
