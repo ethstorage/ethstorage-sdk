@@ -60,7 +60,7 @@ export class EthStorage {
         ]);
 
         const blobs = encodeOpBlobs(data);
-        const blobHash = this.blobUploader.getBlobHash(blobs[0]);
+        const blobHash = await this.blobUploader.computeVersionedHashForBlob(blobs[0]);
         const gasLimit = await contract["putBlob"].estimateGas(hexKey, 0, data.length, {
             value: storageCost,
             blobVersionedHashes: [blobHash]
