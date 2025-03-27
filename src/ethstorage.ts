@@ -171,4 +171,10 @@ export class EthStorage {
             throw new Error(`EthStorage: the length of data(Uint8Array) should be > 0 && <= ${OP_BLOB_DATA_SIZE}.`);
         }
     }
+
+    async close() {
+        if (this.blobUploader) {
+            await this.blobUploader.close();
+        }
+    }
 }

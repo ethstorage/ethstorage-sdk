@@ -46,6 +46,8 @@ async function EthStorageTest() {
     // read
     buff = await es.read('key2');
     console.log(Buffer.from(buff).toString());
+
+    await es.close();
 }
 
 async function FlatDirectoryTest() {
@@ -165,6 +167,8 @@ async function FlatDirectoryTest() {
 
     const hashes2 = await fd.fetchHashes(["file.jpg", "blobFile.jpg"]);
     console.log(hashes2);
+
+    await fd.close();
 }
 
 async function main() {
