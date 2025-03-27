@@ -84,44 +84,44 @@ async function FlatDirectoryTest() {
         callback: uploadCallback
     }
     let cost = await fd.estimateCost(request);
-    // console.log(cost);
-    // await fd.upload(request);
-    // cost = await fd.estimateCost(request);
-    // console.log(cost);
-    // console.log("");
+    console.log(cost);
+    await fd.upload(request);
+    cost = await fd.estimateCost(request);
+    console.log(cost);
+    console.log("");
 
     // file
     let file = new NodeFile(filePath);
-    // request = {
-    //     type: 1,
-    //     key: "file.jpg",
-    //     content: file,
-    //     gasIncPct: 10,
-    //     callback: uploadCallback
-    // }
-    // cost = await fd.estimateCost(request);
-    // console.log(cost);
-    // await fd.upload(request);
-    // cost = await fd.estimateCost(request);
-    // console.log(cost);
-    // console.log("");
+    request = {
+        type: 1,
+        key: "file.jpg",
+        content: file,
+        gasIncPct: 10,
+        callback: uploadCallback
+    }
+    cost = await fd.estimateCost(request);
+    console.log(cost);
+    await fd.upload(request);
+    cost = await fd.estimateCost(request);
+    console.log(cost);
+    console.log("");
 
 
     // blob
     // data
-    // request = {
-    //     type: 2,
-    //     key: "blobData",
-    //     content: Buffer.from("12345678"),
-    //     gasIncPct: 5,
-    //     callback: uploadCallback
-    // }
-    // cost = await fd.estimateCost(request);
-    // console.log(cost);
-    // await fd.upload(request);
-    // cost = await fd.estimateCost(request);
-    // console.log(cost);
-    // console.log("");
+    request = {
+        type: 2,
+        key: "blobData",
+        content: Buffer.from("12345678"),
+        gasIncPct: 5,
+        callback: uploadCallback
+    }
+    cost = await fd.estimateCost(request);
+    console.log(cost);
+    await fd.upload(request);
+    cost = await fd.estimateCost(request);
+    console.log(cost);
+    console.log("");
 
     // file
     file = new NodeFile(filePath2);
