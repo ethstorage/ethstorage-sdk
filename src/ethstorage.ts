@@ -60,7 +60,7 @@ export class EthStorage {
         ]);
 
         const blobs = encodeOpBlobs(data);
-        const blobHash = this.blobUploader.getBlobHash(blobs[0]);
+        const blobHash = await this.blobUploader.computeVersionedHashForBlob(blobs[0]);
         const gasLimit = await contract["putBlob"].estimateGas(hexKey, 0, data.length, {
             value: storageCost,
             blobVersionedHashes: [blobHash]
@@ -169,6 +169,12 @@ export class EthStorage {
         }
         if (data.length === 0 || data.length > OP_BLOB_DATA_SIZE) {
             throw new Error(`EthStorage: the length of data(Uint8Array) should be > 0 && <= ${OP_BLOB_DATA_SIZE}.`);
+        }
+    }
+
+    async close() {
+        if (this.blobUploader) {
+            await this.blobUploader.close();
         }
     }
 }

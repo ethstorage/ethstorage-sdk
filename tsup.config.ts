@@ -8,7 +8,7 @@ export default defineConfig([
         dts: true,
         sourcemap: true,
         clean: true,
-        external: ['ethers'],
+        external: ['ethers', `js-kzg`],
         outExtension({format}) {
             return {js: format === 'esm' ? '.mjs' : '.cjs'}
         },
