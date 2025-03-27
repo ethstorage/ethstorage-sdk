@@ -258,7 +258,7 @@ export class FlatDirectory {
 
         // get file info
         const hexName = stringToHex(key);
-        const fileContract = new ethers.Contract(this.ContractAddr!, FlatDirectoryAbi, this.Wallet);
+        const fileContract = new ethers.Contract(this.ContractAddr, FlatDirectoryAbi, this.Wallet);
         const { cost, oldChunkCount, fileMode, maxFeePerBlobGas, gasFeeData } = await this.#getEstimateBlobInfo(fileContract, hexName);
         if (fileMode !== UploadType.Blob && fileMode !== UploadType.Undefined) {
             throw new Error("FlatDirectory: This file does not support blob upload!");
@@ -320,7 +320,7 @@ export class FlatDirectory {
         }
 
         const hexName = stringToHex(key);
-        const fileContract = new ethers.Contract(this.ContractAddr!, FlatDirectoryAbi, this.Wallet) as any;
+        const fileContract = new ethers.Contract(this.ContractAddr, FlatDirectoryAbi, this.Wallet) as any;
         const { oldChunkCount, fileMode, gasFeeData } = await this.#getEstimateCallDataInfo(fileContract, hexName);
         if (fileMode !== UploadType.Calldata && fileMode !== UploadType.Undefined) {
             throw new Error(`FlatDirectory: This file does not support calldata upload!`);
