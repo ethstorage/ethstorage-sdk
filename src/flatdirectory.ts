@@ -61,7 +61,7 @@ export class FlatDirectory {
 
         // check solidity version
         const localRpc = rpc || ethStorageRpc;
-        const provider = new ethers.JsonRpcProvider(localRpc);
+        const provider = new ethers.JsonRpcProvider(localRpc!);
         const fileContract = new ethers.Contract(address, FlatDirectoryAbi, provider);
         const [supportBlob, contractVersion] = await Promise.all([
             retry(() => fileContract["isSupportBlob"](), this.retries).catch((e) => {
@@ -227,7 +227,7 @@ export class FlatDirectory {
 
         // request
         if (batchArray.length > 0) {
-            const contract = new ethers.Contract(this.contractAddr!, FlatDirectoryAbi, this.wallet);
+            const contract = new ethers.Contract(this.contractAddr!, FlatDirectoryAbi, this.wallet!);
             const hashResults = await Promise.all(batchArray.map(batch => {
                 const fileChunksArray: FileBatch[] = Object.keys(batch).map(name => ({
                     name,
@@ -379,7 +379,7 @@ export class FlatDirectory {
         }
 
         const hexName = stringToHex(key);
-        const fileContract = new ethers.Contract(this.contractAddr!, FlatDirectoryAbi, this.wallet);
+        const fileContract = new ethers.Contract(this.contractAddr!, FlatDirectoryAbi, this.wallet!);
         const { cost, oldChunkCount, fileMode } = await this.#getUploadInfo(fileContract, hexName);
         if (fileMode !== UploadType.Blob && fileMode !== UploadType.Undefined) {
             callback.onFail!(new Error(`FlatDirectory: This file does not support blob upload!`));
@@ -449,7 +449,7 @@ export class FlatDirectory {
         }
 
         const hexName = stringToHex(key);
-        const fileContract = new ethers.Contract(this.contractAddr!, FlatDirectoryAbi, this.wallet);
+        const fileContract = new ethers.Contract(this.contractAddr!, FlatDirectoryAbi, this.wallet!);
         const { oldChunkCount, fileMode } = await this.#getUploadInfo(fileContract, hexName);
         if (fileMode !== UploadType.Calldata && fileMode !== UploadType.Undefined) {
             callback.onFail!(new Error(`FlatDirectory: This file does not support calldata upload!`));
