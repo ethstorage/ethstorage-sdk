@@ -58,7 +58,6 @@ async function EthStorageTest() {
     buff = await readEs.read('key2', DecodeType.OptimismCompact, wallet.address);
     console.log(Buffer.from(buff).toString());
 }
-// EthStorageTest();
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({
@@ -195,4 +194,10 @@ async function FlatDirectoryTest() {
         }
     });
 }
-FlatDirectoryTest();
+
+async function main() {
+    await EthStorageTest();
+    await FlatDirectoryTest();
+}
+main()
+

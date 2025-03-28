@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import { Mutex } from 'async-mutex';
-import { getHash, commitmentsToVersionedHashes } from "./util";
-import { KZGWrapper } from "../kzg/kzg";
+import { computeVersionedCommitmentHash, truncateCommitmentHash, truncateCommitmentHashes } from "./util";
+import { KZG } from "js-kzg";
 
 // blob gas price
 const MIN_BLOB_GASPRICE: bigint = 1n;
@@ -23,13 +23,13 @@ export class BlobUploader {
     private readonly provider: ethers.JsonRpcProvider;
     private readonly wallet: ethers.Wallet;
     private readonly mutex: Mutex;
-    private readonly kzg: KZGWrapper;
+    private readonly kzg: KZG;
 
     constructor(rpc: string, pk: string) {
         this.provider = new ethers.JsonRpcProvider(rpc);
         this.wallet = new ethers.Wallet(pk, this.provider);
         this.mutex = new Mutex();
-        this.kzg = new KZGWrapper();
+        this.kzg = new KZG();
     }
 
     async getBlobGasPrice(): Promise<bigint> {
@@ -78,22 +78,20 @@ export class BlobUploader {
         }
 
         // blobs
-        const kzg = this.kzg;
-        const ethersBlobs: ethers.BlobLike[] = [];
-        const versionedHashes: string[] = [];
-        for (let i = 0; i < blobs.length; i++) {
-            const blob = blobs[i];
-            const commitment = (commitments && commitments.length > i) ? commitments[i] : kzg.blobToKzgCommitment(blob);
-            const proof = kzg.computeBlobKzgProof(blob, commitment);
-            ethersBlobs.push({
-                data: blob,
-                proof: proof,
-                commitment: commitment
-            });
+        const fullCommitments = commitments && commitments.length === blobs.length
+            ? commitments
+            : await this.kzg.computeCommitmentBatch(blobs);
+        const proofs = await this.kzg.computeProofBatch(blobs, fullCommitments);
 
-            const hash = commitmentsToVersionedHashes(commitment);
-            versionedHashes.push(ethers.hexlify(hash));
-        }
+        const ethersBlobs: ethers.BlobLike[] = blobs.map((blob, i) => ({
+            data: blob,
+            proof: proofs[i],
+            commitment: fullCommitments[i]
+        }));
+
+        const versionedHashes = fullCommitments.map(commitment =>
+            ethers.hexlify(computeVersionedCommitmentHash(commitment))
+        );
 
         // send
         tx.type = 3;
@@ -111,12 +109,17 @@ export class BlobUploader {
         }
     }
 
-    getCommitment(blob: Uint8Array): Uint8Array {
-        return this.kzg.blobToKzgCommitment(blob);
+    async computeCommitmentsForBlobs(blobs: Uint8Array[]): Promise<Uint8Array[]> {
+        return await this.kzg.computeCommitmentBatch(blobs);
     }
 
-    getBlobHash(blob: Uint8Array): string {
-        const commit = this.getCommitment(blob);
-        return getHash(commit);
+    async computeVersionedHashForBlob(blob: Uint8Array): Promise<string> {
+        const commit = await this.kzg.computeCommitment(blob);
+        return truncateCommitmentHash(commit);
+    }
+
+    async computeVersionedHashesForBlobs(blobs: Uint8Array[]): Promise<string[]> {
+        const commitments = await this.computeCommitmentsForBlobs(blobs);
+        return truncateCommitmentHashes(commitments);
     }
 }
