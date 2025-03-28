@@ -78,10 +78,10 @@ data of arbitrary size.
 
 **Parameters**
 - `config` (object): Configuration object containing necessary settings.
-    - `rpc` (string): RPC for any evm network.
-    - `ethStorageRpc` (string): The EthStorage network rpc corresponding to this evm network, the data is obtained from
+    - `rpc` (string, optional): RPC for any evm network.
+    - `ethStorageRpc` (string, optional): The EthStorage network rpc corresponding to this evm network, the data is obtained from
       the EthStorage network.
-    - `privateKey` (string): Wallet private key.
+    - `privateKey` (string, optional): Wallet private key.
     - `address` (string, optional): your Ethstorage contract address if you want to use your own one, if you want to use
       the default contract address, ignore this.
 
@@ -144,6 +144,9 @@ const result = await ethStorage.write("dataKey", Buffer.from("some data"));
 
 **Parameters**
 - `key` (string): The key for the data to be read.
+- `decodeType` (DecodeType, optional): The decoding mode for blob data. The default is DecodeType.OptimismCompact.
+- `address` (string, required in read-only mode): The wallet address that uploaded the data. This parameter is required
+  in read-only mode.
 
 **Returns**
 - `data` (Promise<Buffer>): A Promise that resolves to the content.
@@ -428,5 +431,5 @@ const status = await flatDirectory.setDefault(defaultFile);
 
 # 5. Version History
 
-- v1.1.0: Initial release with basic storage and data management functionalities.
+- v1.1.1: Initial release with basic storage and data management functionalities.
 

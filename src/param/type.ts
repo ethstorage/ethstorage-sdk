@@ -22,8 +22,8 @@ export type ContentLike = BufferLike | FileLike;
 
 // Interface
 export interface SDKConfig {
-    rpc: string;
-    privateKey: string;
+    rpc?: string;
+    privateKey?: string; //  only read?
     ethStorageRpc?: string;
     address?: string;
 }
