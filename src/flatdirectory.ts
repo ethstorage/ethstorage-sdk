@@ -405,7 +405,7 @@ export class FlatDirectory {
             const {
                 blobArr, chunkIdArr, chunkSizeArr
             } = await this.#getBlobInfo(content, i);
-            const blobCommitmentArr = await this.blobUploader.computeCommitmentsForBlobs(blobArr);
+            const blobCommitmentArr = await this._blobUploader.computeCommitmentsForBlobs(blobArr);
 
             // check change
             if (i + blobArr.length <= chunkHashes.length) {
