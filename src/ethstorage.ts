@@ -17,11 +17,11 @@ import {
 } from "./param";
 
 export class EthStorage {
-    private ethStorageRpc?: string;
-
     private contractAddr!: string;
-    private wallet!: ethers.Wallet;
-    private blobUploader!: BlobUploader;
+
+    private ethStorageRpc?: string;
+    private wallet?: ethers.Wallet;
+    private blobUploader?: BlobUploader;
 
     static async create(config: SDKConfig) {
         const ethStorage = new EthStorage();
@@ -31,14 +31,9 @@ export class EthStorage {
 
     private async init(config: SDKConfig) {
         const { rpc, privateKey, ethStorageRpc, address } = config;
-        this.ethStorageRpc = ethStorageRpc;
-
-        const provider = new ethers.JsonRpcProvider(rpc);
-        this.wallet = new ethers.Wallet(privateKey, provider);
-
         if (address) {
             this.contractAddr = address;
-        } else {
+        } else if (rpc) {
             const chainId = await getChainId(rpc);
             this.contractAddr = ETHSTORAGE_MAPPING[chainId];
         }
@@ -46,21 +41,27 @@ export class EthStorage {
             throw new Error("EthStorage: Network not supported yet.");
         }
 
-        this.blobUploader = new BlobUploader(rpc, privateKey);
+        this.ethStorageRpc = ethStorageRpc;
+
+        if (privateKey && rpc) {
+            const provider = new ethers.JsonRpcProvider(rpc);
+            this.wallet = new ethers.Wallet(privateKey, provider);
+            this.blobUploader = new BlobUploader(rpc, privateKey);
+        }
     }
 
     async estimateCost(key: string, data: Uint8Array): Promise<CostEstimate> {
         this.checkData(data);
         const hexKey = ethers.keccak256(stringToHex(key));
-        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.wallet);
+        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this._wallet);
         const [storageCost, maxFeePerBlobGas, gasFeeData] = await Promise.all([
             contract["upfrontPayment"](),
-            this.blobUploader.getBlobGasPrice(),
-            this.blobUploader.getGasPrice(),
+            this._blobUploader.getBlobGasPrice(),
+            this._blobUploader.getGasPrice(),
         ]);
 
         const blobs = encodeOpBlobs(data);
-        const blobHash = this.blobUploader.getBlobHash(blobs[0]);
+        const blobHash = this._blobUploader.getBlobHash(blobs[0]);
         const gasLimit = await contract["putBlob"].estimateGas(hexKey, 0, data.length, {
             value: storageCost,
             blobVersionedHashes: [blobHash]
@@ -79,7 +80,7 @@ export class EthStorage {
     async write(key: string, data: Uint8Array): Promise<{ hash: string, success: boolean }> {
         this.checkData(data);
 
-        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.wallet);
+        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this._wallet);
         const hexKey = ethers.keccak256(stringToHex(key));
         try {
             const storageCost = await contract["upfrontPayment"]();
@@ -88,7 +89,7 @@ export class EthStorage {
             });
 
             const blobs = encodeOpBlobs(data);
-            const txRes = await this.blobUploader.sendTx(tx, blobs);
+            const txRes = await this._blobUploader.sendTx(tx, blobs);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             const receipt = await txRes.wait();
             return { hash: txRes.hash, success: receipt?.status === 1 };
@@ -98,24 +99,30 @@ export class EthStorage {
         return { hash: '0x', success: false };
     }
 
-    async read(key: string, decodeType = DecodeType.OptimismCompact): Promise<Uint8Array> {
+    async read(
+        key: string,
+        decodeType = DecodeType.OptimismCompact,
+        address?: string
+    ): Promise<Uint8Array> {
         if (!key) {
             throw new Error(`EthStorage: Invalid key.`);
         }
-        if (!this.ethStorageRpc) {
-            throw new Error(`EthStorage: Reading content requires providing 'ethStorageRpc'.`);
+        const fromAddress = this.wallet?.address || address;
+        if (!fromAddress) {
+            throw new Error(`EthStorage: Read operation requires an address when 'wallet' is not available.`);
         }
+
         const hexKey = ethers.keccak256(stringToHex(key));
-        const provider = new ethers.JsonRpcProvider(this.ethStorageRpc);
+        const provider = new ethers.JsonRpcProvider(this._ethStorageRpc);
         const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, provider) as any;
         const size = await contract.size(hexKey, {
-            from: this.wallet.address
+            from: fromAddress
         });
         if (size === 0n) {
-            throw new Error(`EthStorage: There is no data corresponding to key ${key} under wallet address ${this.wallet.address}.`);
+            throw new Error(`EthStorage: There is no data corresponding to key ${key} under wallet address ${fromAddress}.`);
         }
         const data = await contract.get(hexKey, decodeType, 0, size, {
-            from: this.wallet.address
+            from: fromAddress
         });
         return ethers.getBytes(data);
     }
@@ -146,14 +153,14 @@ export class EthStorage {
             lengthArr.push(data.length);
         }
 
-        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.wallet);
+        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this._wallet);
         try {
             const storageCost = await contract["upfrontPayment"]();
             const tx = await contract["putBlobs"].populateTransaction(keyArr, idArr, lengthArr, {
                 value: storageCost * BigInt(blobLength),
             });
 
-            const txRes = await this.blobUploader.sendTx(tx, blobArr);
+            const txRes = await this._blobUploader.sendTx(tx, blobArr);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             const receipt = await txRes.wait();
             return { hash: txRes.hash, success: receipt?.status === 1 };
@@ -163,7 +170,30 @@ export class EthStorage {
         return { hash: '0x', success: false };
     }
 
-    checkData(data: Uint8Array | null): void {
+    // get
+    private get _wallet(): ethers.Wallet {
+        if (!this.wallet) {
+            throw new Error("EthStorage: Private key is required for this operation.");
+        }
+        return this.wallet;
+    }
+
+    private get _blobUploader(): BlobUploader {
+        if (!this.blobUploader) {
+            throw new Error("EthStorage: _blobUploader is not initialized.");
+        }
+        return this.blobUploader;
+    }
+
+    private get _ethStorageRpc(): string {
+        if (!this.ethStorageRpc) {
+            throw new Error(`EthStorage: Reading content requires providing 'ethStorageRpc'.`);
+        }
+        return this.ethStorageRpc;
+    }
+
+
+    private checkData(data: Uint8Array | null): void {
         if (!data) {
             throw new Error(`EthStorage: Invalid data.`);
         }
