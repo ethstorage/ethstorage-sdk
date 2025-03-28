@@ -53,15 +53,15 @@ export class EthStorage {
     async estimateCost(key: string, data: Uint8Array): Promise<CostEstimate> {
         this.checkData(data);
         const hexKey = ethers.keccak256(stringToHex(key));
-        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.Wallet);
+        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this._wallet);
         const [storageCost, maxFeePerBlobGas, gasFeeData] = await Promise.all([
             contract["upfrontPayment"](),
-            this.BlobUploader.getBlobGasPrice(),
-            this.BlobUploader.getGasPrice(),
+            this._blobUploader.getBlobGasPrice(),
+            this._blobUploader.getGasPrice(),
         ]);
 
         const blobs = encodeOpBlobs(data);
-        const blobHash = this.BlobUploader.getBlobHash(blobs[0]);
+        const blobHash = this._blobUploader.getBlobHash(blobs[0]);
         const gasLimit = await contract["putBlob"].estimateGas(hexKey, 0, data.length, {
             value: storageCost,
             blobVersionedHashes: [blobHash]
@@ -80,7 +80,7 @@ export class EthStorage {
     async write(key: string, data: Uint8Array): Promise<{ hash: string, success: boolean }> {
         this.checkData(data);
 
-        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.Wallet);
+        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this._wallet);
         const hexKey = ethers.keccak256(stringToHex(key));
         try {
             const storageCost = await contract["upfrontPayment"]();
@@ -89,7 +89,7 @@ export class EthStorage {
             });
 
             const blobs = encodeOpBlobs(data);
-            const txRes = await this.BlobUploader.sendTx(tx, blobs);
+            const txRes = await this._blobUploader.sendTx(tx, blobs);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             const receipt = await txRes.wait();
             return { hash: txRes.hash, success: receipt?.status === 1 };
@@ -113,7 +113,7 @@ export class EthStorage {
         }
 
         const hexKey = ethers.keccak256(stringToHex(key));
-        const provider = new ethers.JsonRpcProvider(this.EthStorageRpc);
+        const provider = new ethers.JsonRpcProvider(this._ethStorageRpc);
         const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, provider) as any;
         const size = await contract.size(hexKey, {
             from: fromAddress
@@ -153,14 +153,14 @@ export class EthStorage {
             lengthArr.push(data.length);
         }
 
-        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this.Wallet);
+        const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this._wallet);
         try {
             const storageCost = await contract["upfrontPayment"]();
             const tx = await contract["putBlobs"].populateTransaction(keyArr, idArr, lengthArr, {
                 value: storageCost * BigInt(blobLength),
             });
 
-            const txRes = await this.BlobUploader.sendTx(tx, blobArr);
+            const txRes = await this._blobUploader.sendTx(tx, blobArr);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             const receipt = await txRes.wait();
             return { hash: txRes.hash, success: receipt?.status === 1 };
@@ -171,21 +171,21 @@ export class EthStorage {
     }
 
     // get
-    private get Wallet(): ethers.Wallet {
+    private get _wallet(): ethers.Wallet {
         if (!this.wallet) {
             throw new Error("EthStorage: Private key is required for this operation.");
         }
         return this.wallet;
     }
 
-    private get BlobUploader(): BlobUploader {
+    private get _blobUploader(): BlobUploader {
         if (!this.blobUploader) {
-            throw new Error("EthStorage: BlobUploader is not initialized.");
+            throw new Error("EthStorage: _blobUploader is not initialized.");
         }
         return this.blobUploader;
     }
 
-    private get EthStorageRpc(): string {
+    private get _ethStorageRpc(): string {
         if (!this.ethStorageRpc) {
             throw new Error(`EthStorage: Reading content requires providing 'ethStorageRpc'.`);
         }

@@ -49,13 +49,13 @@ async function EthStorageTest() {
     console.log(Buffer.from(buff).toString());
 
     // only read
-    const es = await EthStorage.create({
+    const readEs = await EthStorage.create({
         rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
         ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
     })
     // read
     const wallet = new ethers.Wallet(privateKey);
-    buff = await es.read('key2', DecodeType.OptimismCompact, wallet.address);
+    buff = await readEs.read('key2', DecodeType.OptimismCompact, wallet.address);
     console.log(Buffer.from(buff).toString());
 }
 // EthStorageTest();
