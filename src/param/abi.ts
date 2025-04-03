@@ -10,7 +10,7 @@ export const EthStorageAbi: readonly string[] = [
 export const FlatDirectoryAbi: readonly string[] = [
   "constructor(uint8 slotLimit, uint32 maxChunkSize, address storageAddress) public",
   "function version() external view returns (string)",
-  "function isSupportBlob() view external returns (bool)",
+  "function isSupportedBlob() view external returns (bool)",
   "function setDefault(bytes memory _defaultFile) external",
   "function getChunkHash(bytes memory name, uint256 chunkId) public view returns (bytes32)",
   "function writeChunk(bytes memory name, uint256 chunkId, bytes calldata data) external payable",
