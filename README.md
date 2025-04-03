@@ -40,6 +40,16 @@ const ethStorage = await EthStorage.create({
 });
 ```
 
+If you only need the `read` function, you can create an `EthStorage` using the following pattern.
+
+```js
+const flatDirectory = await EthStorage.create({
+    rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
+    ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596'
+});
+```
+
+
 ### write
 
 Write blob data to the EthStorage network.
@@ -58,6 +68,15 @@ Read written data from the EthStorage network.
 const key = "test.txt";
 const data = await ethStorage.read(key);
 ```
+
+If it is in read-only mode.
+
+```js
+const key = "test.txt";
+const walletAddress = "0xaaa...";
+const data = await ethStorage.read(key, DecodeType.OptimismCompact, walletAddress);
+```
+
 
 ### writeBlobs
 
@@ -120,7 +139,7 @@ const flatDirectory = await FlatDirectory.create({
 });
 ```
 
-If FlatDirectory has been deployed, it can be set through the 'address' field.
+If `FlatDirectory` has been deployed, it can be set through the `address` field.
 
 ```js
 const address = "0x987..."; // FlatDirectory address
@@ -129,6 +148,16 @@ const flatDirectory = await FlatDirectory.create({
     ethStorageRpc: ethStorageRpc,
     privateKey: privateKey,
     address: address,
+});
+```
+
+If you only need the `download` function, you can create a `FlatDirectory` using the following pattern.
+
+```js
+const address = "0x987..."; // FlatDirectory address
+const flatDirectory = await FlatDirectory.create({
+    ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
+    address: address
 });
 ```
 
