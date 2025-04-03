@@ -47,6 +47,7 @@ async function EthStorageTest() {
     // read
     buff = await es.read('key2');
     console.log(Buffer.from(buff).toString());
+    await es.close();
 
     // only read
     const readEs = await EthStorage.create({
@@ -57,6 +58,7 @@ async function EthStorageTest() {
     const wallet = new ethers.Wallet(privateKey);
     buff = await readEs.read('key2', DecodeType.OptimismCompact, wallet.address);
     console.log(Buffer.from(buff).toString());
+    await readEs.close();
 }
 
 async function FlatDirectoryTest() {
@@ -177,6 +179,8 @@ async function FlatDirectoryTest() {
     const hashes2 = await fd.fetchHashes(["file.jpg", "blobFile.jpg"]);
     console.log("get hashes", hashes2);
 
+    await fd.close();
+
     console.log("only download")
     const downloadFd = await FlatDirectory.create({
         ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
@@ -193,6 +197,8 @@ async function FlatDirectoryTest() {
             console.log('download finish');
         }
     });
+
+    await downloadFd.close();
 }
 
 async function main() {
