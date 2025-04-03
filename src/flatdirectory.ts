@@ -195,7 +195,7 @@ export class FlatDirectory {
         }
     }
 
-    async close() {
+    async close(): Promise<void> {
         if (this.blobUploader) {
             await this.blobUploader.close();
         }
