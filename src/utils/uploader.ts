@@ -122,4 +122,8 @@ export class BlobUploader {
         const commitments = await this.computeCommitmentsForBlobs(blobs);
         return truncateCommitmentHashes(commitments);
     }
+
+    async close(): Promise<void> {
+        await this.kzg.close();
+    }
 }

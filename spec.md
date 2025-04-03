@@ -53,6 +53,7 @@ data of arbitrary size.
 | write        | Asynchronously write data                                      |
 | read         | Asynchronously read data                                       |
 | writeBlobs   | Batch upload blob data to the EthStorage network               |
+| close        | Release resources used by the EthStorage instance              |
 
 ## FlatDirectory Class
 
@@ -65,6 +66,7 @@ data of arbitrary size.
 | download     | Asynchronously download data                                   |
 | fetchHashes  | Get chunk hashes of data in batches                            |
 | setDefault   | Set the default file for FlatDirectory                         |
+| close        | Release resources used by the FlatDirectory instance           |
 
 <p id="EthStorage"></p>
 
@@ -174,6 +176,20 @@ const data = await ethStorage.read("example.txt");
 const keys = ["key1", "key2", "key3"];
 const dataBlobs = [Buffer.from("test data 1"), Buffer.from("test data 2"), Buffer.from("test data 3")];
 const result = await ethStorage.writeBlobs(keys, dataBlobs);
+```
+
+### close
+**Description**: Release resources used by the EthStorage instance.
+
+**Parameters**  
+_None_
+
+**Returns**
+- `result` (Promise<void>): A Promise that resolves when the instance is successfully closed.
+
+**Example**
+```javascript
+await ethStorage.close();
 ```
 
 <p id="FlatDirectory"></p>
@@ -428,6 +444,20 @@ const status = await flatDirectory.setDefault(defaultFile);
 ```
 
 <p id="Version"></p>
+
+### close
+**Description**: Release resources used by the FlatDirectory instance.
+
+**Parameters**  
+_None_
+
+**Returns**
+- `result` (Promise<void>): A Promise that resolves when the instance is successfully closed.
+
+**Example**
+```javascript
+await flatDirectory.close();
+```
 
 # 5. Version History
 

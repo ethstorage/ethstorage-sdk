@@ -61,7 +61,7 @@ export class EthStorage {
         ]);
 
         const blobs = encodeOpBlobs(data);
-        const blobHash = this._blobUploader.computeVersionedHashForBlob(blobs[0]);
+        const blobHash = await this._blobUploader.computeVersionedHashForBlob(blobs[0]);
         const gasLimit = await contract["putBlob"].estimateGas(hexKey, 0, data.length, {
             value: storageCost,
             blobVersionedHashes: [blobHash]
@@ -168,6 +168,12 @@ export class EthStorage {
             console.error(`EthStorage: Put blobs failed!`, (e as Error).message);
         }
         return { hash: '0x', success: false };
+    }
+
+    async close() {
+        if (this.blobUploader) {
+            await this.blobUploader.close();
+        }
     }
 
     // get

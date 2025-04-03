@@ -195,6 +195,11 @@ export class FlatDirectory {
         }
     }
 
+    async close() {
+        if (this.blobUploader) {
+            await this.blobUploader.close();
+        }
+    }
 
 
     // private method
