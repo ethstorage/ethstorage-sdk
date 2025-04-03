@@ -11,12 +11,12 @@ import {
 import {
     BlobUploader,
     encodeOpBlobs,
-    getChainId, getHash,
+    getChainId,
     isBuffer, isFile,
     stringToHex,
     retry, getContentChunk,
     getUploadInfo, getChunkCounts,
-    getChunkHashes,
+    getChunkHashes, truncateCommitmentHashes,
 } from "./utils";
 
 const defaultCallback: DownloadCallback = {
@@ -280,7 +280,7 @@ export class FlatDirectory {
             let blobHashArr: string[] | null = null;
             // check change
             if (i + blobArr.length <= chunkHashes.length) {
-                blobHashArr = this.#getBlobHashes(blobArr);
+                blobHashArr = await this._blobUploader.computeVersionedHashesForBlobs(blobArr);
                 const cloudHashArr = chunkHashes.slice(i, i + blobHashArr.length);
                 if (JSON.stringify(blobHashArr) === JSON.stringify(cloudHashArr)) {
                     continue;
@@ -293,7 +293,7 @@ export class FlatDirectory {
             totalStorageCost += value;
             // gas cost
             if (gasLimit === 0n) {
-                blobHashArr = blobHashArr || this.#getBlobHashes(blobArr);
+                blobHashArr = blobHashArr || await this._blobUploader.computeVersionedHashesForBlobs(blobArr);
                 gasLimit = await retry(() => fileContract["writeChunks"].estimateGas(hexName, chunkIdArr, chunkSizeArr, {
                     value: value,
                     blobVersionedHashes: blobHashArr
@@ -405,11 +405,11 @@ export class FlatDirectory {
             const {
                 blobArr, chunkIdArr, chunkSizeArr
             } = await this.#getBlobInfo(content, i);
-            const blobCommitmentArr = this.#getBlobCommitments(blobArr);
+            const blobCommitmentArr = await this._blobUploader.computeCommitmentsForBlobs(blobArr);
 
             // check change
             if (i + blobArr.length <= chunkHashes.length) {
-                const localHashArr = this.#getHashes(blobCommitmentArr);
+                const localHashArr = truncateCommitmentHashes(blobCommitmentArr);
                 const cloudHashArr = chunkHashes.slice(i, i + localHashArr.length);
                 if (JSON.stringify(localHashArr) === JSON.stringify(cloudHashArr)) {
                     callback.onProgress!(chunkIdArr[chunkIdArr.length - 1], blobLength, false);
@@ -603,20 +603,6 @@ export class FlatDirectory {
         const txReceipt = await txResponse.wait();
         return txReceipt?.status === 1;
     }
-
-    #getBlobCommitments(blobArr: Uint8Array[]): Uint8Array[] {
-        return blobArr.map(blob => this._blobUploader.getCommitment(blob));
-    }
-
-    #getHashes(blobCommitmentArr: Uint8Array[]): string[] {
-        return blobCommitmentArr.map(comment => getHash(comment));
-    }
-
-    #getBlobHashes(blobArr: Uint8Array[]): string[] {
-        const commitments = this.#getBlobCommitments(blobArr);
-        return this.#getHashes(commitments);
-    }
-
 
     #getBlobLength(content: ContentLike): number {
         let blobLength = -1;

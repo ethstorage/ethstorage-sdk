@@ -37,7 +37,7 @@ export function isNodejs(): boolean {
     return typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 }
 
-export function commitmentsToVersionedHashes(commitment: Uint8Array): Uint8Array {
+export function computeVersionedCommitmentHash(commitment: Uint8Array): Uint8Array {
     const computedVersionedHash = new Uint8Array(32);
     computedVersionedHash.set([0x01], 0);
     const hash = ethers.getBytes(ethers.sha256(commitment));
@@ -45,11 +45,15 @@ export function commitmentsToVersionedHashes(commitment: Uint8Array): Uint8Array
     return computedVersionedHash;
 }
 
-export function getHash(commit: Uint8Array): string {
-    const localHash = commitmentsToVersionedHashes(commit);
+export function truncateCommitmentHash(commitment: Uint8Array): string {
+    const localHash = computeVersionedCommitmentHash(commitment);
     const hash = new Uint8Array(32);
     hash.set(localHash.subarray(0, 32 - 8));
     return ethers.hexlify(hash);
+}
+
+export function truncateCommitmentHashes(commitments: Uint8Array[]): string[] {
+    return commitments.map(commitment => truncateCommitmentHash(commitment));
 }
 
 export async function retry<T>(fn: (...args: any[]) => Promise<T>, retries: number, ...args: any[]): Promise<T> {
