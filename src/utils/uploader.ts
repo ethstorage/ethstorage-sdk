@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { Mutex } from 'async-mutex';
-import { computeVersionedCommitmentHash, truncateCommitmentHash, truncateCommitmentHashes } from "./util";
+import { computeVersionedCommitmentHash, convertToEthStorageHash, convertToEthStorageHashes } from "./util";
 import { KZG } from "js-kzg";
 
 // blob gas price
@@ -113,14 +113,14 @@ export class BlobUploader {
         return await this.kzg.computeCommitmentBatch(blobs);
     }
 
-    async computeVersionedHashForBlob(blob: Uint8Array): Promise<string> {
+    async computeEthStorageHashForBlob(blob: Uint8Array): Promise<string> {
         const commit = await this.kzg.computeCommitment(blob);
-        return truncateCommitmentHash(commit);
+        return convertToEthStorageHash(commit);
     }
 
-    async computeVersionedHashesForBlobs(blobs: Uint8Array[]): Promise<string[]> {
+    async computeEthStorageHashesForBlobs(blobs: Uint8Array[]): Promise<string[]> {
         const commitments = await this.computeCommitmentsForBlobs(blobs);
-        return truncateCommitmentHashes(commitments);
+        return convertToEthStorageHashes(commitments);
     }
 
     async close(): Promise<void> {
