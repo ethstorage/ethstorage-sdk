@@ -6,7 +6,8 @@ import {
     FlatDirectoryAbi, FlatDirectoryBytecode, ETHSTORAGE_MAPPING,
     BLOB_SIZE, OP_BLOB_DATA_SIZE,
     MAX_BLOB_COUNT, MAX_RETRIES, MAX_CHUNKS,
-    FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0
+    FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0,
+    DUMMY_VERSIONED_COMMITMENT_HASH
 } from './param';
 import {
     BlobUploader,
@@ -16,7 +17,7 @@ import {
     stringToHex,
     retry, getContentChunk,
     getUploadInfo, getChunkCounts,
-    getChunkHashes, truncateCommitmentHashes,
+    getChunkHashes, convertToEthStorageHashes,
 } from "./utils";
 
 const defaultCallback: DownloadCallback = {
@@ -285,7 +286,7 @@ export class FlatDirectory {
             let blobHashArr: string[] | null = null;
             // check change
             if (i + blobArr.length <= chunkHashes.length) {
-                blobHashArr = await this._blobUploader.computeVersionedHashesForBlobs(blobArr);
+                blobHashArr = await this._blobUploader.computeEthStorageHashesForBlobs(blobArr);
                 const cloudHashArr = chunkHashes.slice(i, i + blobHashArr.length);
                 if (JSON.stringify(blobHashArr) === JSON.stringify(cloudHashArr)) {
                     continue;
@@ -298,10 +299,10 @@ export class FlatDirectory {
             totalStorageCost += value;
             // gas cost
             if (gasLimit === 0n) {
-                blobHashArr = blobHashArr || await this._blobUploader.computeVersionedHashesForBlobs(blobArr);
+                // Use a fixed dummy versioned hash only if blobHashArr is not provided (for gas estimation compatibility).
                 gasLimit = await retry(() => fileContract["writeChunks"].estimateGas(hexName, chunkIdArr, chunkSizeArr, {
                     value: value,
-                    blobVersionedHashes: blobHashArr
+                    blobVersionedHashes: new Array(blobArr.length).fill(DUMMY_VERSIONED_COMMITMENT_HASH)
                 }), this.retries);
             }
             const gasCost = (gasFeeData!.maxFeePerGas! + gasFeeData!.maxPriorityFeePerGas!) * BigInt(gasLimit)
@@ -414,7 +415,7 @@ export class FlatDirectory {
 
             // check change
             if (i + blobArr.length <= chunkHashes.length) {
-                const localHashArr = truncateCommitmentHashes(blobCommitmentArr);
+                const localHashArr = convertToEthStorageHashes(blobCommitmentArr);
                 const cloudHashArr = chunkHashes.slice(i, i + localHashArr.length);
                 if (JSON.stringify(localHashArr) === JSON.stringify(cloudHashArr)) {
                     callback.onProgress!(chunkIdArr[chunkIdArr.length - 1], blobLength, false);

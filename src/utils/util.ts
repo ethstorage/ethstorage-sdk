@@ -45,15 +45,15 @@ export function computeVersionedCommitmentHash(commitment: Uint8Array): Uint8Arr
     return computedVersionedHash;
 }
 
-export function truncateCommitmentHash(commitment: Uint8Array): string {
+export function convertToEthStorageHash(commitment: Uint8Array): string {
     const localHash = computeVersionedCommitmentHash(commitment);
     const hash = new Uint8Array(32);
     hash.set(localHash.subarray(0, 32 - 8));
     return ethers.hexlify(hash);
 }
 
-export function truncateCommitmentHashes(commitments: Uint8Array[]): string[] {
-    return commitments.map(commitment => truncateCommitmentHash(commitment));
+export function convertToEthStorageHashes(commitments: Uint8Array[]): string[] {
+    return commitments.map(commitment => convertToEthStorageHash(commitment));
 }
 
 export async function retry<T>(fn: (...args: any[]) => Promise<T>, retries: number, ...args: any[]): Promise<T> {

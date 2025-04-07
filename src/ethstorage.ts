@@ -14,6 +14,7 @@ import {
     OP_BLOB_DATA_SIZE,
     EthStorageAbi,
     BLOB_COUNT_LIMIT,
+    DUMMY_VERSIONED_COMMITMENT_HASH
 } from "./param";
 
 export class EthStorage {
@@ -60,11 +61,10 @@ export class EthStorage {
             this._blobUploader.getGasPrice(),
         ]);
 
-        const blobs = encodeOpBlobs(data);
-        const blobHash = await this._blobUploader.computeVersionedHashForBlob(blobs[0]);
         const gasLimit = await contract["putBlob"].estimateGas(hexKey, 0, data.length, {
             value: storageCost,
-            blobVersionedHashes: [blobHash]
+            // Fixed dummy hashing to bypass the limitation that contracts need versioned hash when estimating gasLimit.
+            blobVersionedHashes: [DUMMY_VERSIONED_COMMITMENT_HASH]
         });
 
         // get cost
