@@ -100,6 +100,23 @@ const cost = await ethStorage.estimateCost(key, data);
 console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
 ```
 
+### close
+
+Call the `close` function after completing the operation to properly release resources.
+
+```javascript
+const es = await EthStorage.create({
+    rpc: rpc,
+    ethStorageRpc: ethStorageRpc,
+    privateKey: privateKey,
+});
+
+// Use EthStorage
+await es.methodName();  // methodName() is just an example, replace it with the actual API method
+
+// Close when done
+await es.close();
+```
 
 ## FlatDirectory
 
@@ -271,4 +288,24 @@ const request = {
     type: 2
 }
 const cost = await flatDirectory.estimateCost(request);
+```
+
+
+### close
+
+Call the `close` function after completing the operation to properly release resources.
+
+```javascript
+const flatDirectory = await FlatDirectory.create({
+    rpc: rpc,
+    ethStorageRpc: ethStorageRpc,
+    privateKey: privateKey,
+    address: address,
+});
+
+// Use flatDirectory
+await flatDirectory.methodName();  // methodName() is just an example, replace it with the actual API method
+
+// Close when done
+await flatDirectory.close();
 ```
