@@ -300,10 +300,9 @@ export class FlatDirectory {
             // gas cost
             if (gasLimit === 0n) {
                 // Use a fixed dummy versioned hash only if blobHashArr is not provided (for gas estimation compatibility).
-                blobHashArr = blobHashArr || new Array(blobArr.length).fill(DUMMY_VERSIONED_COMMITMENT_HASH);
                 gasLimit = await retry(() => fileContract["writeChunks"].estimateGas(hexName, chunkIdArr, chunkSizeArr, {
                     value: value,
-                    blobVersionedHashes: blobHashArr
+                    blobVersionedHashes: new Array(blobArr.length).fill(DUMMY_VERSIONED_COMMITMENT_HASH)
                 }), this.retries);
             }
             const gasCost = (gasFeeData!.maxFeePerGas! + gasFeeData!.maxPriorityFeePerGas!) * BigInt(gasLimit)
