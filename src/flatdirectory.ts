@@ -6,7 +6,8 @@ import {
     FlatDirectoryAbi, FlatDirectoryBytecode, ETHSTORAGE_MAPPING,
     BLOB_SIZE, OP_BLOB_DATA_SIZE,
     MAX_BLOB_COUNT, MAX_RETRIES, MAX_CHUNKS,
-    FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0
+    FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0,
+    DUMMY_VERSIONED_COMMITMENT_HASH
 } from './param';
 import {
     BlobUploader,
@@ -298,7 +299,8 @@ export class FlatDirectory {
             totalStorageCost += value;
             // gas cost
             if (gasLimit === 0n) {
-                blobHashArr = blobHashArr || await this._blobUploader.computeEthStorageHashesForBlobs(blobArr);
+                // Use a fixed dummy versioned hash only if blobHashArr is not provided (for gas estimation compatibility).
+                blobHashArr = blobHashArr || new Array(blobArr.length).fill(DUMMY_VERSIONED_COMMITMENT_HASH);
                 gasLimit = await retry(() => fileContract["writeChunks"].estimateGas(hexName, chunkIdArr, chunkSizeArr, {
                     value: value,
                     blobVersionedHashes: blobHashArr

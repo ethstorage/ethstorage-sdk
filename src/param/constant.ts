@@ -43,3 +43,7 @@ export const MAX_RETRIES: number = 3;
  * Additionally, we need to reserve a portion of the gas for the cost of the request parameters (which can vary dynamically).
  */
 export const MAX_CHUNKS: number = 120;
+
+
+// Randomly generated fixed hash for testing purposes
+export const DUMMY_VERSIONED_COMMITMENT_HASH = '0x01f32ebe6ad26adca597cdb198f041f5d96fc197e3de72e299e86fbf1f5817c8';
