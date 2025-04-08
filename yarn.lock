@@ -570,15 +570,21 @@ joycon@^3.1.1:
   resolved "https://registry.npmjs.org/joycon/-/joycon-3.1.1.tgz#bce8596d6ae808f8b68168f5fc69280996894f03"
   integrity sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==
 
-js-kzg@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.npmjs.org/js-kzg/-/js-kzg-1.0.1.tgz#6bd678610cd1b0e71e560221c28be015bce4cd15"
-  integrity sha512-P7QJU1EJlf8qe2/2iCaL0i7DmVwf6cjHWvknV4JmcP/KYXXGX4BQ54X3PIO5PfaS24tc6IKSFic806O5DFMoLg==
+js-kzg@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.npmjs.org/js-kzg/-/js-kzg-1.0.4.tgz#5dba2c7a157c3848178592b6666afc06144313ff"
+  integrity sha512-rn5zL47kaWeMJ8CvUCS+nIYNaJPvArUzubeYP5ZznucVR7qXrkE/GgRCmxX2j3xDlkOYbZobWEOvvkv4JoE3ew==
   dependencies:
     "@paulmillr/trusted-setups" "^0.1.2"
     comlink "^4.4.2"
+    kzg-wasm "^0.5.0"
     micro-eth-signer "^0.14.0"
     workerpool "^9.2.0"
+
+kzg-wasm@^0.5.0:
+  version "0.5.0"
+  resolved "https://registry.npmjs.org/kzg-wasm/-/kzg-wasm-0.5.0.tgz#6540a1417c2c3d359d1df1b5fd3f49f812bc9302"
+  integrity sha512-LK1M0dm62NKEyhaM6S0pMHKzyAB+KySUlbT+z/+N6fZvcg0jEqSAiz6YHPk8MWIadlT0vFx1uT6Pf9dLzhTn4g==
 
 lilconfig@^3.1.1:
   version "3.1.3"
