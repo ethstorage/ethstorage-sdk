@@ -163,7 +163,7 @@ const flatDirectory = await FlatDirectory.create({
 ### deploy
 
 Deploy the implementation
-contract [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/examples/FlatDirectory.sol)
+contract [FlatDirectory](https://github.com/ethstorage/evm-large-storage/blob/master/contracts/FlatDirectory.sol)
 for [EIP-5018](https://eips.ethereum.org/EIPS/eip-5018) standard.
 
 ```js
