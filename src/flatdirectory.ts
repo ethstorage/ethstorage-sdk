@@ -7,6 +7,7 @@ import {
     BLOB_SIZE, OP_BLOB_DATA_SIZE,
     MAX_BLOB_COUNT, MAX_RETRIES, MAX_CHUNKS,
     FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0,
+    FLAT_DIRECTORY_CONTRACT_VERSION_1_1_0,
     DUMMY_VERSIONED_COMMITMENT_HASH
 } from './param';
 import {
@@ -74,8 +75,19 @@ export class FlatDirectory {
                 throw e;
             })
         ]);
-        if (contractVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
-            throw new Error("FlatDirectory: The current SDK does not support this contract. Please switch to version 2.x");
+        if (contractVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_1_0) {
+            let sdkSuggestion: string;
+            if (contractVersion === FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
+                sdkSuggestion = "SDK v3.x";
+            } else {
+                sdkSuggestion = "SDK v2.x or below";
+            }
+            throw new Error(
+                `FlatDirectory: The current SDK no longer supports this contract version (${contractVersion}).\n` +
+                `Please either:\n` +
+                `  1) Deploy a new compatible contract, or\n` +
+                `  2) Use ${sdkSuggestion} to interact with this contract.`
+            );
         }
         this.isSupportBlob = supportBlob as boolean;
     }
@@ -300,7 +312,7 @@ export class FlatDirectory {
             // gas cost
             if (gasLimit === 0n) {
                 // Use a fixed dummy versioned hash only if blobHashArr is not provided (for gas estimation compatibility).
-                gasLimit = await retry(() => fileContract["writeChunks"].estimateGas(hexName, chunkIdArr, chunkSizeArr, {
+                gasLimit = await retry(() => fileContract["writeChunksByBlobs"].estimateGas(hexName, chunkIdArr, chunkSizeArr, {
                     value: value,
                     blobVersionedHashes: new Array(blobArr.length).fill(DUMMY_VERSIONED_COMMITMENT_HASH)
                 }), this.retries);
@@ -353,7 +365,7 @@ export class FlatDirectory {
             const cost = chunk.length > 24 * 1024 - 326 ? ethers.parseEther(Math.floor((chunk.length + 326) / 1024 / 24).toString()) : 0n;
             if (i === chunkLength - 1 || gasLimit === 0n) {
                 const hexData = ethers.hexlify(chunk);
-                gasLimit = await retry(() => fileContract["writeChunk"].estimateGas(hexName, 0, hexData, { value: cost }), this.retries);
+                gasLimit = await retry(() => fileContract["writeChunkByCalldata"].estimateGas(hexName, 0, hexData, { value: cost }), this.retries);
             }
             totalStorageCost += cost;
             totalGasCost += (gasFeeData!.maxFeePerGas! + gasFeeData!.maxPriorityFeePerGas!) * gasLimit;
@@ -561,7 +573,7 @@ export class FlatDirectory {
     ): Promise<boolean> {
         // create tx
         const value = cost * BigInt(blobArr.length);
-        const tx: ethers.TransactionRequest = await fileContract["writeChunks"].populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
+        const tx: ethers.TransactionRequest = await fileContract["writeChunksByBlobs"].populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
             value: value,
         });
         // Increase % if user requests it
@@ -592,7 +604,7 @@ export class FlatDirectory {
     ): Promise<boolean | undefined> {
         const hexData = ethers.hexlify(chunk);
         const cost = chunk.length > 24 * 1024 - 326 ? BigInt(Math.floor((chunk.length + 326) / 1024 / 24)) : 0n;
-        const tx = await fileContract["writeChunk"].populateTransaction(hexName, chunkId, hexData, {
+        const tx = await fileContract["writeChunkByCalldata"].populateTransaction(hexName, chunkId, hexData, {
             value: ethers.parseEther(cost.toString())
         });
         // Increase % if user requests it

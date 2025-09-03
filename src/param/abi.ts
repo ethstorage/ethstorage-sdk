@@ -13,8 +13,8 @@ export const FlatDirectoryAbi: readonly string[] = [
   "function isSupportBlob() view external returns (bool)",
   "function setDefault(bytes memory _defaultFile) external",
   "function getChunkHash(bytes memory name, uint256 chunkId) public view returns (bytes32)",
-  "function writeChunk(bytes memory name, uint256 chunkId, bytes calldata data) external payable",
-  "function writeChunks(bytes memory name, uint256[] memory chunkIds, uint256[] memory sizes) external payable",
+  "function writeChunkByCalldata(bytes memory name, uint256 chunkId, bytes calldata data) external payable",
+  "function writeChunksByBlobs(bytes memory name, uint256[] memory chunkIds, uint256[] memory sizes) external payable",
   "function remove(bytes memory name) external returns (uint256)",
   "function truncate(bytes memory name, uint256 chunkId) external returns (uint256)",
 
