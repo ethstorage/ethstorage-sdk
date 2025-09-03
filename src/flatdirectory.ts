@@ -76,6 +76,9 @@ export class FlatDirectory {
             })
         ]);
         if (contractVersion !== FLAT_DIRECTORY_CONTRACT_VERSION_1_1_0) {
+            // Release the worker, otherwise the SDK creation fails, but the worker still exists.
+            await this.close();
+
             let sdkSuggestion: string;
             if (contractVersion === FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0) {
                 sdkSuggestion = "SDK v3.x";
