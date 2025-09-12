@@ -78,8 +78,8 @@ async function FlatDirectoryTest() {
         onFail: (err) => {
             console.log(err);
         },
-        onFinish: (totalUploadChunks, totalUploadSize, totalStorageCost) => {
-            console.log(`totalUploadChunks:${totalUploadChunks}, totalUploadSize:${totalUploadSize}, totalStorageCost:${totalStorageCost}`);
+        onFinish: (totalUploadChunks, totalUploadSize, totalCost) => {
+            console.log(`totalUploadChunks:${totalUploadChunks}, totalUploadSize:${totalUploadSize}, totalCost:${totalCost}`);
         }
     };
 

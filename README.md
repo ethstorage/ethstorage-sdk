@@ -183,8 +183,8 @@ const callback = {
     onFail: function (err) {
         console.log(err);
     },
-    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
+    onFinish: function (totalUploadChunks, totalUploadSize, totalCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, total cost is ${totalCost}`);
     }
 };
 

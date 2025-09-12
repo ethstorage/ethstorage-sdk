@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { ContentLike, BufferLike, FileLike } from "../param";
+import { ContentLike, BufferLike, FileLike, TxCost } from "../param";
 
 export const stringToHex = (s: string): string => ethers.hexlify(ethers.toUtf8Bytes(s));
 
@@ -75,4 +75,21 @@ export function copy(des: Uint8Array, desOff: number, src: Uint8Array, srcOff: n
     const length = Math.min(srcLength, desLength);
     des.set(src.subarray(srcOff, srcOff + length), desOff);
     return length;
+}
+
+export function calcTxCost(receipt: ethers.TransactionReceipt | null): TxCost {
+    if (!receipt) {
+        return { normalGasCost: 0n, blobGasCost: 0n };
+    }
+
+    // gas cost
+    const normalGasCost: bigint = receipt.gasUsed * receipt.gasPrice;
+    // blob gas cost
+    const blobGasCost: bigint = receipt.blobGasUsed && receipt.blobGasPrice
+        ? BigInt(receipt.blobGasUsed) * BigInt(receipt.blobGasPrice)
+        : 0n;
+    return {
+        normalGasCost,
+        blobGasCost,
+    };
 }

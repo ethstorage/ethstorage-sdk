@@ -320,10 +320,10 @@ console.log(`Gas Cost: ${cost.gasCost}, Storage Cost: ${cost.storageCost}`);
             - **`isChange`** (boolean): Indicates whether the content has changed.
         - `onFail(error)` (function): Called when an error occurs during the upload process.
             - **`error`** (Error): The error object describing the failure.
-        - `onFinish(totalUploadChunks, totalUploadSize, totalStorageCost)` (function): Called when the upload is completed.
+        - `onFinish(totalUploadChunks, totalUploadSize, totalCost)` (function): Called when the upload is completed.
             - **`totalUploadChunks`** (number): The total number of uploaded chunks.
             - **`totalUploadSize`** (number): The total uploaded size (in bytes).
-            - **`totalStorageCost`** (bigint): The total storage cost.
+            - **`totalCost`** (bigint): The total cost of the upload, including **storage cost**, **gas cost**, and **blob gas cost**.
 
 **Example**
 ```javascript
@@ -334,8 +334,8 @@ const cb = {
     onFail: function (error) {
         console.error("Error uploading data:", error);
     },
-    onFinish: function (totalUploadChunks, totalUploadSize, totalStorageCost) {
-        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, storage cost is ${totalStorageCost}`);
+    onFinish: function (totalUploadChunks, totalUploadSize, totalCost) {
+        console.log(`Total upload chunk count is ${totalUploadChunks}, size is ${totalUploadSize}, total cost is ${totalCost}`);
     }
 };
 const request = {
