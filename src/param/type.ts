@@ -31,7 +31,7 @@ export interface SDKConfig {
 export interface UploadCallback {
     onProgress: (currentChunk: number, totalChunks: number, isChange: boolean) => void;
     onFail: (error: Error) => void;
-    onFinish: (totalUploadChunks: number, totalUploadSize: number, totalStorageCost: bigint) => void;
+    onFinish: (totalUploadChunks: number, totalUploadSize: number, totalCost: bigint) => void;
 }
 
 export interface DownloadCallback {
@@ -55,6 +55,16 @@ export interface UploadRequest extends EstimateGasRequest {
 export interface CostEstimate {
     storageCost: bigint;
     gasCost: bigint;
+}
+
+export interface TxCost {
+    normalGasCost: bigint;
+    blobGasCost: bigint;
+}
+
+export interface UploadResult {
+    txCost: TxCost;
+    success: boolean;
 }
 
 export interface FileBatch {
