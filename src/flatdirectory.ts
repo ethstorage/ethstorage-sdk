@@ -3,7 +3,7 @@ import {
     SDKConfig, EstimateGasRequest, UploadRequest, CostEstimate,
     DownloadCallback, UploadType, ContentLike, FileBatch,
     ChunkCountResult, ChunkHashResult, UploadDetails,
-    TxCost,
+    UploadResult,
     FlatDirectoryAbi, FlatDirectoryBytecode, ETHSTORAGE_MAPPING,
     BLOB_SIZE, OP_BLOB_DATA_SIZE,
     MAX_BLOB_COUNT, MAX_RETRIES, MAX_CHUNKS,
@@ -438,17 +438,19 @@ export class FlatDirectory {
             }
 
             // upload
-            const txCost = await retry(() => this.#uploadBlob(fileContract, key, hexName, blobArr,
+            const uploadResult = await retry(() => this.#uploadBlob(fileContract, key, hexName, blobArr,
                 blobCommitmentArr, chunkIdArr, chunkSizeArr, cost, gasIncPct), this.retries);
-            if (txCost.normalGasCost <= 0n) {
+            // Count tx costs, regardless of success or failure.
+            totalCost += cost * BigInt(blobArr.length); // storage cost
+            totalCost += uploadResult.txCost.normalGasCost + uploadResult.txCost.blobGasCost;
+
+            if (!uploadResult.success) {
                 callback.onFail!(new Error("FlatDirectory: Sending transaction failed."));
                 break;
             }
 
             // success
             callback.onProgress!(chunkIdArr[chunkIdArr.length - 1], blobLength, true);
-            const value = cost * BigInt(blobArr.length);
-            totalCost += value + txCost.normalGasCost + txCost.blobGasCost;
             totalUploadChunks += blobArr.length;
             totalUploadSize += chunkSizeArr.reduce((acc: number, size: number) => acc + size, 0);
         }
@@ -502,15 +504,17 @@ export class FlatDirectory {
             }
 
             // upload
-            const txCost = await retry(() => this.#uploadCallData(fileContract, key, hexName, i, chunk, gasIncPct), this.retries);
-            if (txCost.normalGasCost <= 0n) {
+            const uploadResult = await retry(() => this.#uploadCallData(fileContract, key, hexName, i, chunk, gasIncPct), this.retries);
+            // count tx costs, regardless of success or failure.
+            totalCost += uploadResult.txCost.normalGasCost; // no blob/storage
+
+            if (!uploadResult.success) {
                 callback.onFail!(new Error("FlatDirectory: Sending transaction failed."));
                 break;
             }
 
             // success
             callback.onProgress!(i, chunkLength, true);
-            totalCost += txCost.normalGasCost;
             totalUploadChunks++;
             totalUploadSize += chunk.length;
         }
@@ -572,7 +576,7 @@ export class FlatDirectory {
         chunkSizeArr: number[],
         cost: bigint,
         gasIncPct: number
-    ): Promise<TxCost> {
+    ): Promise<UploadResult> {
         // create tx
         const value = cost * BigInt(blobArr.length);
         const tx: ethers.TransactionRequest = await fileContract["writeChunksByBlobs"].populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
@@ -593,7 +597,11 @@ export class FlatDirectory {
         const txResponse = await this._blobUploader.sendTxLock(tx, blobArr, blobCommitmentArr);
         this.#printHashLog(key, chunkIdArr, txResponse.hash);
         const txReceipt = await txResponse.wait();
-        return calcTxCost(txReceipt);
+        const txCost = calcTxCost(txReceipt);
+        return {
+            txCost,
+            success: txReceipt?.status === 1
+        };
     }
 
     async #uploadCallData(
@@ -603,7 +611,7 @@ export class FlatDirectory {
         chunkId: number,
         chunk: Uint8Array,
         gasIncPct: number
-    ): Promise<TxCost> {
+    ): Promise<UploadResult> {
         const hexData = ethers.hexlify(chunk);
         const cost = chunk.length > 24 * 1024 - 326 ? BigInt(Math.floor((chunk.length + 326) / 1024 / 24)) : 0n;
         const tx = await fileContract["writeChunkByCalldata"].populateTransaction(hexName, chunkId, hexData, {
@@ -621,7 +629,11 @@ export class FlatDirectory {
         const txResponse = await this._blobUploader.sendTxLock(tx);
         this.#printHashLog(key, chunkId, txResponse.hash);
         const txReceipt = await txResponse.wait();
-        return calcTxCost(txReceipt);
+        const txCost = calcTxCost(txReceipt);
+        return {
+            txCost,
+            success: txReceipt?.status === 1
+        };
     }
 
     #getBlobLength(content: ContentLike): number {

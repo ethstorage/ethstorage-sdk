@@ -62,6 +62,11 @@ export interface TxCost {
     blobGasCost: bigint;
 }
 
+export interface UploadResult {
+    txCost: TxCost;
+    success: boolean;
+}
+
 export interface FileBatch {
     name: string;
     chunkIds: number[];
