@@ -33,23 +33,29 @@ export class BlobUploader {
         blobs: Uint8Array[] | null = null,
         commitments: Uint8Array[] | null = null,
     ): Promise<ethers.TransactionResponse> {
-        return await this.send(tx, blobs, commitments, false);
+        return await this.send(tx, false, blobs, commitments, false);
     }
 
     async sendTxLock(
         tx: ethers.TransactionRequest,
+        isConfirmedNonce: boolean,
         blobs: Uint8Array[] | null = null,
         commitments: Uint8Array[] | null = null,
     ): Promise<ethers.TransactionResponse> {
-        return await this.send(tx, blobs, commitments, true);
+        return await this.send(tx, isConfirmedNonce, blobs, commitments, true);
     }
 
     private async send(
         tx: ethers.TransactionRequest,
+        isConfirmedNonce: boolean,
         blobs: Uint8Array[] | null = null,
         commitments: Uint8Array[] | null = null,
         isLock: boolean = false
     ): Promise<ethers.TransactionResponse> {
+        if (isConfirmedNonce) {
+            tx.nonce = await this.provider.getTransactionCount(this.wallet.address, "latest");
+        }
+
         if (!blobs) {
             return isLock ? await this.lockSend(tx) : await this.wallet.sendTransaction(tx);
         }

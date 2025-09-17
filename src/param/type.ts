@@ -49,6 +49,7 @@ export interface EstimateGasRequest {
 }
 
 export interface UploadRequest extends EstimateGasRequest {
+    isConfirmedNonce?: boolean,
     callback: Partial<UploadCallback>,
 }
 

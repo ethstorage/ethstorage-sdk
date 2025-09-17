@@ -384,7 +384,7 @@ export class FlatDirectory {
         let totalUploadChunks = 0, totalUploadSize = 0;
         let totalCost = 0n;
 
-        let { key, content, callback, chunkHashes, gasIncPct = 0 } = request;
+        let { key, content, callback, chunkHashes, gasIncPct = 0, isConfirmedNonce = false } = request;
         if (!this.isSupportBlob) {
             callback.onFail?.(new Error(`FlatDirectory: The contract does not support blob upload!`));
             callback.onFinish?.(totalUploadChunks, totalUploadSize, totalCost);
@@ -439,7 +439,7 @@ export class FlatDirectory {
 
             // upload
             const uploadResult = await retry(() => this.#uploadBlob(fileContract, key, hexName, blobArr,
-                blobCommitmentArr, chunkIdArr, chunkSizeArr, cost, gasIncPct), this.retries);
+                blobCommitmentArr, chunkIdArr, chunkSizeArr, cost, gasIncPct, isConfirmedNonce), this.retries);
             // Count tx costs, regardless of success or failure.
             totalCost += cost * BigInt(blobArr.length); // storage cost
             totalCost += uploadResult.txCost.normalGasCost + uploadResult.txCost.blobGasCost;
@@ -462,7 +462,7 @@ export class FlatDirectory {
         let totalUploadChunks = 0, totalUploadSize = 0;
         let totalCost = 0n;
 
-        let { key, content, callback, chunkHashes, gasIncPct = 0 } = request;
+        let { key, content, callback, chunkHashes, gasIncPct = 0, isConfirmedNonce = false } = request;
 
         const { chunkDataSize, chunkLength } = this.#getChunkLength(content);
         if (chunkDataSize === -1) {
@@ -504,7 +504,7 @@ export class FlatDirectory {
             }
 
             // upload
-            const uploadResult = await retry(() => this.#uploadCallData(fileContract, key, hexName, i, chunk, gasIncPct), this.retries);
+            const uploadResult = await retry(() => this.#uploadCallData(fileContract, key, hexName, i, chunk, gasIncPct, isConfirmedNonce), this.retries);
             // count tx costs, regardless of success or failure.
             totalCost += uploadResult.txCost.normalGasCost; // no blob/storage
 
@@ -575,7 +575,8 @@ export class FlatDirectory {
         chunkIdArr: number[],
         chunkSizeArr: number[],
         cost: bigint,
-        gasIncPct: number
+        gasIncPct: number,
+        isConfirmedNonce: boolean
     ): Promise<UploadResult> {
         // create tx
         const value = cost * BigInt(blobArr.length);
@@ -594,7 +595,7 @@ export class FlatDirectory {
         }
 
         // send
-        const txResponse = await this._blobUploader.sendTxLock(tx, blobArr, blobCommitmentArr);
+        const txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce, blobArr, blobCommitmentArr);
         this.#printHashLog(key, chunkIdArr, txResponse.hash);
         const txReceipt = await txResponse.wait();
         const txCost = calcTxCost(txReceipt);
@@ -610,7 +611,8 @@ export class FlatDirectory {
         hexName: string,
         chunkId: number,
         chunk: Uint8Array,
-        gasIncPct: number
+        gasIncPct: number,
+        isConfirmedNonce: boolean
     ): Promise<UploadResult> {
         const hexData = ethers.hexlify(chunk);
         const cost = chunk.length > 24 * 1024 - 326 ? BigInt(Math.floor((chunk.length + 326) / 1024 / 24)) : 0n;
@@ -626,7 +628,7 @@ export class FlatDirectory {
         }
 
         // send
-        const txResponse = await this._blobUploader.sendTxLock(tx);
+        const txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce);
         this.#printHashLog(key, chunkId, txResponse.hash);
         const txReceipt = await txResponse.wait();
         const txCost = calcTxCost(txReceipt);
