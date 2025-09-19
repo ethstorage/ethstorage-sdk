@@ -1,7 +1,8 @@
 import { ethers } from "ethers";
 import { Mutex } from 'async-mutex';
-import { computeVersionedCommitmentHash, convertToEthStorageHashes } from "./util";
 import { KZG } from "js-kzg";
+import { calcTxCost, computeVersionedCommitmentHash, convertToEthStorageHashes } from "./util";
+import { UploadResult } from "../param";
 
 export class BlobUploader {
     private readonly provider: ethers.JsonRpcProvider;
@@ -101,6 +102,18 @@ export class BlobUploader {
     async computeEthStorageHashesForBlobs(blobs: Uint8Array[]): Promise<string[]> {
         const commitments = await this.computeCommitmentsForBlobs(blobs);
         return convertToEthStorageHashes(commitments);
+    }
+
+    async getTransactionResult(hash: string): Promise<UploadResult> {
+        const txResponse = await this.provider.getTransaction(hash);
+        if (!txResponse) throw new Error("tx not found");
+
+        const txReceipt = await txResponse.wait();
+        const txCost = calcTxCost(txReceipt);
+        return {
+            txCost,
+            success: txReceipt?.status === 1
+        };
     }
 
     async close(): Promise<void> {
