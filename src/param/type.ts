@@ -32,6 +32,7 @@ export interface UploadCallback {
     onProgress: (currentChunk: number, totalChunks: number, isChange: boolean) => void;
     onFail: (error: Error) => void;
     onFinish: (totalUploadChunks: number, totalUploadSize: number, totalCost: bigint) => void;
+    onTransactionSent?: (txHash: string, chunkIds: number[] | number) => void;
 }
 
 export interface DownloadCallback {
