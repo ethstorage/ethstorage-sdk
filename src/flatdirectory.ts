@@ -155,7 +155,7 @@ export class FlatDirectory {
         const provider = new ethers.JsonRpcProvider(this._ethStorageRpc);
         const contract = new ethers.Contract(this._contractAddr, FlatDirectoryAbi, provider);
         try {
-            const result = await retry(async () => getChunkCounts(contract, [key], this.retries), this.retries);
+            const result = await getChunkCounts(contract, [key], this.retries);
             const totalChunks = result[0].chunkCount;
             if (totalChunks === 0) {
                 cb.onFinish();
