@@ -162,12 +162,7 @@ export class FlatDirectory {
                 return;
             }
 
-            const supportsPaged = await this.#contractSupportsFunction(
-                contract,
-                "readChunksPaged(bytes,uint256,uint256)",
-                ["0xa", 0, 1]
-            );
-
+            const supportsPaged = await this.#contractSupportsFunction(contract, [hexName, 0, 1]);
             if (supportsPaged) {
                 await this.#downloadPaged(contract, hexName, totalChunks, cb);
             } else {
@@ -241,22 +236,11 @@ export class FlatDirectory {
     // private method
     async #contractSupportsFunction(
         contract: ethers.Contract,
-        functionSignature = "readChunksPaged(bytes,uint256,uint256)",
         params: any[] = []
     ): Promise<boolean> {
         try {
-            const iface = new ethers.Interface([`function ${functionSignature}`]);
-            const callData = iface.encodeFunctionData(functionSignature.split('(')[0], params);
-
-            const provider = contract.runner as ethers.Provider;
-            if (!provider) throw new Error("Contract has no associated provider");
-
-            await provider.call?.({
-                to: contract.target,
-                data: callData,
-            });
-
-            return true;
+            const result = await retry(() => contract['readChunksPaged'](...params), this.retries);
+            return result?.length > 0;
         } catch {
             return false;
         }
