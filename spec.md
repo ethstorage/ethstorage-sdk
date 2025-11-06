@@ -388,9 +388,10 @@ await flatDirectory.upload(request);
 - `key` (string): The key for the data to be read.
 - `callback` (object): An object containing callback functions:
     - `onProgress(currentChunk, totalChunks, chunkData)` (function): Called during the download process to track progress and receive chunk data.
-      - **`currentChunk`** (number): The index of the currently downloading chunk.
+      - **`firstChunkId`** (number): The starting index of the first chunk in this batch relative to the entire file (e.g., 0, 6, 12...).
       - **`totalChunks`** (number): The total number of chunks to be downloaded.
-      - **`chunkData`** (Uint8Array): The binary data of the current chunk.
+      - **`combinedChunkData`** (Uint8Array): The binary data of the entire batch, which is a concatenation of 'actualChunkCount' individual chunks.
+      - **`actualChunkCount`** (number): The exact number of chunks included in this specific batch.
     - `onFail(error)` (function): Called when an error occurs during the download process.
       - **`error`** (Error): The error object describing the failure.
     - `onFinish()` (function): Indicates that the upload was finish.
@@ -398,8 +399,8 @@ await flatDirectory.upload(request);
 **Example**
 ```javascript
 flatDirectory.download("example.txt", {
-    onProgress: function (progress, count, chunk) {
-        console.log(`Download ${progress} of ${count} chunks, this chunk is ${Buffer.from(chunk).toString()}`);
+    onProgress: function (firstChunkId, totalChunks, data, actualChunkCount) {
+        console.log(`Download ${firstChunkId} of ${totalChunks} chunks, this chunk is ${Buffer.from(data).toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);

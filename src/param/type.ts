@@ -36,7 +36,7 @@ export interface UploadCallback {
 }
 
 export interface DownloadCallback {
-    onProgress: (currentChunk: number, totalChunks: number, chunkData: Uint8Array) => void;
+    onProgress: (firstChunkId: number, totalChunks: number, combinedChunkData: Uint8Array, actualChunkCount: number) => void;
     onFail: (error: Error) => void;
     onFinish: () => void;
 }
