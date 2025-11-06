@@ -1,3 +1,4 @@
+import pLimit from 'p-limit';
 import { ethers } from "ethers";
 import {
     SDKConfig, EstimateGasRequest, UploadRequest, CostEstimate,
@@ -155,10 +156,17 @@ export class FlatDirectory {
         const contract = new ethers.Contract(this._contractAddr, FlatDirectoryAbi, provider);
         try {
             const result = await getChunkCounts(contract, [key], this.retries);
-            const blobCount = result[0].chunkCount;
-            for (let i = 0; i < blobCount; i++) {
-                const result = await contract["readChunk"](hexName, i);
-                cb.onProgress(i, blobCount, ethers.getBytes(result[0]));
+            const totalChunks = result[0].chunkCount;
+            if (totalChunks === 0) {
+                cb.onFinish();
+                return;
+            }
+
+            const supportsPaged = await this.#contractSupportsFunction(contract, [hexName, 0, 1]);
+            if (supportsPaged) {
+                await this.#downloadPaged(contract, hexName, totalChunks, cb);
+            } else {
+                await this.#downloadSingle(contract, hexName, totalChunks, cb);
             }
             cb.onFinish();
         } catch (err) {
@@ -226,6 +234,64 @@ export class FlatDirectory {
 
 
     // private method
+    async #contractSupportsFunction(
+        contract: ethers.Contract,
+        params: any[] = []
+    ): Promise<boolean> {
+        try {
+            const result = await retry(() => contract['readChunksPaged'](...params), this.retries);
+            return result?.length > 0;
+        } catch {
+            return false;
+        }
+    }
+
+    async #downloadPaged(
+        contract: ethers.Contract,
+        hexName: string,
+        totalChunks: number,
+        cb: DownloadCallback
+    ) {
+        const MAX_PAGE_CHUNKS = 16;
+        const MAX_CONCURRENCY = 5;
+        const totalPages = Math.ceil(totalChunks / MAX_PAGE_CHUNKS);
+        const pages = Array.from({ length: totalPages }, (_, i) => ({
+            start: i * MAX_PAGE_CHUNKS,
+            count: Math.min(MAX_PAGE_CHUNKS, totalChunks - i * MAX_PAGE_CHUNKS),
+        }));
+
+        const limit = pLimit(MAX_CONCURRENCY);
+        const quests = pages.map((page) =>
+            limit(() => retry(async () => {
+                    const chunks = await contract["readChunksPaged"](hexName, page.start, page.count);
+                    for (let i = 0; i < chunks.length; i++) {
+                        const chunkId = page.start + i;
+                        cb.onProgress(chunkId, totalChunks, ethers.getBytes(chunks[i]));
+                    }
+                }, this.retries)
+            )
+        );
+        await Promise.all(quests);
+    }
+
+    async #downloadSingle(
+        contract: ethers.Contract,
+        hexName: string,
+        totalChunks: number,
+        cb: DownloadCallback
+    ) {
+        const MAX_CONCURRENCY = 10;
+        const limit = pLimit(MAX_CONCURRENCY);
+        const quests = Array.from({length: totalChunks}, (_, i) =>
+            limit(() => retry(async () => {
+                    const [data] = await contract["readChunk"](hexName, i);
+                    cb.onProgress(i, totalChunks, ethers.getBytes(data));
+                }, this.retries)
+            )
+        );
+        await Promise.all(quests);
+    }
+
     async #fetchHashes(fileInfos: ChunkCountResult[]): Promise<Record<string, string[]>> {
         const allHashes: Record<string, string[]> = {};
 

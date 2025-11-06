@@ -19,6 +19,7 @@ export const FlatDirectoryAbi: readonly string[] = [
   "function truncate(bytes memory name, uint256 chunkId) external returns (uint256)",
 
   "function readChunk(bytes memory name, uint256 chunkId) external view returns (bytes memory, bool)",
+  "function readChunksPaged(bytes memory name, uint256 startChunkId, uint256 limit) external view returns (bytes[] memory chunks)",
   "function countChunks(bytes memory name) external view returns (uint256)",
   "function getUploadInfo(bytes memory name) external view returns (uint8 mode, uint256 chunkCount, uint256 storageCost)",
   "function getChunkHashesBatch((bytes,uint256[])[] memory fileChunks) external view returns (bytes32[] memory)",
