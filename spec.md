@@ -398,8 +398,8 @@ await flatDirectory.upload(request);
 **Example**
 ```javascript
 flatDirectory.download("example.txt", {
-    onProgress: function (firstChunkId, totalChunks, data, actualChunkCount) {
-        console.log(`Download ${firstChunkId} of ${totalChunks} chunks, this chunk is ${Buffer.from(data).toString()}`);
+	onProgress: function (progress, count, chunk) {
+		console.log(`Download ${progress} of ${count} chunks, this chunk is ${Buffer.from(chunk).toString()}`);
     },
     onFail: function (error) {
         console.error("Error download data:", error);
