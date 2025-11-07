@@ -162,8 +162,7 @@ export class FlatDirectory {
                 return;
             }
 
-            const supportsPaged = await this.#contractSupportsFunction(contract, [hexName, 0, 1]);
-            await this.#download(contract, hexName, totalChunks, supportsPaged, cb);
+            await this.#download(contract, hexName, totalChunks, cb);
             cb.onFinish();
         } catch (err) {
             cb.onFail(err as Error);
@@ -230,90 +229,53 @@ export class FlatDirectory {
 
 
     // private method
-    async #contractSupportsFunction(
-        contract: ethers.Contract,
-        params: any[] = []
-    ): Promise<boolean> {
-        try {
-            const result = await retry(() => contract['readChunksPaged'](...params), this.retries);
-            return result?.length > 0;
-        } catch {
-            return false;
-        }
-    }
-
     async #download(
         contract: ethers.Contract,
         hexName: string,
         totalChunks: number,
-        paged: boolean,
         cb: DownloadCallback
     ) {
-        const MAX_CONCURRENCY = paged ? 2 : 10;
-        const MAX_PAGE_CHUNKS = 6;
-
-        // from disordered to ordered
-        const downloadedResults = new Map<number, { data: Uint8Array; count: number }>();
+        // Ordered cache + sequential callback
+        const downloadedResults = new Map<number, Uint8Array>();
         let nextCallbackStart = 0;
-        let isProcessing = false;
-        const tryCallback = () => {
-            if (isProcessing) return;
-            isProcessing = true;
-            queueMicrotask(() => {
-                try {
-                    while (downloadedResults.has(nextCallbackStart)) {
-                        const { data, count } = downloadedResults.get(nextCallbackStart)!;
-                        cb.onProgress(nextCallbackStart, totalChunks, data, count);
-                        downloadedResults.delete(nextCallbackStart);
-                        nextCallbackStart += count;
-                    }
-                } finally {
-                    isProcessing = false;
-                }
-            });
+        const flushReadyChunks = () => {
+            while (downloadedResults.has(nextCallbackStart)) {
+                const data = downloadedResults.get(nextCallbackStart)!;
+                cb.onProgress(nextCallbackStart, totalChunks, data);
+                downloadedResults.delete(nextCallbackStart);
+                nextCallbackStart++;
+            }
         };
 
-        // fetcher
         const fetchSingle = async (i: number) => {
-            const [data] = await contract["readChunk"](hexName, i);
-            const bytes = ethers.getBytes(data);
-            downloadedResults.set(i, { data: bytes, count: 1 });
-            tryCallback();
-        };
-        const fetchPaged = async (start: number, count: number) => {
-            const chunks = await contract["readChunksPaged"](hexName, start, count);
-            const bytesArray = chunks.map(ethers.getBytes);
-            const combined = this.#concatUint8Arrays(bytesArray);
-            downloadedResults.set(start, { data: combined, count: bytesArray.length });
-            tryCallback();
+            const [data] = await contract['readChunk'](hexName, i);
+            downloadedResults.set(i, ethers.getBytes(data));
+            flushReadyChunks();
         };
 
         // download task
-        const limit = pLimit(MAX_CONCURRENCY);
-        const quests = paged
-            ? Array.from({ length: Math.ceil(totalChunks / MAX_PAGE_CHUNKS) }, (_, i) => {
-                const start = i * MAX_PAGE_CHUNKS;
-                const count = Math.min(MAX_PAGE_CHUNKS, totalChunks - start);
-                return limit(() => retry(() => fetchPaged(start, count), this.retries));
-            })
-            : Array.from({ length: totalChunks }, (_, i) =>
+        let DEFAULT_MAX_CONCURRENCY: number;
+        if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+            DEFAULT_MAX_CONCURRENCY = 6;
+        } else if (typeof process !== 'undefined' && process.versions?.node) {
+            try {
+                const os = await import('os');
+                const cores = os.cpus().length;
+                DEFAULT_MAX_CONCURRENCY = Math.max(2, Math.min(20, cores * 2));
+            } catch (err) {
+                DEFAULT_MAX_CONCURRENCY = 10;
+            }
+        } else {
+            DEFAULT_MAX_CONCURRENCY = 6;
+        }
+        const limit = pLimit(DEFAULT_MAX_CONCURRENCY);
+        const quests = Array.from({ length: totalChunks }, (_, i) =>
                 limit(() => retry(() => fetchSingle(i), this.retries))
             );
 
         await Promise.all(quests);
         await new Promise(r => setTimeout(r, 0));
-        tryCallback(); // flush any remaining pages
-    }
-
-    #concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-        const totalLength = arrays.reduce((acc, value) => acc + value.length, 0);
-        const result = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const array of arrays) {
-            result.set(array, offset);
-            offset += array.length;
-        }
-        return result;
+        flushReadyChunks(); // flush any remaining pages
     }
 
     async #fetchHashes(fileInfos: ChunkCountResult[]): Promise<Record<string, string[]>> {
