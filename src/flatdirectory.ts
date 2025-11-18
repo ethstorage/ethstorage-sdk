@@ -674,10 +674,7 @@ export class FlatDirectory {
         callback: UploadCallback
     ): Promise<ethers.TransactionResponse> {
         const hexData = ethers.hexlify(chunk);
-        const cost = chunk.length > 24 * 1024 - 326 ? BigInt(Math.floor((chunk.length + 326) / 1024 / 24)) : 0n;
-        const tx = await fileContract["writeChunkByCalldata"].populateTransaction(hexName, chunkId, hexData, {
-            value: ethers.parseEther(cost.toString())
-        });
+        const tx = await fileContract["writeChunkByCalldata"].populateTransaction(hexName, chunkId, hexData);
         // Increase % if user requests it
         if (gasIncPct > 0) {
             // Fetch the current gas price and increase it
