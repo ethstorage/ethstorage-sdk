@@ -105,10 +105,7 @@ export class BlobUploader {
     }
 
     async getTransactionResult(hash: string): Promise<UploadResult> {
-        const txResponse = await this.provider.getTransaction(hash);
-        if (!txResponse) throw new Error("tx not found");
-
-        const txReceipt = await txResponse.wait();
+        const txReceipt = await this.provider.waitForTransaction(hash);
         const txCost = calcTxCost(txReceipt);
         return {
             txCost,
