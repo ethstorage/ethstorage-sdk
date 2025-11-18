@@ -1,6 +1,6 @@
 {
   "name": "ethstorage-sdk",
-  "version": "4.1.6",
+  "version": "4.1.7",
   "description": "eip-4844 blobs upload sdk",
   "main": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
