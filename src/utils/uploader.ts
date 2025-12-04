@@ -32,6 +32,7 @@ export class BlobUploader {
         return this.kzgInitPromise;
     }
 
+    // api
     async getBlobGasPrice(): Promise<bigint> {
         const response = await this.provider.send("eth_blobBaseFee", []);
         if (!response) {
@@ -44,73 +45,7 @@ export class BlobUploader {
         return await this.provider.getFeeData();
     }
 
-    async sendTx(
-        tx: ethers.TransactionRequest,
-        blobs: Uint8Array[] | null = null,
-        commitments: Uint8Array[] | null = null,
-    ): Promise<ethers.TransactionResponse> {
-        return await this.send(tx, false, blobs, commitments, false);
-    }
-
-    async sendTxLock(
-        tx: ethers.TransactionRequest,
-        isConfirmedNonce: boolean,
-        blobs: Uint8Array[] | null = null,
-        commitments: Uint8Array[] | null = null,
-    ): Promise<ethers.TransactionResponse> {
-        return await this.send(tx, isConfirmedNonce, blobs, commitments, true);
-    }
-
-    private async send(
-        tx: ethers.TransactionRequest,
-        isConfirmedNonce: boolean,
-        blobs: Uint8Array[] | null = null,
-        commitments: Uint8Array[] | null = null,
-        isLock: boolean = false
-    ): Promise<ethers.TransactionResponse> {
-        if (isConfirmedNonce) {
-            tx.nonce = await this.provider.getTransactionCount(this.wallet.address, "latest");
-        }
-
-        if (!blobs) {
-            return isLock ? await this.lockSend(tx) : await this.wallet.sendTransaction(tx);
-        }
-
-        // blobs
-        const fullCommitments = commitments && commitments.length === blobs.length
-            ? commitments
-            : await this.computeCommitmentsForBlobs(blobs);
-
-        const cellProofs = await this.computeCellProofsForBlobs(blobs);
-        const ethersBlobs: ethers.BlobLike[] = blobs.map((blob, i) => ({
-            data: blob,
-            proof: cellProofs[i],
-            commitment: fullCommitments[i]
-        }));
-
-        const versionedHashes = fullCommitments.map(commitment =>
-            ethers.hexlify(computeVersionedCommitmentHash(commitment))
-        );
-
-        tx.maxFeePerBlobGas ??= await this.getBlobGasPrice();
-
-        // send
-        tx.type = 3;
-        tx.blobWrapperVersion = 1;
-        tx.blobVersionedHashes = versionedHashes;
-        tx.blobs = ethersBlobs;
-        return isLock ? await this.lockSend(tx) : await this.wallet.sendTransaction(tx);
-    }
-
-    private async lockSend(tx: ethers.TransactionRequest): Promise<ethers.TransactionResponse> {
-        const release = await this.mutex.acquire();
-        try {
-            return await this.wallet.sendTransaction(tx);
-        } finally {
-            release();
-        }
-    }
-
+    //  utils
     async computeCommitmentsForBlobs(blobs: Uint8Array[]): Promise<Uint8Array[]> {
         const kzg = await this.getKzg();
         const hexCommitments = await kzg.computeCommitmentBatch(blobs);
@@ -137,9 +72,81 @@ export class BlobUploader {
         };
     }
 
+    // send tx
+    async sendTx(
+        tx: ethers.TransactionRequest,
+        blobs: Uint8Array[] | null = null,
+        commitments: Uint8Array[] | null = null,
+    ): Promise<ethers.TransactionResponse> {
+        return await this._send(tx, false, false, blobs, commitments);
+    }
+
+    async sendTxLock(
+        tx: ethers.TransactionRequest,
+        isConfirmedNonce: boolean,
+        blobs: Uint8Array[] | null = null,
+        commitments: Uint8Array[] | null = null,
+    ): Promise<ethers.TransactionResponse> {
+        return await this._send(tx, isConfirmedNonce, true, blobs, commitments,);
+    }
+
+    private async _send(
+        tx: ethers.TransactionRequest,
+        isConfirmedNonce: boolean = false,
+        isLock: boolean = false,
+        blobs: Uint8Array[] | null = null,
+        commitments: Uint8Array[] | null = null,
+    ): Promise<ethers.TransactionResponse> {
+        if (blobs) {
+            // compute commitments and proofs
+            const [fullCommitments, cellProofs] = await Promise.all([
+                commitments && commitments.length === blobs.length
+                    ? Promise.resolve(commitments)
+                    : this.computeCommitmentsForBlobs(blobs),
+                this.computeCellProofsForBlobs(blobs)
+            ]);
+
+            const ethersBlobs: ethers.BlobLike[] = blobs.map((blob, i) => ({
+                data: blob,
+                proof: cellProofs[i],
+                commitment: fullCommitments[i]
+            }));
+
+            const versionedHashes = fullCommitments.map(commitment =>
+                ethers.hexlify(computeVersionedCommitmentHash(commitment as Uint8Array))
+            );
+
+            // EIP-4844 tx
+            tx.type = 3;
+            tx.blobWrapperVersion = 1;
+            tx.blobVersionedHashes = versionedHashes;
+            tx.blobs = ethersBlobs;
+            tx.maxFeePerBlobGas ??= await this.getBlobGasPrice();
+        }
+
+        const sendFunc = async () => {
+            if (isConfirmedNonce) {
+                tx.nonce = await this.provider.getTransactionCount(this.wallet.address, "latest");
+            }
+            return await this.wallet.sendTransaction(tx);
+        };
+
+        if (isLock) {
+            const release = await this.mutex.acquire();
+            try {
+                return await sendFunc();
+            } finally {
+                release();
+            }
+        } else {
+            return await sendFunc();
+        }
+    }
+
     async close(): Promise<void> {
         if (this.kzgInstance) {
             await this.kzgInstance.terminate();
+            this.kzgInstance = null;
         }
     }
 }
