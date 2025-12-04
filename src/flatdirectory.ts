@@ -21,6 +21,7 @@ import {
     retry, getContentChunk,
     getUploadInfo, getChunkCounts,
     getChunkHashes, convertToEthStorageHashes,
+    EMPTY_BLOB_CONSTANTS,
 } from "./utils";
 
 const defaultCallback: DownloadCallback = {
@@ -28,6 +29,8 @@ const defaultCallback: DownloadCallback = {
     onFail: () => { },
     onFinish: () => { }
 };
+
+type ClearOldFileMode = "calldata" | "blob";
 
 export class FlatDirectory {
     private rpc?: string;
@@ -464,7 +467,8 @@ export class FlatDirectory {
             return;
         }
 
-        const clearState = await retry(() => this.#clearOldFile(fileContract, hexName, blobLength, oldChunkCount), this.retries);
+        const clearState = await retry(() => this.#clearOldFile(fileContract, hexName, blobLength, oldChunkCount,
+            gasIncPct, isConfirmedNonce, "blob"), this.retries);
         if (!clearState) {
             callback.onFail!(new Error(`FlatDirectory: Failed to truncate old data!`));
             callback.onFinish!(totalUploadChunks, totalUploadSize, totalCost);
@@ -540,7 +544,8 @@ export class FlatDirectory {
         }
 
         // check old data
-        const clearState = await retry(() => this.#clearOldFile(fileContract, hexName, chunkLength, oldChunkCount), this.retries);
+        const clearState = await retry(() => this.#clearOldFile(fileContract, hexName, chunkLength, oldChunkCount,
+            gasIncPct, isConfirmedNonce, "calldata"), this.retries);
         if (!clearState) {
             callback.onFail!(new Error(`FlatDirectory: Failed to truncate old data!`));
             callback.onFinish!(totalUploadChunks, totalUploadSize, totalCost);
@@ -612,20 +617,47 @@ export class FlatDirectory {
         return await getUploadInfo(contract, hexName, this.retries);
     }
 
-    async #clearOldFile(contract: any, key: string, chunkLength: number, oldChunkLength: number): Promise<boolean> {
-        if (oldChunkLength > chunkLength) {
-            // truncate
-            try {
-                const tx = await contract.truncate(stringToHex(key), chunkLength);
-                this.#log(`Truncate transaction sent (Key: ${key}, New length: ${chunkLength}). Hash: ${tx.hash}`);
-                const receipt = await tx.wait();
-                return receipt?.status === 1;
-            } catch (e) {
-                this.#log(`Failed to truncate old data for file (Key: ${key}). ${(e as any).message || e}`, true);
-                return false;
-            }
+    async #clearOldFile(
+        contract: any,
+        key: string,
+        chunkLength: number,
+        oldChunkLength: number,
+        gasIncPct: number,
+        isConfirmedNonce: boolean,
+        mode: ClearOldFileMode = "blob"
+    ): Promise<boolean> {
+        if (oldChunkLength <= chunkLength) {
+            return true;
         }
-        return true;
+
+        try {
+            const tx = await contract.truncate.populateTransaction(stringToHex(key), chunkLength);
+
+            if (gasIncPct > 0) {
+                const feeData = await this._blobUploader.getGasPrice();
+                tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
+                tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
+
+                if (mode === "blob") {
+                    const blobGas = await this._blobUploader.getBlobGasPrice();
+                    tx.maxFeePerBlobGas = blobGas * BigInt(100 + gasIncPct) / BigInt(100);
+                }
+            }
+
+            let txResponse: ethers.TransactionResponse;
+            if (mode === "blob") {
+                txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce, [EMPTY_BLOB_CONSTANTS.DATA], [EMPTY_BLOB_CONSTANTS.COMMITMENT]);
+            } else {
+                txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce);
+            }
+
+            this.#log(`Truncate transaction sent (Key: ${key}, New length: ${chunkLength}, Mode: ${mode}). Hash: ${txResponse.hash}`);
+            const receipt = await txResponse.wait();
+            return receipt?.status === 1;
+        } catch (e) {
+            this.#log(`Failed to truncate old data for file (Key: ${key}, Mode: ${mode}). ${(e as any).message || e}`, true);
+            return false;
+        }
     }
 
     async #uploadBlob(

@@ -12,6 +12,12 @@ const BLOB_TX = {
     BASE_FEE_MULTIPLIER: 11n / 10n,
 };
 
+export const EMPTY_BLOB_CONSTANTS = {
+    // 128KB full 0
+    DATA: new Uint8Array(131072),
+    COMMITMENT: ethers.getBytes("0xc00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+};
+
 // ====================== KZG Helper ======================
 /**
  * Handles KZG initialization (lazy loading) and computations.
