@@ -65,8 +65,8 @@ async function EthStorageTest() {
 
 async function FlatDirectoryTest() {
     const fd = await FlatDirectory.create({
-        rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
-        ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
+        rpc: 'http://65.108.230.142:8545/',
+        ethStorageRpc: 'https://rpc.testnet.ethstorage.io:9546',
         privateKey,
         // address: "0x808f50c22D18D137AEf6E464E3f83af5FFc78b7A"
     })
@@ -185,7 +185,7 @@ async function FlatDirectoryTest() {
 
     console.log("only download")
     const downloadFd = await FlatDirectory.create({
-        ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
+        ethStorageRpc: 'https://rpc.testnet.ethstorage.io:9546',
         address: address
     })
     await downloadFd.download("blobFile.jpg", {
