@@ -109,7 +109,6 @@ export class BlobUploader {
     // ====================== Public Send API ======================
     /**
      * Sends a transaction without using the Mutex lock.
-     * Uses ethers' internal nonce management.
      */
     async sendTx(
         tx: ethers.TransactionRequest,
