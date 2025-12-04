@@ -8,13 +8,28 @@ export class BlobUploader {
     private readonly provider: ethers.JsonRpcProvider;
     private readonly wallet: ethers.Wallet;
     private readonly mutex: Mutex;
-    private readonly kzg: KZG;
+
+    private kzgInstance: KZG | null = null;
+    private kzgInitPromise: Promise<KZG> | null = null;
+
 
     constructor(rpc: string, pk: string) {
         this.provider = new ethers.JsonRpcProvider(rpc);
         this.wallet = new ethers.Wallet(pk, this.provider);
         this.mutex = new Mutex();
-        this.kzg = new KZG();
+    }
+
+    private async getKzg(): Promise<KZG> {
+        if (this.kzgInstance) return this.kzgInstance;
+
+        if (!this.kzgInitPromise) {
+            this.kzgInitPromise = KZG.create().then(kzg => {
+                this.kzgInstance = kzg;
+                return kzg;
+            });
+        }
+
+        return this.kzgInitPromise;
     }
 
     async getBlobGasPrice(): Promise<bigint> {
@@ -64,12 +79,12 @@ export class BlobUploader {
         // blobs
         const fullCommitments = commitments && commitments.length === blobs.length
             ? commitments
-            : await this.kzg.computeCommitmentBatch(blobs);
-        const proofs = await this.kzg.computeProofBatch(blobs, fullCommitments);
+            : await this.computeCommitmentsForBlobs(blobs);
 
+        const cellProofs = await this.computeCellProofsForBlobs(blobs);
         const ethersBlobs: ethers.BlobLike[] = blobs.map((blob, i) => ({
             data: blob,
-            proof: proofs[i],
+            proof: cellProofs[i],
             commitment: fullCommitments[i]
         }));
 
@@ -81,6 +96,7 @@ export class BlobUploader {
 
         // send
         tx.type = 3;
+        tx.blobWrapperVersion = 1;
         tx.blobVersionedHashes = versionedHashes;
         tx.blobs = ethersBlobs;
         return isLock ? await this.lockSend(tx) : await this.wallet.sendTransaction(tx);
@@ -96,7 +112,15 @@ export class BlobUploader {
     }
 
     async computeCommitmentsForBlobs(blobs: Uint8Array[]): Promise<Uint8Array[]> {
-        return await this.kzg.computeCommitmentBatch(blobs);
+        const kzg = await this.getKzg();
+        const hexCommitments = await kzg.computeCommitmentBatch(blobs);
+        return hexCommitments.map(c => ethers.getBytes(c));
+    }
+
+    async computeCellProofsForBlobs(blobs: Uint8Array[]): Promise<ethers.BytesLike[]> {
+        const kzg = await this.getKzg();
+        const blobProofs = await kzg.computeCellsProofsBatch(blobs);
+        return blobProofs.map(p => ethers.concat(p));
     }
 
     async computeEthStorageHashesForBlobs(blobs: Uint8Array[]): Promise<string[]> {
@@ -114,6 +138,8 @@ export class BlobUploader {
     }
 
     async close(): Promise<void> {
-        await this.kzg.close();
+        if (this.kzgInstance) {
+            await this.kzgInstance.terminate();
+        }
     }
 }

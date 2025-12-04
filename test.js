@@ -21,8 +21,8 @@ const saveFile = (data) => {
 
 async function EthStorageTest() {
     const es = await EthStorage.create({
-        rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
-        ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
+        rpc: 'http://65.108.230.142:8545/',
+        ethStorageRpc: 'https://rpc.testnet.ethstorage.io:9546',
         privateKey
     })
 
@@ -35,6 +35,7 @@ async function EthStorageTest() {
     let result = await es.write(name, content.length > 126976 ? content.subarray(0, 126976) : content);
     console.log("status:", result.success, result.hash);
     // read
+    setTimeout(() => {}, 2000);
     let buff = await es.read(name);
     const p = saveFile(buff);
     console.log(p)
@@ -45,14 +46,15 @@ async function EthStorageTest() {
     result = await es.writeBlobs(keys, blobData);
     console.log("status:", result.success, result.hash);
     // read
+    setTimeout(() => {}, 2000);
     buff = await es.read('key2');
     console.log(Buffer.from(buff).toString());
     await es.close();
 
     // only read
     const readEs = await EthStorage.create({
-        rpc: 'https://rpc.beta.testnet.l2.quarkchain.io:8545',
-        ethStorageRpc: 'https://rpc.beta.testnet.l2.ethstorage.io:9596',
+        rpc: 'http://65.108.230.142:8545/',
+        ethStorageRpc: 'https://rpc.testnet.ethstorage.io:9546',
     })
     // read
     const wallet = new ethers.Wallet(privateKey);
