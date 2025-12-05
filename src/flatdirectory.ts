@@ -631,7 +631,7 @@ export class FlatDirectory {
         }
 
         try {
-            const tx = await contract.truncate.populateTransaction(stringToHex(key), chunkLength);
+            const tx = await contract.truncate.populateTransaction(key, chunkLength);
 
             if (gasIncPct > 0) {
                 const feeData = await this._blobUploader.getGasPrice();
