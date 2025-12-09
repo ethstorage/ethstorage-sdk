@@ -17,21 +17,21 @@ const BLOB_TX = {
  * Handles KZG initialization (lazy loading) and computations.
  */
 class KzgHelper {
-    private instance: KZG | null = null;
-    private initPromise: Promise<KZG> | null = null;
+    #instance: KZG | null = null;
+    #initPromise: Promise<KZG> | null = null;
 
     async getInstance(): Promise<KZG> {
-        if (this.instance) return this.instance;
+        if (this.#instance) return this.#instance;
 
-        if (!this.initPromise) {
-            this.initPromise = this.initialize();
+        if (!this.#initPromise) {
+            this.#initPromise = this.#initialize();
         }
-        return this.initPromise;
+        return this.#initPromise;
     }
 
-    private async initialize(): Promise<KZG> {
+    async #initialize(): Promise<KZG> {
         const kzg = await KZG.create();
-        this.instance = kzg;
+        this.#instance = kzg;
         return kzg;
     }
 
@@ -48,10 +48,10 @@ class KzgHelper {
     }
 
     async destroy() {
-        if (this.instance) {
-            await this.instance.terminate();
-            this.instance = null;
-            this.initPromise = null;
+        if (this.#instance) {
+            await this.#instance.terminate();
+            this.#instance = null;
+            this.#initPromise = null;
         }
     }
 }
@@ -67,42 +67,42 @@ type SendTxParams = {
 
 // ====================== Main Class ======================
 export class BlobUploader {
-    private readonly provider: ethers.JsonRpcProvider;
-    private readonly wallet: ethers.Wallet;
+    readonly #provider: ethers.JsonRpcProvider;
+    readonly #wallet: ethers.Wallet;
     // Mutex for serializing nonce fetching and transaction submission
-    private readonly mutex = new Mutex();
+    readonly #mutex = new Mutex();
     // KZG Helper for lazy initialization and computation
-    private readonly kzg = new KzgHelper();
+    readonly #kzg = new KzgHelper();
 
     constructor(rpc: string, privateKey: string) {
-        this.provider = new ethers.JsonRpcProvider(rpc);
-        this.wallet = new ethers.Wallet(privateKey, this.provider);
+        this.#provider = new ethers.JsonRpcProvider(rpc);
+        this.#wallet = new ethers.Wallet(privateKey, this.#provider);
     }
 
     // ====================== Gas API ======================
     async getBlobGasPrice(): Promise<bigint> {
-        const base = await this.provider.send("eth_blobBaseFee", []);
+        const base = await this.#provider.send("eth_blobBaseFee", []);
         if (!base) throw new Error("RPC returned empty response");
 
         return BigInt(base) * BLOB_TX.BASE_FEE_MULTIPLIER;
     }
 
     async getGasPrice(): Promise<ethers.FeeData> {
-        return await this.provider.getFeeData();
+        return await this.#provider.getFeeData();
     }
 
     // ====================== Blob Utility API ======================
     async computeCommitmentsForBlobs(blobs: Uint8Array[]): Promise<Uint8Array[]> {
-        return await this.kzg.computeCommitments(blobs);
+        return await this.#kzg.computeCommitments(blobs);
     }
 
     async computeEthStorageHashesForBlobs(blobs: Uint8Array[]): Promise<string[]> {
-        const com = await this.kzg.computeCommitments(blobs);
+        const com = await this.#kzg.computeCommitments(blobs);
         return convertToEthStorageHashes(com);
     }
 
     async getTransactionResult(hash: string): Promise<UploadResult> {
-        const receipt = await this.provider.waitForTransaction(hash);
+        const receipt = await this.#provider.waitForTransaction(hash);
         return { txCost: calcTxCost(receipt), success: receipt?.status === 1 };
     }
 
@@ -115,7 +115,7 @@ export class BlobUploader {
         blobs?: Uint8Array[],
         commitments?: Uint8Array[]
     ): Promise<ethers.TransactionResponse> {
-        return this._send({ tx, blobs, commitments, useLock: false, confirmNonce: false });
+        return this.#send({ tx, blobs, commitments, useLock: false, confirmNonce: false });
     }
 
     /**
@@ -127,7 +127,7 @@ export class BlobUploader {
         blobs?: Uint8Array[],
         commitments?: Uint8Array[]
     ): Promise<ethers.TransactionResponse> {
-        return this._send({
+        return this.#send({
             tx,
             blobs,
             commitments,
@@ -140,46 +140,49 @@ export class BlobUploader {
     /**
      * Core handler: Prepares blob data (if needed), applies lock (if requested), and sends.
      */
-    private async _send(params: SendTxParams): Promise<ethers.TransactionResponse> {
+    async #send(params: SendTxParams): Promise<ethers.TransactionResponse> {
         const { tx, blobs, commitments, useLock, confirmNonce } = params;
 
         // 1. Transaction Preparation (Non-locked, CPU intensive work is done here)
         const finalTx = blobs
-            ? await this._buildBlobTxParams({ ...tx }, blobs, commitments)
+            ? await this.#buildBlobTxParams({ ...tx }, blobs, commitments)
             : { ...tx };
 
         // 2. Atomic Submission (Locked if requested)
         if (useLock) {
-            const release = await this.mutex.acquire();
+            const release = await this.#mutex.acquire();
             try {
-                return await this._atomicSend(finalTx, confirmNonce);
+                return await this.#atomicSend(finalTx, confirmNonce);
             } finally {
                 release();
             }
         }
 
         // Unlocked submission
-        return this._atomicSend(finalTx, confirmNonce);
+        return this.#atomicSend(finalTx, confirmNonce);
     }
 
     /**
      * Handles nonce management and transaction submission.
      */
-    private async _atomicSend(
+    async #atomicSend(
         tx: ethers.TransactionRequest,
         confirmNonce: boolean
     ): Promise<ethers.TransactionResponse> {
         if (confirmNonce) {
-            tx.nonce = await this.provider.getTransactionCount(this.wallet.address, "latest");
+            tx.nonce = await this.#provider.getTransactionCount(
+                this.#wallet.address,
+                "latest"
+            );
         }
-        return this.wallet.sendTransaction(tx);
+        return this.#wallet.sendTransaction(tx);
     }
 
     /**
      * Computes KZG fields and populates EIP-4844 specific transaction parameters.
      * This section is optimized for concurrency via Promise.all.
      */
-    private async _buildBlobTxParams(
+    async #buildBlobTxParams(
         tx: ethers.TransactionRequest,
         blobs: Uint8Array[],
         commitments?: Uint8Array[]
@@ -188,8 +191,8 @@ export class BlobUploader {
         const [fullCommitments, cellProofs] = await Promise.all([
             commitments?.length === blobs.length
                 ? Promise.resolve(commitments)
-                : this.kzg.computeCommitments(blobs),
-            this.kzg.computeCellProofs(blobs),
+                : this.#kzg.computeCommitments(blobs),
+            this.#kzg.computeCellProofs(blobs),
         ]);
 
         const ethersBlobs: ethers.BlobLike[] = blobs.map((blob, i) => ({
@@ -217,6 +220,6 @@ export class BlobUploader {
      * Cleans up resources, specifically terminating the KZG WASM instance.
      */
     async close() {
-        await this.kzg.destroy();
+        await this.#kzg.destroy();
     }
 }
