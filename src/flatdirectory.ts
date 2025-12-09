@@ -300,10 +300,8 @@ export class FlatDirectory {
         };
 
         // download task
-        let maxConcurrency: number;
-        if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
-            maxConcurrency = 6; // Browser environment
-        } else if (typeof process !== 'undefined' && process.versions?.node) {
+        let maxConcurrency: number = 6;
+        if (typeof process !== 'undefined' && process.versions?.node) {
             try {
                 const os = await import('os');
                 const cores = os.cpus().length;
@@ -311,8 +309,6 @@ export class FlatDirectory {
             } catch (err) {
                 maxConcurrency = 10;
             }
-        } else {
-            maxConcurrency = 6;
         }
         const limit = pLimit(maxConcurrency);
         const quests = Array.from({length: totalChunks}, (_, i) =>
@@ -522,7 +518,7 @@ export class FlatDirectory {
 
         const blobChunkCount = this._calculateBlobChunkCount(content);
         if (blobChunkCount === -1) {
-            callback.onFail?.(new Error('FlatDirectory: Invalid upload content.'));
+            callback.onFail?.(new Error(`FlatDirectory: Invalid upload content!`));
             callback.onFinish?.(totalUploadChunks, totalUploadSize, totalCost);
             return;
         }
