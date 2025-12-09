@@ -52,7 +52,7 @@ export class EthStorage {
     }
 
     async estimateCost(key: string, data: Uint8Array): Promise<CostEstimate> {
-        this.checkData(data);
+        this._checkData(data);
         const hexKey = ethers.keccak256(stringToHex(key));
         const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this._wallet);
         const [storageCost, maxFeePerBlobGas, gasFeeData] = await Promise.all([
@@ -78,7 +78,7 @@ export class EthStorage {
     }
 
     async write(key: string, data: Uint8Array): Promise<{ hash: string, success: boolean }> {
-        this.checkData(data);
+        this._checkData(data);
 
         const contract = new ethers.Contract(this.contractAddr, EthStorageAbi, this._wallet);
         const hexKey = ethers.keccak256(stringToHex(key));
@@ -145,7 +145,7 @@ export class EthStorage {
         const lengthArr = [];
         for (let i = 0; i < blobLength; i++) {
             const data = dataBlobs[i];
-            this.checkData(data);
+            this._checkData(data);
             const blob = encodeOpBlobs(data);
             blobArr.push(blob[0]);
             keyArr.push(ethers.keccak256(stringToHex(keys[i])));
@@ -199,7 +199,7 @@ export class EthStorage {
     }
 
 
-    private checkData(data: Uint8Array | null): void {
+    private _checkData(data: Uint8Array | null): void {
         if (!data) {
             throw new Error(`EthStorage: Invalid data.`);
         }
