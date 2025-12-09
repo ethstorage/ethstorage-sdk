@@ -59,7 +59,7 @@ export class FlatDirectory {
      * Enable or disable logging
      * @param value - true to enable logging, false to disable
      */
-    setLogEnabled(value: boolean): void {
+    setLogEnabled(value: boolean) {
         this.#isLoggingEnabled = value;
     }
 
@@ -67,7 +67,7 @@ export class FlatDirectory {
      * Deploy a new FlatDirectory contract
      * @returns Contract address if successful, null otherwise
      */
-    async deploy(): Promise<string | undefined> {
+    async deploy(): Promise<string | null> {
         const chainId = await getChainId(this.#rpcChecked);
         this.isSupportBlob = ETHSTORAGE_MAPPING[chainId] != null;
 
@@ -80,10 +80,10 @@ export class FlatDirectory {
 
             this.#contractAddr = await contract.getAddress();
             this.#log(`Contract deployed successfully. Address: ${this.#contractAddr}`);
-            return this.#contractAddr;
+            return this.#contractAddr as string;
         } catch (e) {
             this.#log(`Deployment failed! ${(e as any).message || e}`, true);
-            return undefined;
+            return null;
         }
     }
 
@@ -771,7 +771,7 @@ export class FlatDirectory {
         return { chunkDataSize: -1, calldataChunkCount: 1 };
     }
 
-    #logTransactionHash(key: string, chunkIds: number[] | number, hash: string, callback: UploadCallback): void {
+    #logTransactionHash(key: string, chunkIds: number[] | number, hash: string, callback: UploadCallback) {
         const ids = Array.isArray(chunkIds) ? chunkIds.join(",") : chunkIds;
         const primaryMessage = `Transaction hash: ${hash} for chunk(s) ${ids}.`;
         const fullMessage = `${primaryMessage} (Key: ${key})`;
@@ -809,7 +809,7 @@ export class FlatDirectory {
     }
 
     get #walletChecked(): ethers.Wallet {
-        if (!this.#wallet) throw new Error("FlatDirectory: Private key is required for this operation.");
+        if (!this.#wallet) throw new Error("FlatDirectory: Private key required.");
         return this.#wallet;
     }
 

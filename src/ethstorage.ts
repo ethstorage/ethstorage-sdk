@@ -153,7 +153,7 @@ export class EthStorage {
         return { hash: '0x', success: false };
     }
 
-    async close() {
+    async close(): Promise<void> {
         if (this.#blobUploader) {
             await this.#blobUploader.close();
         }
