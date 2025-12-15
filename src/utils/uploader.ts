@@ -115,8 +115,8 @@ export class BlobUploader {
     }
 
     /**
-     * Computes KZG fields and populates EIP-4844 specific transaction parameters.
-     * This section is optimized for concurrency via Promise.all.
+     * Computes KZG commitments and cell proofs for the given blobs,
+     * then constructs an EIP-4844 transaction request with the corresponding fields.
      */
     async buildBlobTx(params: BuildBlobTxParams): Promise<ethers.TransactionRequest> {
         const {baseTx, blobs, commitments, gasIncPct = BLOB_TX.DEFAULT_GAS_INC_PCT} = params;
@@ -179,6 +179,13 @@ export class BlobUploader {
         return this.#send({tx, confirmNonce, useLock: true});
     }
 
+    /**
+     * Cleans up resources, specifically terminating the KZG WASM instance.
+     */
+    async close() {
+        await this.#kzg.destroy();
+    }
+
     // ====================== Internal Core Logic ======================
     /**
      * Core handler: Prepares blob data (if needed), applies lock (if requested), and sends.
@@ -216,12 +223,5 @@ export class BlobUploader {
             }
             return this.#wallet.sendTransaction(tx);
         }, BLOB_TX.RETRIES);
-    }
-
-    /**
-     * Cleans up resources, specifically terminating the KZG WASM instance.
-     */
-    async close() {
-        await this.#kzg.destroy();
     }
 }
