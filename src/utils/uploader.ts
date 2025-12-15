@@ -1,15 +1,18 @@
 import { ethers } from "ethers";
 import { Mutex } from "async-mutex";
 import { KZG } from "js-kzg";
-import { calcTxCost, computeVersionedCommitmentHash, convertToEthStorageHashes } from "./util";
+import {
+    calcTxCost, computeVersionedCommitmentHash,
+    convertToEthStorageHashes, retry
+} from "./util";
 import { UploadResult } from "../param";
 
 // ====================== Constants ======================
 const BLOB_TX = {
     TYPE: 3 as const,
     WRAPPER_VERSION: 1 as const,
-    // 11n / 10n = 1.1x multiplier
-    BASE_FEE_MULTIPLIER: 11n / 10n,
+    DEFAULT_GAS_INC_PCT: 0 as const,
+    RETRIES: 3 as const,
 };
 
 // ====================== KZG Helper ======================
@@ -26,7 +29,7 @@ class KzgHelper {
         if (!this.#initPromise) {
             this.#initPromise = this.#initialize();
         }
-        return this.#initPromise;
+        return this.#initPromise!;
     }
 
     async #initialize(): Promise<KZG> {
@@ -59,10 +62,14 @@ class KzgHelper {
 // ====================== Types ======================
 type SendTxParams = {
     tx: ethers.TransactionRequest;
-    blobs?: Uint8Array[];
-    commitments?: Uint8Array[];
-    useLock: boolean;
     confirmNonce: boolean;
+};
+
+type BuildBlobTxParams = {
+    baseTx: ethers.TransactionRequest;
+    blobs: Uint8Array[];
+    commitments?: Uint8Array[];
+    gasIncPct?: number;
 };
 
 // ====================== Main Class ======================
@@ -81,14 +88,14 @@ export class BlobUploader {
 
     // ====================== Gas API ======================
     async getBlobGasPrice(): Promise<bigint> {
-        const base = await this.#provider.send("eth_blobBaseFee", []);
+        const base = await retry(() => this.#provider.send("eth_blobBaseFee", []), BLOB_TX.RETRIES);
         if (!base) throw new Error("RPC returned empty response");
 
-        return BigInt(base) * BLOB_TX.BASE_FEE_MULTIPLIER;
+        return BigInt(base) * 11n / 10n;
     }
 
     async getGasPrice(): Promise<ethers.FeeData> {
-        return await this.#provider.getFeeData();
+        return await retry(() => this.#provider.getFeeData(), BLOB_TX.RETRIES);
     }
 
     // ====================== Blob Utility API ======================
@@ -102,98 +109,25 @@ export class BlobUploader {
     }
 
     async getTransactionResult(hash: string): Promise<UploadResult> {
-        const receipt = await this.#provider.waitForTransaction(hash);
-        return { txCost: calcTxCost(receipt), success: receipt?.status === 1 };
-    }
-
-    // ====================== Public Send API ======================
-    /**
-     * Sends a transaction without using the Mutex lock.
-     */
-    async sendTx(
-        tx: ethers.TransactionRequest,
-        blobs?: Uint8Array[],
-        commitments?: Uint8Array[]
-    ): Promise<ethers.TransactionResponse> {
-        return this.#send({ tx, blobs, commitments, useLock: false, confirmNonce: false });
-    }
-
-    /**
-     * Sends a transaction using the Mutex lock to ensure sequential submission.
-     */
-    async sendTxLock(
-        tx: ethers.TransactionRequest,
-        confirmNonce: boolean,
-        blobs?: Uint8Array[],
-        commitments?: Uint8Array[]
-    ): Promise<ethers.TransactionResponse> {
-        return this.#send({
-            tx,
-            blobs,
-            commitments,
-            useLock: true,
-            confirmNonce,
-        });
-    }
-
-    // ====================== Internal Core Logic ======================
-    /**
-     * Core handler: Prepares blob data (if needed), applies lock (if requested), and sends.
-     */
-    async #send(params: SendTxParams): Promise<ethers.TransactionResponse> {
-        const { tx, blobs, commitments, useLock, confirmNonce } = params;
-
-        // 1. Transaction Preparation (Non-locked, CPU intensive work is done here)
-        const finalTx = blobs
-            ? await this.#buildBlobTxParams({ ...tx }, blobs, commitments)
-            : { ...tx };
-
-        // 2. Atomic Submission (Locked if requested)
-        if (useLock) {
-            const release = await this.#mutex.acquire();
-            try {
-                return await this.#atomicSend(finalTx, confirmNonce);
-            } finally {
-                release();
-            }
-        }
-
-        // Unlocked submission
-        return this.#atomicSend(finalTx, confirmNonce);
-    }
-
-    /**
-     * Handles nonce management and transaction submission.
-     */
-    async #atomicSend(
-        tx: ethers.TransactionRequest,
-        confirmNonce: boolean
-    ): Promise<ethers.TransactionResponse> {
-        if (confirmNonce) {
-            tx.nonce = await this.#provider.getTransactionCount(
-                this.#wallet.address,
-                "latest"
-            );
-        }
-        return this.#wallet.sendTransaction(tx);
+        if (!hash || !ethers.isHexString(hash)) throw new Error("Invalid transaction hash");
+        const receipt = await retry(() => this.#provider.waitForTransaction(hash), BLOB_TX.RETRIES);
+        return {txCost: calcTxCost(receipt), success: receipt?.status === 1};
     }
 
     /**
      * Computes KZG fields and populates EIP-4844 specific transaction parameters.
      * This section is optimized for concurrency via Promise.all.
      */
-    async #buildBlobTxParams(
-        tx: ethers.TransactionRequest,
-        blobs: Uint8Array[],
-        commitments?: Uint8Array[]
-    ): Promise<ethers.TransactionRequest> {
-        // Concurrently compute Commitments and Proofs (CPU-bound)
-        const [fullCommitments, cellProofs] = await Promise.all([
-            commitments?.length === blobs.length
-                ? Promise.resolve(commitments)
-                : this.#kzg.computeCommitments(blobs),
-            this.#kzg.computeCellProofs(blobs),
-        ]);
+    async buildBlobTx(params: BuildBlobTxParams): Promise<ethers.TransactionRequest> {
+        const {baseTx, blobs, commitments, gasIncPct = BLOB_TX.DEFAULT_GAS_INC_PCT} = params;
+        if (gasIncPct < 0) {
+            throw new Error("Gas increase percentage cannot be negative");
+        }
+
+        // blob
+        const fullCommitments = commitments?.length === blobs.length
+            ? commitments : await this.#kzg.computeCommitments(blobs);
+        const cellProofs = await this.#kzg.computeCellProofs(blobs);
 
         const ethersBlobs: ethers.BlobLike[] = blobs.map((blob, i) => ({
             data: blob,
@@ -206,14 +140,82 @@ export class BlobUploader {
             ethers.hexlify(computeVersionedCommitmentHash(c as Uint8Array))
         );
 
-        return {
-            ...tx,
+        const tx: ethers.TransactionRequest = {
+            ...baseTx,
             type: BLOB_TX.TYPE,
             blobWrapperVersion: BLOB_TX.WRAPPER_VERSION,
             blobVersionedHashes: versionedHashes,
             blobs: ethersBlobs,
-            maxFeePerBlobGas: tx.maxFeePerBlobGas ?? (await this.getBlobGasPrice()),
+
+            maxFeePerBlobGas: baseTx.maxFeePerBlobGas ?? (await this.getBlobGasPrice()),
         };
+
+        // optionally bump gas
+        if (gasIncPct > 0) {
+            const feeData = await this.getGasPrice();
+            tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
+            tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
+            tx.maxFeePerBlobGas = tx.maxFeePerBlobGas * BigInt(100 + gasIncPct) / BigInt(100);
+        }
+
+        return tx;
+    }
+
+    // ====================== Public Send API ======================
+    /**
+     * Sends a transaction without using the Mutex lock.
+     */
+    async sendTx(tx: ethers.TransactionRequest): Promise<ethers.TransactionResponse> {
+        return this.#send({tx, confirmNonce: false});
+    }
+
+    /**
+     * Sends a transaction using the Mutex lock to ensure sequential submission.
+     */
+    async sendTxLock(
+        tx: ethers.TransactionRequest,
+        confirmNonce: boolean,
+    ): Promise<ethers.TransactionResponse> {
+        return this.#send({tx, confirmNonce, useLock: true});
+    }
+
+    // ====================== Internal Core Logic ======================
+    /**
+     * Core handler: Prepares blob data (if needed), applies lock (if requested), and sends.
+     */
+    async #send(params: SendTxParams & { useLock?: boolean }): Promise<ethers.TransactionResponse> {
+        const {tx, useLock = false, confirmNonce} = params;
+
+        // Atomic Submission (Locked if requested)
+        if (useLock) {
+            const release = await this.#mutex.acquire();
+            try {
+                return await this.#atomicSend(tx, confirmNonce);
+            } finally {
+                release();
+            }
+        }
+
+        // Unlocked submission
+        return this.#atomicSend(tx, confirmNonce);
+    }
+
+    /**
+     * Handles nonce management and transaction submission.
+     */
+    async #atomicSend(
+        tx: ethers.TransactionRequest,
+        confirmNonce: boolean
+    ): Promise<ethers.TransactionResponse> {
+        return retry(async () => {
+            if (confirmNonce) {
+                tx.nonce = await this.#provider.getTransactionCount(
+                    this.#wallet.address,
+                    "latest"
+                );
+            }
+            return this.#wallet.sendTransaction(tx);
+        }, BLOB_TX.RETRIES);
     }
 
     /**
