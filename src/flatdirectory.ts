@@ -30,8 +30,6 @@ const defaultCallback: DownloadCallback = {
     onFinish: () => { }
 };
 
-type ClearOldFileMode = "calldata" | "blob";
-
 export class FlatDirectory {
     private rpc?: string;
     private ethStorageRpc?: string;
@@ -467,8 +465,8 @@ export class FlatDirectory {
             return;
         }
 
-        const clearState = await retry(() => this.#clearOldFile(fileContract, hexName, blobLength, oldChunkCount,
-            gasIncPct, isConfirmedNonce, "blob"), this.retries);
+        const clearState = await this.#clearOldFile(fileContract, hexName, blobLength, oldChunkCount,
+            gasIncPct, isConfirmedNonce, UploadType.Blob);
         if (!clearState) {
             callback.onFail!(new Error(`FlatDirectory: Failed to truncate old data!`));
             callback.onFinish!(totalUploadChunks, totalUploadSize, totalCost);
@@ -544,8 +542,8 @@ export class FlatDirectory {
         }
 
         // check old data
-        const clearState = await retry(() => this.#clearOldFile(fileContract, hexName, chunkLength, oldChunkCount,
-            gasIncPct, isConfirmedNonce, "calldata"), this.retries);
+        const clearState = await this.#clearOldFile(fileContract, hexName, chunkLength, oldChunkCount,
+            gasIncPct, isConfirmedNonce, UploadType.Calldata);
         if (!clearState) {
             callback.onFail!(new Error(`FlatDirectory: Failed to truncate old data!`));
             callback.onFinish!(totalUploadChunks, totalUploadSize, totalCost);
@@ -624,33 +622,30 @@ export class FlatDirectory {
         oldChunkLength: number,
         gasIncPct: number,
         isConfirmedNonce: boolean,
-        mode: ClearOldFileMode = "blob"
+        mode: UploadType
     ): Promise<boolean> {
         if (oldChunkLength <= chunkLength) {
             return true;
         }
 
         try {
-            const tx = await contract.truncate.populateTransaction(key, chunkLength);
+            const baseTx = await contract.truncate.populateTransaction(key, chunkLength);
 
-            if (gasIncPct > 0) {
+            let tx = baseTx;
+            if (mode === UploadType.Blob) {
+                tx = await this._blobUploader.buildBlobTx({
+                    baseTx: baseTx,
+                    blobs: [EMPTY_BLOB_CONSTANTS.DATA],
+                    commitments: [EMPTY_BLOB_CONSTANTS.COMMITMENT],
+                    gasIncPct,
+                });
+            } else if (gasIncPct > 0) {
                 const feeData = await this._blobUploader.getGasPrice();
                 tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
                 tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
-
-                if (mode === "blob") {
-                    const blobGas = await this._blobUploader.getBlobGasPrice();
-                    tx.maxFeePerBlobGas = blobGas * BigInt(100 + gasIncPct) / BigInt(100);
-                }
             }
 
-            let txResponse: ethers.TransactionResponse;
-            if (mode === "blob") {
-                txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce, [EMPTY_BLOB_CONSTANTS.DATA], [EMPTY_BLOB_CONSTANTS.COMMITMENT]);
-            } else {
-                txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce);
-            }
-
+            const txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce);
             this.#log(`Truncate transaction sent (Key: ${key}, New length: ${chunkLength}, Mode: ${mode}). Hash: ${txResponse.hash}`);
             const receipt = await txResponse.wait();
             return receipt?.status === 1;
