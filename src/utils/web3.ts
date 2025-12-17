@@ -1,9 +1,10 @@
-import { retry, stringToHex } from "./util";
 import { Contract } from "ethers";
 import { UploadDetails, ChunkCountResult, FileBatch, ChunkHashResult } from "../param";
+import { stableRetry } from "./retry";
+import { stringToHex } from "./util";
 
-export async function getUploadInfo(contract: Contract, hexName: string, retries: number): Promise<UploadDetails> {
-    const result = await retry(() => contract["getUploadInfo"](hexName), retries);
+export async function getUploadInfo(contract: Contract, hexName: string): Promise<UploadDetails> {
+    const result = await stableRetry(() => contract["getUploadInfo"](hexName));
     return {
         fileMode: Number(result[0]),
         oldChunkCount: Number(result[1]),
@@ -11,9 +12,9 @@ export async function getUploadInfo(contract: Contract, hexName: string, retries
     };
 }
 
-export async function getChunkCounts(contract: Contract, batch: string[], retries: number): Promise<ChunkCountResult[]> {
+export async function getChunkCounts(contract: Contract, batch: string[]): Promise<ChunkCountResult[]> {
     const names = batch.map(key => stringToHex(key));
-    const counts = await retry(() => contract["getChunkCountsBatch"](names), retries);
+    const counts = await stableRetry(() => contract["getChunkCountsBatch"](names));
     const results: ChunkCountResult[] = [];
     let index = 0;
     for (const key of batch) {
@@ -22,13 +23,13 @@ export async function getChunkCounts(contract: Contract, batch: string[], retrie
     return results;
 }
 
-export async function getChunkHashes(contract: Contract, batch: FileBatch[], retries: number): Promise<ChunkHashResult[]> {
+export async function getChunkHashes(contract: Contract, batch: FileBatch[]): Promise<ChunkHashResult[]> {
     const fileChunks = batch.map(file => [
         stringToHex(file.name),
         file.chunkIds
     ]);
 
-    const hashes = await retry(() => contract["getChunkHashesBatch"](fileChunks), retries);
+    const hashes = await stableRetry(() => contract["getChunkHashesBatch"](fileChunks));
     const results: ChunkHashResult[] = [];
     let index = 0;
     for (const file of batch) {

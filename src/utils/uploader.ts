@@ -3,8 +3,9 @@ import { Mutex } from "async-mutex";
 import { KZG } from "js-kzg";
 import {
     calcTxCost, computeVersionedCommitmentHash,
-    convertToEthStorageHashes, retry
+    convertToEthStorageHashes
 } from "./util";
+import { stableRetry } from "./retry";
 import { UploadResult } from "../param";
 
 // ====================== Constants ======================
@@ -12,7 +13,6 @@ const BLOB_TX = {
     TYPE: 3 as const,
     WRAPPER_VERSION: 1 as const,
     DEFAULT_GAS_INC_PCT: 0 as const,
-    RETRIES: 3 as const,
 };
 
 export const EMPTY_BLOB_CONSTANTS = {
@@ -94,14 +94,14 @@ export class BlobUploader {
 
     // ====================== Gas API ======================
     async getBlobGasPrice(): Promise<bigint> {
-        const base = await retry(() => this.#provider.send("eth_blobBaseFee", []), BLOB_TX.RETRIES);
+        const base = await stableRetry(() => this.#provider.send("eth_blobBaseFee", []));
         if (!base) throw new Error("RPC returned empty response");
 
         return BigInt(base) * 11n / 10n;
     }
 
     async getGasPrice(): Promise<ethers.FeeData> {
-        return await retry(() => this.#provider.getFeeData(), BLOB_TX.RETRIES);
+        return await stableRetry(() => this.#provider.getFeeData());
     }
 
     // ====================== Blob Utility API ======================
@@ -116,7 +116,7 @@ export class BlobUploader {
 
     async getTransactionResult(hash: string): Promise<UploadResult> {
         if (!hash || !ethers.isHexString(hash)) throw new Error("Invalid transaction hash");
-        const receipt = await retry(() => this.#provider.waitForTransaction(hash), BLOB_TX.RETRIES);
+        const receipt = await stableRetry(() => this.#provider.waitForTransaction(hash));
         return {txCost: calcTxCost(receipt), success: receipt?.status === 1};
     }
 
@@ -220,7 +220,7 @@ export class BlobUploader {
         tx: ethers.TransactionRequest,
         confirmNonce: boolean
     ): Promise<ethers.TransactionResponse> {
-        return retry(async () => {
+        return stableRetry(async () => {
             if (confirmNonce) {
                 tx.nonce = await this.#provider.getTransactionCount(
                     this.#wallet.address,
@@ -228,6 +228,6 @@ export class BlobUploader {
                 );
             }
             return this.#wallet.sendTransaction(tx);
-        }, BLOB_TX.RETRIES);
+        });
     }
 }
