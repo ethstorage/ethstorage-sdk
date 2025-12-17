@@ -673,19 +673,19 @@ export class FlatDirectory {
 
             let tx = baseTx;
             if (mode === UploadType.Blob) {
-                tx = await this._blobUploader.buildBlobTx({
+                tx = await this.#blobUploaderChecked.buildBlobTx({
                     baseTx: baseTx,
                     blobs: [EMPTY_BLOB_CONSTANTS.DATA],
                     commitments: [EMPTY_BLOB_CONSTANTS.COMMITMENT],
                     gasIncPct,
                 });
             } else if (gasIncPct > 0) {
-                const feeData = await this._blobUploader.getGasPrice();
+                const feeData = await this.#blobUploaderChecked.getGasPrice();
                 tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
                 tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
             }
 
-            const txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce);
+            const txResponse = await this.#blobUploaderChecked.sendTxLock(tx, isConfirmedNonce);
             this.#log(`Truncate transaction sent (Key: ${key}, New length: ${chunkLength}, Mode: ${mode}). Hash: ${txResponse.hash}`);
             const receipt = await txResponse.wait();
             return receipt?.status === 1;
