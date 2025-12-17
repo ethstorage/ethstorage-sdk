@@ -30,9 +30,9 @@
   "dependencies": {
     "async-mutex": "^0.5.0",
     "dotenv": "^16.4.5",
-    "ethers": "^6.15.0",
-    "js-kzg": "^1.0.4",
-    "p-limit": "^7.2.0"
+    "ethers": "^6.16.0",
+    "js-kzg": "^2.0.2",
+    "p-limit": "^3.0.2"
   },
   "repository": {
     "type": "git",
