@@ -155,6 +155,7 @@ async function FlatDirectoryTest() {
     console.log("");
 
     // download
+    setTimeout(() => {}, 2000);
     await fd.download("data", {
         onProgress: (progress, count, data) => {
             console.log(progress, count, Buffer.from(data).toString());

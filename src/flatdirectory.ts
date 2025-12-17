@@ -710,22 +710,18 @@ export class FlatDirectory {
     ): Promise<ethers.TransactionResponse> {
         // create tx
         const value = cost * BigInt(blobArr.length);
-        const tx: ethers.TransactionRequest = await fileContract["writeChunksByBlobs"].populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
+        const baseTx: ethers.TransactionRequest = await fileContract["writeChunksByBlobs"].populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
             value: value,
         });
-        // Increase % if user requests it
-        if (gasIncPct > 0) {
-            // Fetch the current gas price and increase it
-            const feeData = await this.#blobUploaderChecked.getGasPrice();
-            tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
-            tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
-            // blob gas
-            const blobGas = await this.#blobUploaderChecked.getBlobGasPrice();
-            tx.maxFeePerBlobGas = blobGas * BigInt(100 + gasIncPct) / BigInt(100);
-        }
+        const tx = await this.#blobUploaderChecked.buildBlobTx({
+            baseTx: baseTx,
+            blobs: blobArr,
+            commitments: blobCommitmentArr,
+            gasIncPct,
+        });
 
         // send
-        const txResponse = await this.#blobUploaderChecked.sendTxLock(tx, isConfirmedNonce, blobArr, blobCommitmentArr);
+        const txResponse = await this.#blobUploaderChecked.sendTxLock(tx, isConfirmedNonce);
         this.#logTransactionHash(key, chunkIdArr, txResponse.hash, callback);
         return txResponse;
     }

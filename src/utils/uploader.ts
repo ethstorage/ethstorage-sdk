@@ -161,7 +161,7 @@ export class BlobUploader {
             const feeData = await this.getGasPrice();
             tx.maxFeePerGas = feeData.maxFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
             tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas! * BigInt(100 + gasIncPct) / BigInt(100);
-            tx.maxFeePerBlobGas = tx.maxFeePerBlobGas * BigInt(100 + gasIncPct) / BigInt(100);
+            tx.maxFeePerBlobGas = BigInt(tx.maxFeePerBlobGas!) * BigInt(100 + gasIncPct) / BigInt(100);
         }
 
         return tx;

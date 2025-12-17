@@ -66,12 +66,16 @@ export class EthStorage {
         const hexKey = ethers.keccak256(stringToHex(key));
         try {
             const storageCost = await contract["upfrontPayment"]();
-            const tx = await contract["putBlob"].populateTransaction(hexKey, 0, data.length, {
+            const baseTx = await contract["putBlob"].populateTransaction(hexKey, 0, data.length, {
                 value: storageCost,
             });
 
             const blobs = encodeOpBlobs(data);
-            const txRes = await this.#blobUploaderChecked.sendTx(tx, blobs);
+            const tx = await this.#blobUploaderChecked.buildBlobTx({
+                baseTx: baseTx,
+                blobs: blobs,
+            });
+            const txRes = await this.#blobUploaderChecked.sendTx(tx);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             const receipt = await txRes.wait();
             return { hash: txRes.hash, success: receipt?.status === 1 };
@@ -139,11 +143,15 @@ export class EthStorage {
         const contract = new ethers.Contract(this.#contractAddr, EthStorageAbi, this.#walletChecked);
         try {
             const storageCost = await contract["upfrontPayment"]();
-            const tx = await contract["putBlobs"].populateTransaction(keyArr, idArr, lengthArr, {
+            const baseTx = await contract["putBlobs"].populateTransaction(keyArr, idArr, lengthArr, {
                 value: storageCost * BigInt(blobLength),
             });
 
-            const txRes = await this.#blobUploaderChecked.sendTx(tx, blobArr);
+            const tx = await this.#blobUploaderChecked.buildBlobTx({
+                baseTx: baseTx,
+                blobs: blobArr,
+            });
+            const txRes = await this.#blobUploaderChecked.sendTx(tx);
             console.log(`EthStorage: Tx hash is ${txRes.hash}`);
             const receipt = await txRes.wait();
             return { hash: txRes.hash, success: receipt?.status === 1 };
