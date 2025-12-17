@@ -15,6 +15,12 @@ const BLOB_TX = {
     RETRIES: 3 as const,
 };
 
+export const EMPTY_BLOB_CONSTANTS = {
+    // 128KB full 0
+    DATA: new Uint8Array(131072),
+    COMMITMENT: ethers.getBytes("0xc00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
+};
+
 // ====================== KZG Helper ======================
 /**
  * Handles KZG initialization (lazy loading) and computations.
