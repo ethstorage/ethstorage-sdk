@@ -36,8 +36,6 @@ export enum UploadType {
 }
 
 
-export const MAX_RETRIES: number = 3;
-
 /**
  * eth_call consumes gas, so we need to estimate the maximum number of chunks based on a 30 million gas limit.
  * Additionally, we need to reserve a portion of the gas for the cost of the request parameters (which can vary dynamically).
