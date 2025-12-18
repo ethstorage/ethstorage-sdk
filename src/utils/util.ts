@@ -56,19 +56,6 @@ export function convertToEthStorageHashes(commitments: Uint8Array[]): string[] {
     return commitments.map(commitment => convertToEthStorageHash(commitment));
 }
 
-export async function retry<T>(fn: (...args: any[]) => Promise<T>, retries: number, ...args: any[]): Promise<T> {
-    for (let i = 0; i < retries; i++) {
-        try {
-            return await fn(...args);
-        } catch (error) {
-            if (i === retries - 1) {
-                throw error;
-            }
-        }
-    }
-    throw new Error('Function failed after maximum retries');
-}
-
 export function copy(des: Uint8Array, desOff: number, src: Uint8Array, srcOff: number): number {
     const srcLength = src.length - srcOff;
     const desLength = des.length - desOff;
