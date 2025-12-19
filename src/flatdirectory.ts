@@ -1,6 +1,6 @@
 import pLimit from 'p-limit';
 import { ethers } from "ethers";
-import { from, mergeMap, concatMap, filter } from 'rxjs';
+import { from, mergeMap, concatMap } from 'rxjs';
 import {
     SDKConfig, EstimateGasRequest, UploadRequest, CostEstimate,
     DownloadCallback, UploadType, ContentLike, FileBatch,
@@ -553,7 +553,7 @@ export class FlatDirectory {
         }
 
         // Send
-        // 1 progress ordering buffer
+        // 1. progress ordering buffer to ensure callbacks trigger in sequence
         const progressBuffer = new Map<number, { lastChunkId: number; isWrite: boolean }>();
         let nextExpected = 0;
 
@@ -568,101 +568,101 @@ export class FlatDirectory {
 
         // 2 RxJS pipeline
         await new Promise<void>((resolve) => {
-            const subscribe = {
-                next: (batch: { index: number; lastChunkId: number; costDelta: bigint; chunkDelta: number; sizeDelta: number }) => {
-                    totalCost += batch.costDelta;
-                    totalUploadChunks += batch.chunkDelta;
-                    totalUploadSize += batch.sizeDelta;
+            from(this.#createBlobBatches(blobChunkCount, MAX_BLOB_COUNT)).pipe(
+                /**
+                 * Stage 1: Data Preparation & KZG Commitment (Parallel)
+                 * Max concurrency set to 2 to leverage CPU while preventing memory exhaustion.
+                 */
+                mergeMap(async (batch) => {
+                    const { blobArr, chunkSizeArr } = await this.#prepareBlobData(content, batch.startIdx, batch.endIdx - batch.startIdx);
+                    const blobCommitmentArr = await this.#blobUploaderChecked.computeCommitmentsForBlobs(blobArr);
 
-                    // success
-                    progressBuffer.set(batch.index, { lastChunkId: batch.lastChunkId, isWrite: true });
+                    // Verify if the content on-chain is already identical to the local data
+                    if (batch.endIdx <= chunkHashes!.length) {
+                        const localHashArr = convertToEthStorageHashes(blobCommitmentArr);
+                        const cloudHashArr = chunkHashes!.slice(batch.startIdx, batch.endIdx);
+                        if (localHashArr.every((v, i) => v === cloudHashArr[i])) {
+                            // Content unchanged, skip this batch
+                            return {
+                                type: 'SKIP', index: batch.batchIndex, lastChunkId: batch.chunkIdArr.at(-1),
+                                costDelta: 0n, chunkDelta: 0, sizeDelta: 0, isWrite: false
+                            };
+                        }
+                    }
+
+                    // Construct transaction data
+                    const baseTx = await this.#buildBlobTx(
+                        fileContract, hexName, blobArr, blobCommitmentArr,
+                        batch.chunkIdArr, chunkSizeArr, cost, gasIncPct
+                    );
+                    return { type: 'UPLOAD', index: batch.batchIndex, chunkIdArr: batch.chunkIdArr, baseTx, chunkSizeArr };
+                }, 2),
+
+                /**
+                 * Stage 2: Transaction Submission (Sequential)
+                 * Uses concatMap to strictly preserve Nonce order.
+                 */
+                concatMap(async (data: any) => {
+                    if (data.type === 'SKIP') return data;
+
+                    const txResponse = await this.#blobUploaderChecked.sendTxLock(data.baseTx, isConfirmedNonce);
+                    this.#logTransactionHash(key, data.chunkIdArr, txResponse.hash, callback as UploadCallback);
+
+                    const res = {
+                        index: data.index,
+                        lastChunkId: data.chunkIdArr.at(-1),
+                        chunkDelta: data.chunkIdArr.length,
+                        sizeDelta: data.chunkSizeArr.reduce((acc: number, s: number) => acc + s, 0),
+                    }
+
+                    //  If isConfirmedNonce is true, we must await the receipt here.
+                    //  This prevents the next batch from fetching the same Nonce via getTransactionCount("latest").
+                    if (isConfirmedNonce) {
+                        const result = await this.#blobUploaderChecked.getTransactionResult(txResponse.hash);
+                        if (!result.success) throw new Error("Transaction failed");
+                        return {
+                            type: 'DONE', ...res, isWrite: true,
+                            costDelta: result.txCost.normalGasCost + result.txCost.blobGasCost + (cost * BigInt(res.chunkDelta)),
+                        };
+                    }
+
+                    // Pass the hash to the next stage for concurrent confirmation
+                    return { type: 'WAIT', txHash: txResponse.hash, ...res,};
+                }),
+
+                /**
+                 * Stage 3: Confirmation (Parallel Wait)
+                 * Only active when isConfirmedNonce is false.
+                 */
+                mergeMap(async (res: any) => {
+                    if (res.type !== 'WAIT') return res;
+
+                    const result = await this.#blobUploaderChecked.getTransactionResult(res.txHash);
+                    if (!result.success) throw new Error("Transaction failed");
+                    return {
+                        ...res, isWrite: true,
+                        costDelta: result.txCost.normalGasCost + result.txCost.blobGasCost + (cost * BigInt(res.chunkDelta)),
+                    };
+                }, 3)
+            ).subscribe({
+                next: (res: any) => {
+                    totalCost += res.costDelta;
+                    totalUploadChunks += res.chunkDelta;
+                    totalUploadSize += res.sizeDelta;
+
+                    progressBuffer.set(res.index, { lastChunkId: res.lastChunkId, isWrite: res.isWrite });
                     flushProgress();
                 },
                 error: (err: any) => {
-                    flushProgress();
                     callback.onFail?.(err);
                     callback.onFinish?.(totalUploadChunks, totalUploadSize, totalCost);
                     resolve();
                 },
                 complete: () => {
-                    flushProgress();
                     callback.onFinish?.(totalUploadChunks, totalUploadSize, totalCost);
                     resolve();
                 },
-            };
-
-            const batch$ =  from(this.#createBlobBatches(blobChunkCount, MAX_BLOB_COUNT)).pipe(
-                // Build transactions concurrently
-                mergeMap(async (batch) => {
-                    // 1. prepare blobs and comment
-                    const { blobArr, chunkSizeArr } = await this.#prepareBlobData(content, batch.startIdx, batch.endIdx - batch.startIdx);
-                    const blobCommitmentArr = await this.#blobUploaderChecked.computeCommitmentsForBlobs(blobArr);
-
-                    // 2. check unchanged
-                    if (batch.endIdx <= chunkHashes!.length) {
-                        const localHashArr = convertToEthStorageHashes(blobCommitmentArr);
-                        const cloudHashArr = chunkHashes!.slice(batch.startIdx, batch.endIdx);
-                        if (localHashArr.every((v, i) => v === cloudHashArr[i])) {
-                            progressBuffer.set(batch.batchIndex, { lastChunkId: batch.chunkIdArr.at(-1)!, isWrite: false });
-                            flushProgress();
-                            return null;
-                        }
-                    }
-
-                    // 3. build tx
-                    const baseTx = await this.#buildBlobTx(
-                        fileContract, hexName,
-                        blobArr, blobCommitmentArr,
-                        batch.chunkIdArr, chunkSizeArr,
-                        cost, gasIncPct
-                    );
-                    return { baseTx, chunkSizeArr, chunkIdArr: batch.chunkIdArr, batchIndex: batch.batchIndex };
-                }, 2),
-                filter((v): v is Exclude<typeof v, null> => v !== null)
-            );
-
-            if (isConfirmedNonce) {
-                batch$.pipe(
-                    // Send transactions sequentially to preserve order
-                    concatMap(async (batch) => {
-                        const txResponse = await this.#blobUploaderChecked.sendTxLock(batch.baseTx, isConfirmedNonce);
-                        this.#logTransactionHash(key, batch.chunkIdArr, txResponse.hash, callback as UploadCallback);
-
-                        let uploadResult = await this.#blobUploaderChecked.getTransactionResult(txResponse.hash);
-                        if (!uploadResult.success) {
-                            throw new Error("FlatDirectory: Sending transaction failed.");
-                        }
-                        return {
-                            index: batch.batchIndex,
-                            lastChunkId:  batch.chunkIdArr.at(-1)!,
-                            costDelta: uploadResult.txCost.normalGasCost + uploadResult.txCost.blobGasCost + cost * BigInt(batch.chunkIdArr.length),
-                            chunkDelta: batch.chunkIdArr.length,
-                            sizeDelta: batch.chunkSizeArr.reduce((acc, s) => acc + s, 0),
-                        };
-                    }),
-                ).subscribe(subscribe)
-            } else {
-                batch$.pipe(
-                    concatMap(async (batch) => {
-                        const txResponse = await this.#blobUploaderChecked.sendTxLock(batch.baseTx, false);
-                        this.#logTransactionHash(key, batch.chunkIdArr, txResponse.hash, callback as UploadCallback);
-                        return { batch, txHash: txResponse.hash };
-                    }),
-                    mergeMap(async ({ batch, txHash }) => {
-                        const uploadResult = await this.#blobUploaderChecked.getTransactionResult(txHash);
-                        if (!uploadResult.success) {
-                            throw new Error("FlatDirectory: Sending transaction failed.");
-                        }
-                        return {
-                            index: batch.batchIndex,
-                            lastChunkId: batch.chunkIdArr.at(-1)!,
-                            costDelta: uploadResult.txCost.normalGasCost + uploadResult.txCost.blobGasCost + cost * BigInt(batch.chunkIdArr.length),
-                            chunkDelta: batch.chunkIdArr.length,
-                            sizeDelta: batch.chunkSizeArr.reduce((acc, s) => acc + s, 0),
-                        };
-                    }, 2)
-                ).subscribe(subscribe)
-            }
+            });
         });
     }
 
