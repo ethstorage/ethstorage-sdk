@@ -552,22 +552,9 @@ export class FlatDirectory {
             chunkHashes = hashes[key];
         }
 
-        // Send
-        // 1. progress ordering buffer to ensure callbacks trigger in sequence
-        const progressBuffer = new Map<number, { lastChunkId: number; isWrite: boolean }>();
-        let nextExpected = 0;
-
-        function flushProgress() {
-            while (progressBuffer.has(nextExpected)) {
-                const ev = progressBuffer.get(nextExpected)!;
-                callback.onProgress?.(ev.lastChunkId, blobChunkCount, ev.isWrite);
-                progressBuffer.delete(nextExpected);
-                nextExpected++;
-            }
-        }
-
-        // 2 RxJS pipeline
+        // Send: RxJS pipeline
         await new Promise<void>((resolve) => {
+            let sharedGasLimit: bigint | null = null;
             from(this.#createBlobBatches(blobChunkCount, MAX_BLOB_COUNT)).pipe(
                 /**
                  * Stage 1: Data Preparation & KZG Commitment (Parallel)
@@ -599,59 +586,45 @@ export class FlatDirectory {
                 }, 2),
 
                 /**
-                 * Stage 2: Transaction Submission (Sequential)
+                 * Stage 2: Transaction Submission and Confirmation
                  * Uses concatMap to strictly preserve Nonce order.
                  */
                 concatMap(async (data: any) => {
                     if (data.type === 'SKIP') return data;
 
-                    const txResponse = await this.#blobUploaderChecked.sendTxLock(data.baseTx, isConfirmedNonce);
+                    if (!sharedGasLimit) {
+                        sharedGasLimit = await stableRetry(
+                            () => fileContract["writeChunksByBlobs"].estimateGas(hexName, data.chunkIdArr, data.chunkSizeArr, {
+                                value: data.baseTx.value,
+                                blobVersionedHashes: data.baseTx.blobVersionedHashes,
+                            }));
+                        sharedGasLimit = sharedGasLimit * 120n / 100n;
+                    }
+
+                    const finalTx = { ...data.baseTx, gasLimit: sharedGasLimit };
+                    const txResponse = await this.#blobUploaderChecked.sendTxLock(finalTx, isConfirmedNonce);
                     this.#logTransactionHash(key, data.chunkIdArr, txResponse.hash, callback as UploadCallback);
 
-                    const res = {
+                    const result = await this.#blobUploaderChecked.getTransactionResult(txResponse.hash);
+                    if (!result.success) throw new Error("Transaction failed");
+
+                    return {
+                        type: 'DONE',
                         index: data.index,
                         lastChunkId: data.chunkIdArr.at(-1),
                         chunkDelta: data.chunkIdArr.length,
                         sizeDelta: data.chunkSizeArr.reduce((acc: number, s: number) => acc + s, 0),
-                    }
-
-                    //  If isConfirmedNonce is true, we must await the receipt here.
-                    //  This prevents the next batch from fetching the same Nonce via getTransactionCount("latest").
-                    if (isConfirmedNonce) {
-                        const result = await this.#blobUploaderChecked.getTransactionResult(txResponse.hash);
-                        if (!result.success) throw new Error("Transaction failed");
-                        return {
-                            type: 'DONE', ...res, isWrite: true,
-                            costDelta: result.txCost.normalGasCost + result.txCost.blobGasCost + (cost * BigInt(res.chunkDelta)),
-                        };
-                    }
-
-                    // Pass the hash to the next stage for concurrent confirmation
-                    return { type: 'WAIT', txHash: txResponse.hash, ...res,};
-                }),
-
-                /**
-                 * Stage 3: Confirmation (Parallel Wait)
-                 * Only active when isConfirmedNonce is false.
-                 */
-                mergeMap(async (res: any) => {
-                    if (res.type !== 'WAIT') return res;
-
-                    const result = await this.#blobUploaderChecked.getTransactionResult(res.txHash);
-                    if (!result.success) throw new Error("Transaction failed");
-                    return {
-                        ...res, isWrite: true,
-                        costDelta: result.txCost.normalGasCost + result.txCost.blobGasCost + (cost * BigInt(res.chunkDelta)),
+                        isWrite: true,
+                        costDelta: result.txCost.normalGasCost + result.txCost.blobGasCost + (cost * BigInt(data.chunkIdArr.length)),
                     };
-                }, 3)
+                }),
             ).subscribe({
                 next: (res: any) => {
                     totalCost += res.costDelta;
                     totalUploadChunks += res.chunkDelta;
                     totalUploadSize += res.sizeDelta;
 
-                    progressBuffer.set(res.index, { lastChunkId: res.lastChunkId, isWrite: res.isWrite });
-                    flushProgress();
+                    callback.onProgress?.(res.lastChunkId, blobChunkCount, res.isWrite);
                 },
                 error: (err: any) => {
                     callback.onFail?.(err);
