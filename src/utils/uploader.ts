@@ -97,7 +97,7 @@ export class BlobUploader {
         const base = await stableRetry(() => this.#provider.send("eth_blobBaseFee", []));
         if (!base) throw new Error("RPC returned empty response");
 
-        return BigInt(base) * 11n / 10n;
+        return BigInt(base) * 20n / 10n;
     }
 
     async getGasPrice(): Promise<ethers.FeeData> {
