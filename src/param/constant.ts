@@ -26,7 +26,7 @@ export enum DecodeType {
 }
 
 export const BLOB_COUNT_LIMIT: number = 6;
-export const MAX_BLOB_COUNT: number = 3;
+export const MAX_BLOB_COUNT: number = 6;
 
 
 export enum UploadType {

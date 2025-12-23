@@ -1,5 +1,6 @@
 import pLimit from 'p-limit';
 import { ethers } from "ethers";
+import { from, mergeMap, concatMap } from 'rxjs';
 import {
     SDKConfig, EstimateGasRequest, UploadRequest, CostEstimate,
     DownloadCallback, UploadType, ContentLike, FileBatch,
@@ -402,17 +403,17 @@ export class FlatDirectory {
         let totalStorageCost = 0n;
         let gasLimit = 0n;
         // send
-        for (let i = 0; i < blobChunkCount; i += MAX_BLOB_COUNT) {
-            const { blobArr, chunkIdArr, chunkSizeArr } = await this.#prepareBlobTxData(content, i);
+        const batches = this.#createBlobBatches(blobChunkCount, MAX_BLOB_COUNT);
+        for (const batch of batches) {
+            const numChunks = batch.endIdx - batch.startIdx;
+            const { blobArr, chunkSizeArr } = await this.#prepareBlobData(content, batch.startIdx, numChunks);
 
-            let blobHashArr: string[] | null = null;
             // not change
-            if (i + blobArr.length <= chunkHashes.length) {
-                blobHashArr = await this.#blobUploaderChecked.computeEthStorageHashesForBlobs(blobArr);
-                const cloudHashArr = chunkHashes.slice(i, i + blobHashArr.length);
-                if (JSON.stringify(blobHashArr) === JSON.stringify(cloudHashArr)) {
-                    continue;
-                }
+            if (batch.endIdx <= chunkHashes.length) {
+                const blobCommitmentArr = await this.#blobUploaderChecked.computeCommitmentsForBlobs(blobArr);
+                const localHashArr = convertToEthStorageHashes(blobCommitmentArr);
+                const cloudHashArr = chunkHashes.slice(batch.startIdx, batch.endIdx);
+                if (localHashArr.every((v, i) => v === cloudHashArr[i])) continue;
             }
 
             // upload
@@ -422,7 +423,7 @@ export class FlatDirectory {
             // gas cost
             if (gasLimit === 0n) {
                 // Use a fixed dummy versioned hash only if blobHashArr is not provided (for gas estimation compatibility).
-                gasLimit = await stableRetry(() => fileContract["writeChunksByBlobs"].estimateGas(hexName, chunkIdArr, chunkSizeArr, {
+                gasLimit = await stableRetry(() => fileContract["writeChunksByBlobs"].estimateGas(hexName, batch.chunkIdArr, chunkSizeArr, {
                     value: value,
                     blobVersionedHashes: new Array(blobArr.length).fill(DUMMY_VERSIONED_COMMITMENT_HASH)
                 }));
@@ -551,44 +552,91 @@ export class FlatDirectory {
             chunkHashes = hashes[key];
         }
 
-        // send
-        for (let i = 0; i < blobChunkCount; i += MAX_BLOB_COUNT) {
-            const { blobArr, chunkIdArr, chunkSizeArr } = await this.#prepareBlobTxData(content, i);
-            const blobCommitmentArr = await this.#blobUploaderChecked.computeCommitmentsForBlobs(blobArr);
+        // Send: RxJS pipeline
+        await new Promise<void>((resolve) => {
+            let sharedGasLimit: bigint | null = null;
+            from(this.#createBlobBatches(blobChunkCount, MAX_BLOB_COUNT)).pipe(
+                /**
+                 * Stage 1: Data Preparation & KZG Commitment (Parallel)
+                 * Max concurrency set to 2 to leverage CPU while preventing memory exhaustion.
+                 */
+                mergeMap(async (batch) => {
+                    const { blobArr, chunkSizeArr } = await this.#prepareBlobData(content, batch.startIdx, batch.endIdx - batch.startIdx);
+                    const blobCommitmentArr = await this.#blobUploaderChecked.computeCommitmentsForBlobs(blobArr);
 
-            // not change
-            if (i + blobArr.length <= chunkHashes.length) {
-                const localHashArr = convertToEthStorageHashes(blobCommitmentArr);
-                const cloudHashArr = chunkHashes.slice(i, i + localHashArr.length);
-                if (JSON.stringify(localHashArr) === JSON.stringify(cloudHashArr)) {
-                    callback.onProgress!(chunkIdArr[chunkIdArr.length - 1], blobChunkCount, false);
-                    continue;
-                }
-            }
+                    // Verify if the content on-chain is already identical to the local data
+                    if (batch.endIdx <= chunkHashes!.length) {
+                        const localHashArr = convertToEthStorageHashes(blobCommitmentArr);
+                        const cloudHashArr = chunkHashes!.slice(batch.startIdx, batch.endIdx);
+                        if (localHashArr.every((v, i) => v === cloudHashArr[i])) {
+                            // Content unchanged, skip this batch
+                            return {
+                                type: 'SKIP', index: batch.batchIndex, lastChunkId: batch.chunkIdArr.at(-1),
+                                costDelta: 0n, chunkDelta: 0, sizeDelta: 0, isWrite: false
+                            };
+                        }
+                    }
 
-            // upload
-            const txResponse = await this.#sendBlobTx(
-                fileContract, key, hexName, blobArr,
-                blobCommitmentArr, chunkIdArr, chunkSizeArr, cost, gasIncPct, isConfirmedNonce, callback as UploadCallback
-            );
-            const uploadResult = await this.#blobUploaderChecked.getTransactionResult(txResponse.hash);
+                    // Construct transaction data
+                    const baseTx = await this.#buildBlobTx(
+                        fileContract, hexName, blobArr, blobCommitmentArr,
+                        batch.chunkIdArr, chunkSizeArr, cost, gasIncPct
+                    );
+                    return { type: 'UPLOAD', index: batch.batchIndex, chunkIdArr: batch.chunkIdArr, baseTx, chunkSizeArr };
+                }, 2),
 
-            // Count tx costs, regardless of success or failure.
-            totalCost += cost * BigInt(blobArr.length); // storage cost
-            totalCost += uploadResult.txCost.normalGasCost + uploadResult.txCost.blobGasCost;
+                /**
+                 * Stage 2: Transaction Submission and Confirmation
+                 * Uses concatMap to strictly preserve Nonce order.
+                 */
+                concatMap(async (data: any) => {
+                    if (data.type === 'SKIP') return data;
 
-            // fail
-            if (!uploadResult.success) {
-                callback.onFail!(new Error("FlatDirectory: Sending transaction failed."));
-                break;
-            }
-            // success
-            callback.onProgress!(chunkIdArr[chunkIdArr.length - 1], blobChunkCount, true);
-            totalUploadChunks += blobArr.length;
-            totalUploadSize += chunkSizeArr.reduce((acc: number, size: number) => acc + size, 0);
-        }
+                    if (!sharedGasLimit) {
+                        sharedGasLimit = await stableRetry(
+                            () => fileContract["writeChunksByBlobs"].estimateGas(hexName, data.chunkIdArr, data.chunkSizeArr, {
+                                value: data.baseTx.value,
+                                blobVersionedHashes: data.baseTx.blobVersionedHashes,
+                            }));
+                        sharedGasLimit = sharedGasLimit * 120n / 100n;
+                    }
 
-        callback.onFinish!(totalUploadChunks, totalUploadSize, totalCost);
+                    const finalTx = { ...data.baseTx, gasLimit: sharedGasLimit };
+                    const txResponse = await this.#blobUploaderChecked.sendTxLock(finalTx, isConfirmedNonce);
+                    this.#logTransactionHash(key, data.chunkIdArr, txResponse.hash, callback as UploadCallback);
+
+                    const result = await this.#blobUploaderChecked.getTransactionResult(txResponse.hash);
+                    if (!result.success) throw new Error("Transaction failed");
+
+                    return {
+                        type: 'DONE',
+                        index: data.index,
+                        lastChunkId: data.chunkIdArr.at(-1),
+                        chunkDelta: data.chunkIdArr.length,
+                        sizeDelta: data.chunkSizeArr.reduce((acc: number, s: number) => acc + s, 0),
+                        isWrite: true,
+                        costDelta: result.txCost.normalGasCost + result.txCost.blobGasCost + (cost * BigInt(data.chunkIdArr.length)),
+                    };
+                }),
+            ).subscribe({
+                next: (res: any) => {
+                    totalCost += res.costDelta;
+                    totalUploadChunks += res.chunkDelta;
+                    totalUploadSize += res.sizeDelta;
+
+                    callback.onProgress?.(res.lastChunkId, blobChunkCount, res.isWrite);
+                },
+                error: (err: any) => {
+                    callback.onFail?.(err);
+                    callback.onFinish?.(totalUploadChunks, totalUploadSize, totalCost);
+                    resolve();
+                },
+                complete: () => {
+                    callback.onFinish?.(totalUploadChunks, totalUploadSize, totalCost);
+                    resolve();
+                },
+            });
+        });
     }
 
     async #uploadByCalldata(request: UploadRequest): Promise<void> {
@@ -701,35 +749,83 @@ export class FlatDirectory {
         }
     }
 
-    async #sendBlobTx(
+    // blob helper
+    #calculateBlobChunkCount(content: ContentLike): number {
+        let blobChunkCount = -1;
+        if (isFile(content)) {
+            blobChunkCount = Math.ceil(content.size / OP_BLOB_DATA_SIZE);
+        } else if (isBuffer(content)) {
+            blobChunkCount = Math.ceil(content.length / OP_BLOB_DATA_SIZE);
+        }
+        return blobChunkCount;
+    }
+
+    #createBlobBatches(totalChunks: number, maxBatchSize: number) {
+        return Array.from({ length: Math.ceil(totalChunks / maxBatchSize) }, (_, batchIdx) => {
+            const startIdx = batchIdx * maxBatchSize;
+            const endIdx = Math.min(startIdx + maxBatchSize, totalChunks);
+            return {
+                batchIndex: batchIdx,
+                startIdx,
+                endIdx,
+                chunkIdArr: Array.from({ length: endIdx - startIdx }, (_, i) => startIdx + i),
+            };
+        });
+    }
+
+    async #prepareBlobData(content: ContentLike, index: number, count: number): Promise<{ blobArr: Uint8Array[]; chunkSizeArr: number[] }> {
+        const start = index * OP_BLOB_DATA_SIZE;
+        const end = (index + count) * OP_BLOB_DATA_SIZE;
+
+        const data = await getContentChunk(content, start, end);
+        const blobArr = encodeOpBlobs(data);
+
+        const last = data.length - OP_BLOB_DATA_SIZE * (blobArr.length - 1);
+        const chunkSizeArr = blobArr.map((_, i) =>
+            i === blobArr.length - 1 ? last : OP_BLOB_DATA_SIZE
+        );
+
+        return { blobArr, chunkSizeArr };
+    }
+
+    async #buildBlobTx(
         fileContract: ethers.Contract,
-        key: string,
         hexName: string,
         blobArr: Uint8Array[],
         blobCommitmentArr: Uint8Array[],
         chunkIdArr: number[],
         chunkSizeArr: number[],
         cost: bigint,
-        gasIncPct: number,
-        isConfirmedNonce: boolean,
-        callback: UploadCallback
-    ): Promise<ethers.TransactionResponse> {
+        gasIncPct: number
+    ): Promise<ethers.TransactionRequest> {
         // create tx
         const value = cost * BigInt(blobArr.length);
-        const baseTx = await fileContract["writeChunksByBlobs"].populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
+        const baseTx: ethers.TransactionRequest = await fileContract["writeChunksByBlobs"].populateTransaction(hexName, chunkIdArr, chunkSizeArr, {
             value: value,
         });
-        const tx = await this.#blobUploaderChecked.buildBlobTx({
+
+        return await this.#blobUploaderChecked.buildBlobTx({
             baseTx: baseTx,
             blobs: blobArr,
             commitments: blobCommitmentArr,
-            gasIncPct,
+            gasIncPct: gasIncPct
+        });
+    }
+
+    // call data helper
+    #calculateCalldataChunkDetails(content: ContentLike): { chunkDataSize: number; calldataChunkCount: number } {
+        const maxChunkSize = 24 * 1024 - 326;
+        const getChunkInfo = (size: number) => ({
+            chunkDataSize: size > maxChunkSize ? maxChunkSize : size,
+            calldataChunkCount: size > maxChunkSize ? Math.ceil(size / maxChunkSize) : 1
         });
 
-        // send
-        const txResponse = await this.#blobUploaderChecked.sendTxLock(tx, isConfirmedNonce);
-        this.#logTransactionHash(key, chunkIdArr, txResponse.hash, callback);
-        return txResponse;
+        if (isFile(content)) {
+            return getChunkInfo(content.size);
+        } else if (isBuffer(content)) {
+            return getChunkInfo(content.length);
+        }
+        return { chunkDataSize: -1, calldataChunkCount: 1 };
     }
 
     async #sendCalldataTx(
@@ -756,48 +852,6 @@ export class FlatDirectory {
         const txResponse = await this.#blobUploaderChecked.sendTxLock(tx, isConfirmedNonce);
         this.#logTransactionHash(key, chunkId, txResponse.hash, callback);
         return txResponse;
-    }
-
-    #calculateBlobChunkCount(content: ContentLike): number {
-        let blobChunkCount = -1;
-        if (isFile(content)) {
-            blobChunkCount = Math.ceil(content.size / OP_BLOB_DATA_SIZE);
-        } else if (isBuffer(content)) {
-            blobChunkCount = Math.ceil(content.length / OP_BLOB_DATA_SIZE);
-        }
-        return blobChunkCount;
-    }
-
-    async #prepareBlobTxData(content: ContentLike, index: number): Promise<{ blobArr: Uint8Array[]; chunkIdArr: number[]; chunkSizeArr: number[] }> {
-        const data = await getContentChunk(content, index * OP_BLOB_DATA_SIZE, (index + MAX_BLOB_COUNT) * OP_BLOB_DATA_SIZE);
-        const blobArr = encodeOpBlobs(data);
-
-        const chunkIdArr: number[] = [];
-        const chunkSizeArr: number[] = [];
-        for (let j = 0; j < blobArr.length; j++) {
-            chunkIdArr.push(index + j);
-            if (j === blobArr.length - 1) {
-                chunkSizeArr.push(data.length - OP_BLOB_DATA_SIZE * j);
-            } else {
-                chunkSizeArr.push(OP_BLOB_DATA_SIZE);
-            }
-        }
-        return { blobArr, chunkIdArr, chunkSizeArr }
-    }
-
-    #calculateCalldataChunkDetails(content: ContentLike): { chunkDataSize: number; calldataChunkCount: number } {
-        const maxChunkSize = 24 * 1024 - 326;
-        const getChunkInfo = (size: number) => ({
-            chunkDataSize: size > maxChunkSize ? maxChunkSize : size,
-            calldataChunkCount: size > maxChunkSize ? Math.ceil(size / maxChunkSize) : 1
-        });
-
-        if (isFile(content)) {
-            return getChunkInfo(content.size);
-        } else if (isBuffer(content)) {
-            return getChunkInfo(content.length);
-        }
-        return { chunkDataSize: -1, calldataChunkCount: 1 };
     }
 
     #logTransactionHash(key: string, chunkIds: number[] | number, hash: string, callback: UploadCallback) {

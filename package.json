@@ -32,7 +32,8 @@
     "dotenv": "^16.4.5",
     "ethers": "^6.16.0",
     "js-kzg": "^2.0.2",
-    "p-limit": "^3.0.2"
+    "p-limit": "^3.0.2",
+    "rxjs": "^7.8.2"
   },
   "repository": {
     "type": "git",
