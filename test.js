@@ -1,5 +1,5 @@
-const {EthStorage, FlatDirectory, DecodeType} = require("./dist/index.cjs");
-const {NodeFile} = require("./dist/file.cjs");
+const {EthStorage, FlatDirectory, DecodeType} = require("./dist/node/index.cjs");
+const {NodeFile} = require("./dist/node/file.cjs");
 const fs = require('fs');
 const os = require('os');
 const {ethers} = require('ethers');
