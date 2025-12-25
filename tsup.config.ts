@@ -9,6 +9,7 @@ export default defineConfig([
         dts: true,
         clean: true,
         external: ['ethers'],
+        noExternal: ['p-limit'],
         outDir: 'dist/browser',
         esbuildOptions(options) {
             options.define = {
@@ -30,6 +31,7 @@ export default defineConfig([
         sourcemap: false,
         clean: false,
         external: ['ethers', 'js-kzg'],
+        noExternal: ['p-limit'],
         outDir: 'dist/node',
         outExtension({ format }) {
             return { js: format === 'esm' ? '.mjs' : '.cjs' };
