@@ -1,26 +1,40 @@
-import pLimit from 'p-limit';
 import { ethers } from "ethers";
+import pLimit from 'p-limit';
+import { concatMap, from, mergeMap } from 'rxjs';
 import {
-    SDKConfig, EstimateGasRequest, UploadRequest, CostEstimate,
-    DownloadCallback, UploadType, ContentLike, FileBatch,
-    ChunkCountResult, ChunkHashResult, UploadDetails,
-    UploadCallback,
-    FlatDirectoryAbi, FlatDirectoryBytecode, ETHSTORAGE_MAPPING,
-    BLOB_SIZE, OP_BLOB_DATA_SIZE,
-    MAX_BLOB_COUNT, MAX_RETRIES, MAX_CHUNKS,
+    BLOB_SIZE,
+    ChunkCountResult, ChunkHashResult,
+    ContentLike,
+    CostEstimate,
+    DownloadCallback,
+    DUMMY_VERSIONED_COMMITMENT_HASH,
+    EstimateGasRequest,
+    ETHSTORAGE_MAPPING,
+    FileBatch,
     FLAT_DIRECTORY_CONTRACT_VERSION_1_0_0,
     FLAT_DIRECTORY_CONTRACT_VERSION_1_1_0,
-    DUMMY_VERSIONED_COMMITMENT_HASH
+    FlatDirectoryAbi, FlatDirectoryBytecode,
+    MAX_BLOB_COUNT, MAX_CHUNKS,
+    OP_BLOB_DATA_SIZE,
+    SDKConfig,
+    UploadCallback,
+    UploadDetails,
+    UploadRequest,
+    UploadType
 } from './param';
 import {
     BlobUploader,
+    convertToEthStorageHashes,
+    EMPTY_BLOB_CONSTANTS,
     encodeOpBlobs,
     getChainId,
+    getChunkCounts,
+    getChunkHashes,
+    getContentChunk,
+    getUploadInfo,
     isBuffer, isFile,
+    stableRetry,
     stringToHex,
-    retry, getContentChunk,
-    getUploadInfo, getChunkCounts,
-    getChunkHashes, convertToEthStorageHashes,
 } from "./utils";
 
 const defaultCallback: DownloadCallback = {
@@ -528,7 +542,43 @@ export class FlatDirectory {
             totalUploadSize += chunkSizeArr.reduce((acc: number, size: number) => acc + size, 0);
         }
 
-        callback.onFinish!(totalUploadChunks, totalUploadSize, totalCost);
+                    const finalTx = { ...data.baseTx, gasLimit: sharedGasLimit };
+                    const txResponse = await this.#blobUploaderChecked.sendTxLock(finalTx, isConfirmedNonce);
+                    
+                    const result = await this.#blobUploaderChecked.getTransactionResult(txResponse.hash);
+                    this.#logTransactionHash(key, data.chunkIdArr, txResponse.hash, callback as UploadCallback, result.blockNumber, result.timestamp);
+                    
+                    if (!result.success) throw new Error("Transaction failed");
+
+                    return {
+                        type: 'DONE',
+                        index: data.index,
+                        lastChunkId: data.chunkIdArr.at(-1),
+                        chunkDelta: data.chunkIdArr.length,
+                        sizeDelta: data.chunkSizeArr.reduce((acc: number, s: number) => acc + s, 0),
+                        isWrite: true,
+                        costDelta: result.txCost.normalGasCost + result.txCost.blobGasCost + (cost * BigInt(data.chunkIdArr.length)),
+                    };
+                }),
+            ).subscribe({
+                next: (res: any) => {
+                    totalCost += res.costDelta;
+                    totalUploadChunks += res.chunkDelta;
+                    totalUploadSize += res.sizeDelta;
+
+                    callback.onProgress?.(res.lastChunkId, blobChunkCount, res.isWrite);
+                },
+                error: (err: any) => {
+                    callback.onFail?.(err);
+                    callback.onFinish?.(totalUploadChunks, totalUploadSize, totalCost);
+                    resolve();
+                },
+                complete: () => {
+                    callback.onFinish?.(totalUploadChunks, totalUploadSize, totalCost);
+                    resolve();
+                },
+            });
+        });
     }
 
     async #uploadByCallData(request: UploadRequest): Promise<void> {
@@ -577,9 +627,14 @@ export class FlatDirectory {
             }
 
             // upload
-            const txResponse = await retry(() => this.#uploadCallData(fileContract, key, hexName, i,
-                chunk, gasIncPct, isConfirmedNonce, callback as UploadCallback), this.retries);
-            const uploadResult = await retry(() => this._blobUploader.getTransactionResult(txResponse.hash), this.retries);
+            const txResponse = await this.#sendCalldataTx(
+                fileContract, key, hexName, i,
+                chunk, gasIncPct, isConfirmedNonce, callback as UploadCallback
+            );
+            const uploadResult = await this.#blobUploaderChecked.getTransactionResult(txResponse.hash);
+            
+            // Log transaction with block info
+            this.#logTransactionHash(key, i, txResponse.hash, callback as UploadCallback, uploadResult.blockNumber, uploadResult.timestamp);
 
             // count tx costs, regardless of success or failure.
             totalCost += uploadResult.txCost.normalGasCost; // no blob/storage
@@ -701,56 +756,24 @@ export class FlatDirectory {
         }
 
         // send
-        const txResponse = await this._blobUploader.sendTxLock(tx, isConfirmedNonce);
-        this.#printHashLog(key, chunkId, txResponse.hash, callback);
+        const txResponse = await this.#blobUploaderChecked.sendTxLock(tx, isConfirmedNonce);
         return txResponse;
     }
 
-    #getBlobLength(content: ContentLike): number {
-        let blobLength = -1;
-        if (isFile(content)) {
-            blobLength = Math.ceil(content.size / OP_BLOB_DATA_SIZE);
-        } else if (isBuffer(content)) {
-            blobLength = Math.ceil(content.length / OP_BLOB_DATA_SIZE);
-        }
-        return blobLength;
-    }
-
-    async #getBlobInfo(content: ContentLike, index: number): Promise<{ blobArr: Uint8Array[]; chunkIdArr: number[]; chunkSizeArr: number[] }> {
-        const data = await getContentChunk(content, index * OP_BLOB_DATA_SIZE, (index + MAX_BLOB_COUNT) * OP_BLOB_DATA_SIZE);
-        const blobArr = encodeOpBlobs(data);
-
-        const chunkIdArr: number[] = [];
-        const chunkSizeArr: number[] = [];
-        for (let j = 0; j < blobArr.length; j++) {
-            chunkIdArr.push(index + j);
-            if (j === blobArr.length - 1) {
-                chunkSizeArr.push(data.length - OP_BLOB_DATA_SIZE * j);
-            } else {
-                chunkSizeArr.push(OP_BLOB_DATA_SIZE);
+    #logTransactionHash(key: string, chunkIds: number[] | number, hash: string, callback: UploadCallback, blockNumber?: number, timestamp?: number) {
+        const ids = Array.isArray(chunkIds) ? chunkIds.join(",") : chunkIds;
+        let primaryMessage = `Transaction hash: ${hash} for chunk(s) ${ids}.`;
+        
+        // Add block info if available
+        if (blockNumber !== undefined) {
+            primaryMessage += ` Block: ${blockNumber}`;
+            if (timestamp !== undefined) {
+                const date = new Date(timestamp * 1000);
+                const timeStr = date.toTimeString().split(' ')[0]; // HH:MM:SS format
+                primaryMessage += `, Time: ${timeStr}`;
             }
         }
-        return { blobArr, chunkIdArr, chunkSizeArr }
-    }
-
-    #getChunkLength(content: ContentLike): { chunkDataSize: number; chunkLength: number } {
-        const maxChunkSize = 24 * 1024 - 326;
-        const getChunkInfo = (size: number) => ({
-            chunkDataSize: size > maxChunkSize ? maxChunkSize : size,
-            chunkLength: size > maxChunkSize ? Math.ceil(size / maxChunkSize) : 1
-        });
-
-        if (isFile(content)) {
-            return getChunkInfo(content.size);
-        } else if (isBuffer(content)) {
-            return getChunkInfo(content.length);
-        }
-        return { chunkDataSize: -1, chunkLength: 1 };
-    }
-
-    #printHashLog(key: string, chunkIds: number[] | number, hash: string, callback: UploadCallback) {
-        const ids = Array.isArray(chunkIds) ? chunkIds.join(",") : chunkIds;
-        const primaryMessage = `Transaction hash: ${hash} for chunk(s) ${ids}.`;
+        
         const fullMessage = `${primaryMessage} (Key: ${key})`;
         this.#log(fullMessage);
 
@@ -760,8 +783,9 @@ export class FlatDirectory {
     }
 
     #log(message: string, isError: boolean = false) {
-        if (!this.logEnabled) return;
-        const prefix = "FlatDirectory: ";
+        if (!this.#isLoggingEnabled) return;
+        const timestamp = new Date().toISOString();
+        const prefix = `${timestamp} FlatDirectory: `;
         if (isError) {
             console.error(`${prefix}${message}`);
         } else {

@@ -1,8 +1,12 @@
+import { Mutex } from "async-mutex";
 import { ethers } from "ethers";
-import { Mutex } from 'async-mutex';
 import { KZG } from "js-kzg";
-import { calcTxCost, computeVersionedCommitmentHash, convertToEthStorageHashes } from "./util";
 import { UploadResult } from "../param";
+import { stableRetry } from "./retry";
+import {
+    calcTxCost, computeVersionedCommitmentHash,
+    convertToEthStorageHashes
+} from "./util";
 
 export class BlobUploader {
     private readonly provider: ethers.JsonRpcProvider;
@@ -46,15 +50,39 @@ export class BlobUploader {
         return await this.send(tx, isConfirmedNonce, blobs, commitments, true);
     }
 
-    private async send(
-        tx: ethers.TransactionRequest,
-        isConfirmedNonce: boolean,
-        blobs: Uint8Array[] | null = null,
-        commitments: Uint8Array[] | null = null,
-        isLock: boolean = false
-    ): Promise<ethers.TransactionResponse> {
-        if (isConfirmedNonce) {
-            tx.nonce = await this.provider.getTransactionCount(this.wallet.address, "latest");
+    async getTransactionResult(hash: string): Promise<UploadResult> {
+        if (!hash || !ethers.isHexString(hash)) throw new Error("Invalid transaction hash");
+        const receipt = await stableRetry(() => this.#provider.waitForTransaction(hash));
+        
+        // Get block information
+        let blockNumber: number | undefined;
+        let timestamp: number | undefined;
+        if (receipt?.blockNumber) {
+            try {
+                const block = await this.#provider.getBlock(receipt.blockNumber);
+                blockNumber = receipt.blockNumber;
+                timestamp = block?.timestamp;
+            } catch (e) {
+                // If block info retrieval fails, continue without it
+            }
+        }
+        
+        return {
+            txCost: calcTxCost(receipt), 
+            success: receipt?.status === 1,
+            blockNumber,
+            timestamp
+        };
+    }
+
+    /**
+     * Computes KZG commitments and cell proofs for the given blobs,
+     * then constructs an EIP-4844 transaction request with the corresponding fields.
+     */
+    async buildBlobTx(params: BuildBlobTxParams): Promise<ethers.TransactionRequest> {
+        const {baseTx, blobs, commitments, gasIncPct = BLOB_TX.DEFAULT_GAS_INC_PCT} = params;
+        if (gasIncPct < 0) {
+            throw new Error("Gas increase percentage cannot be negative");
         }
 
         if (!blobs) {

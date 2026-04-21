@@ -67,6 +67,8 @@ export interface TxCost {
 export interface UploadResult {
     txCost: TxCost;
     success: boolean;
+    blockNumber?: number;
+    timestamp?: number;
 }
 
 export interface FileBatch {
