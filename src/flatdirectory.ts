@@ -76,7 +76,7 @@ export class FlatDirectory {
         const factory = new ethers.ContractFactory(FlatDirectoryAbi, FlatDirectoryBytecode, this.#walletChecked);
         try {
             // @ts-ignore
-            const contract = await factory.deploy(0, OP_BLOB_DATA_SIZE, ethStorage, {gasLimit: 3800000});
+            const contract = await factory.deploy(0, OP_BLOB_DATA_SIZE, ethStorage);
             await contract.waitForDeployment();
 
             this.#contractAddr = await contract.getAddress();
